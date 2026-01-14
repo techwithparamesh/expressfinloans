@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { motion, AnimatePresence } from "framer-motion";
+import logoImage from "@assets/image_1768392877999.png";
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
@@ -50,23 +51,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         ))}
       </div>
 
-      {/* Senior Header Design */}
+      {/* Senior Header Design with Logo */}
       <header
         className={`fixed top-0 left-0 right-0 z-40 transition-all duration-500 ${
           isScrolled 
             ? "py-3 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm" 
-            : "py-6 bg-transparent"
+            : "py-6 bg-white/40 backdrop-blur-sm"
         }`}
       >
         <div className="container mx-auto px-6 flex justify-between items-center">
           <Link href="/">
-            <a className="flex flex-col group">
-              <span className="text-2xl font-serif font-black tracking-tighter text-slate-900 group-hover:text-primary transition-colors">
-                EXPRESS<span className="text-secondary">.</span>
-              </span>
-              <span className="text-[10px] uppercase tracking-[0.3em] font-bold text-slate-500 -mt-1">
-                Financial Services
-              </span>
+            <a className="flex items-center gap-3 group">
+              <img 
+                src={logoImage} 
+                alt="Express Financial Services Logo" 
+                className="h-10 md:h-14 w-auto mix-blend-multiply transition-transform group-hover:scale-105" 
+                style={{ clipPath: 'inset(2px 2px 2px 2px)' }}
+              />
             </a>
           </Link>
 
@@ -124,26 +125,30 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </AnimatePresence>
       </main>
 
-      <footer className="bg-slate-950 text-white pt-24 pb-12 overflow-hidden relative">
+      <footer className="bg-slate-950 text-white pt-24 pb-12 overflow-hidden relative border-t-4 border-secondary">
         <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 blur-[100px] rounded-full -mr-48 -mt-48" />
         <div className="container mx-auto px-6 relative z-10">
           <div className="grid lg:grid-cols-12 gap-16 mb-20">
             <div className="lg:col-span-5">
               <Link href="/">
                 <a className="flex flex-col mb-8">
-                  <span className="text-3xl font-serif font-black tracking-tighter">EXPRESS<span className="text-secondary">.</span></span>
-                  <span className="text-[10px] uppercase tracking-[0.4em] font-bold text-slate-500 -mt-1">Financial Services</span>
+                  <img 
+                    src={logoImage} 
+                    alt="Logo" 
+                    className="h-12 md:h-16 w-auto brightness-0 invert self-start mb-6" 
+                    style={{ clipPath: 'inset(2px 2px 2px 2px)' }}
+                  />
+                  <p className="text-slate-400 text-lg leading-relaxed max-w-md mb-8">
+                    Pioneering financial excellence since 2005. We provide bespoke solutions that empower individuals and enterprises to scale new heights.
+                  </p>
                 </a>
               </Link>
-              <p className="text-slate-400 text-lg leading-relaxed max-w-md mb-8">
-                Pioneering financial excellence since 2005. We provide bespoke solutions that empower individuals and enterprises to scale new heights.
-              </p>
               <div className="flex gap-4">
-                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
+                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-center min-w-[100px]">
                   <p className="text-secondary font-black text-2xl">18+</p>
                   <p className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Years of Trust</p>
                 </div>
-                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
+                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-center min-w-[100px]">
                   <p className="text-primary font-black text-2xl">5K+</p>
                   <p className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Global Clients</p>
                 </div>

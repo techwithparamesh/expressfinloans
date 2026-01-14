@@ -5,6 +5,7 @@ import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { ArrowUpRight, ShieldCheck, Zap, Globe, TrendingUp, Home as HomeIcon, Building2, Car, Briefcase, GraduationCap, HeartPulse, Building, Bus } from "lucide-react";
 import heroImage from "@assets/generated_images/modern_family_home_with_happy_couple_keys.png";
+import logoImage from "@assets/image_1768392877999.png";
 
 const stats = [
   { label: "Assets Managed", value: "₹500Cr+" },
@@ -46,9 +47,14 @@ export default function Home() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <span className="inline-block px-4 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold uppercase tracking-[0.3em] mb-6">
-                Established 2005
-              </span>
+              <div className="mb-8 inline-block">
+                <img 
+                  src={logoImage} 
+                  alt="Express Financial Services" 
+                  className="h-16 md:h-24 w-auto brightness-0 invert" 
+                  style={{ clipPath: 'inset(2px 2px 2px 2px)' }}
+                />
+              </div>
               <h1 className="text-6xl md:text-8xl font-black font-serif leading-[1.1] mb-8 tracking-tighter">
                 Financial <br/>
                 <span className="text-gradient">Precision.</span>
@@ -58,7 +64,7 @@ export default function Home() {
               </p>
               <div className="flex flex-wrap gap-6">
                 <Link href="/contact">
-                  <Button size="lg" className="h-16 px-10 rounded-2xl bg-secondary text-white hover:bg-secondary/90 text-lg font-bold shadow-2xl shadow-secondary/20 group">
+                  <Button size="lg" className="h-16 px-10 rounded-2xl bg-secondary text-white hover:bg-secondary/90 text-lg font-bold shadow-2xl shadow-secondary/20 group border-none">
                     Start Your Journey <ArrowUpRight className="ml-2 h-5 w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                   </Button>
                 </Link>
@@ -72,14 +78,14 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Floating Stats Bar */}
-        <div className="absolute bottom-0 left-0 right-0 glass border-t-0 border-x-0 py-10">
+        {/* Floating Stats Bar - Aligned and Balanced */}
+        <div className="absolute bottom-0 left-0 right-0 glass border-t-0 border-x-0 py-8">
           <div className="container mx-auto px-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div className="flex flex-wrap justify-between items-center gap-8 md:gap-4">
               {stats.map((stat, i) => (
-                <div key={i} className="text-center md:text-left border-r border-slate-200 last:border-0 pr-4">
-                  <p className="text-4xl font-serif font-black text-slate-900 mb-1">{stat.value}</p>
-                  <p className="text-[10px] uppercase font-bold tracking-widest text-slate-500">{stat.label}</p>
+                <div key={i} className="flex-1 min-w-[140px] text-center border-r border-slate-200 last:border-0 px-4">
+                  <p className="text-3xl md:text-4xl font-serif font-black text-slate-900 mb-1 leading-none">{stat.value}</p>
+                  <p className="text-[10px] uppercase font-bold tracking-widest text-slate-500 whitespace-nowrap">{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -178,7 +184,7 @@ export default function Home() {
                     </div>
                     <h4 className="text-2xl font-serif font-bold text-slate-900 mb-4">{service.title}</h4>
                     <p className="text-slate-500 text-sm leading-relaxed mb-8 flex-grow">{service.desc}</p>
-                    <Link href="/contact">
+                    <Link href="/services">
                       <a className="text-xs uppercase font-bold tracking-widest text-primary flex items-center gap-2 group/btn">
                         Learn More <ArrowUpRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1" />
                       </a>
@@ -206,7 +212,7 @@ export default function Home() {
               </p>
               <div className="pt-8">
                 <Link href="/contact">
-                  <Button size="lg" className="h-20 px-16 rounded-[2rem] bg-primary hover:bg-white hover:text-primary text-xl font-bold transition-all shadow-3xl shadow-primary/20">
+                  <Button size="lg" className="h-20 px-16 rounded-[2rem] bg-primary hover:bg-white hover:text-primary text-xl font-bold transition-all shadow-3xl shadow-primary/20 border-none">
                     Schedule a Consultation
                   </Button>
                 </Link>
