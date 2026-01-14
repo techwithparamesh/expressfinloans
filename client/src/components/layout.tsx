@@ -51,18 +51,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         ))}
       </div>
 
-      {/* Senior Header Design - Fixed Logo Aesthetics */}
+      {/* Senior Header Design - Solid White Background */}
       <header
-        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-500 ${
-          isScrolled 
-            ? "py-3 bg-white/95 backdrop-blur-xl border-b border-slate-200 shadow-lg" 
-            : "py-6 bg-white/10 backdrop-blur-md"
-        }`}
+        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 py-4 bg-white border-b border-slate-200 shadow-sm`}
       >
         <div className="container mx-auto px-6 flex justify-between items-center">
           <Link href="/">
             <a className="flex items-center gap-3 group">
-              <div className="bg-white p-2.5 rounded-xl shadow-xl border border-slate-100 flex items-center justify-center">
+              <div className="flex items-center justify-center">
                 <img 
                   src={logoImage} 
                   alt="Express Financial Services Logo" 
@@ -76,9 +72,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {navLinks.map((link) => (
               <Link key={link.href} href={link.href}>
                 <a className={`text-sm font-bold uppercase tracking-widest transition-all relative group ${
-                  location === link.href 
-                    ? "text-primary" 
-                    : isScrolled ? "text-slate-700" : "text-white"
+                  location === link.href ? "text-primary" : "text-slate-600 hover:text-primary"
                 }`}>
                   {link.label}
                   <span className={`absolute -bottom-1 left-0 w-0 h-0.5 bg-secondary transition-all group-hover:w-full ${
@@ -96,7 +90,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           <Sheet>
             <SheetTrigger asChild className="lg:hidden">
-              <Button variant="ghost" size="icon" className={`rounded-full ${isScrolled ? "text-slate-900" : "text-white"}`}>
+              <Button variant="ghost" size="icon" className="rounded-full text-slate-900">
                 <Menu className="h-6 w-6" />
               </Button>
             </SheetTrigger>
@@ -115,7 +109,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="flex-grow">
+      <main className="flex-grow pt-24">
         <AnimatePresence mode="wait">
           <motion.div
             initial={{ opacity: 0, y: 10 }}

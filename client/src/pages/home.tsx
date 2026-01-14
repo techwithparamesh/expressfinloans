@@ -5,7 +5,6 @@ import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { ArrowUpRight, ShieldCheck, Zap, Globe, TrendingUp, Home as HomeIcon, Building2, Briefcase, Building } from "lucide-react";
 import heroImage from "@assets/generated_images/modern_family_home_with_happy_couple_keys.png";
-import logoImage from "@assets/image_1768392877999.png";
 
 const stats = [
   { label: "Assets Managed", value: "₹500Cr+" },
@@ -25,7 +24,7 @@ export default function Home() {
   return (
     <Layout>
       {/* Cinematic Hero - Fixed Spacing and Overlap */}
-      <section className="relative min-h-screen flex items-center overflow-hidden bg-slate-950">
+      <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-slate-950">
         <motion.div 
           initial={{ scale: 1.1 }}
           animate={{ scale: 1 }}
@@ -47,13 +46,6 @@ export default function Home() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <div className="mb-10 inline-block bg-white/95 p-4 rounded-2xl shadow-2xl backdrop-blur-sm border border-white/20">
-                <img 
-                  src={logoImage} 
-                  alt="Express Financial Services" 
-                  className="h-12 md:h-16 w-auto" 
-                />
-              </div>
               <h1 className="text-6xl md:text-8xl font-black font-serif leading-[1] mb-8 tracking-tighter">
                 Financial <br/>
                 <span className="text-gradient">Precision.</span>
