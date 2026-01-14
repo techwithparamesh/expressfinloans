@@ -4,13 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Phone, Mail, MapPin, Send } from "lucide-react";
+import { Phone, Mail, MapPin, Send, MessageSquare, Clock, Shield } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
-import { useEffect } from "react";
+import { motion } from "framer-motion";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -22,9 +21,6 @@ const formSchema = z.object({
 
 export default function Contact() {
   const { toast } = useToast();
-  const [location] = useLocation();
-  const searchParams = new URLSearchParams(window.location.search);
-  const preSelectedService = searchParams.get("service");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -32,180 +28,231 @@ export default function Contact() {
       name: "",
       phone: "",
       email: "",
-      service: preSelectedService || "",
+      service: "",
       message: "",
     },
   });
-  
-  // Update form if URL param changes
-  useEffect(() => {
-    if (preSelectedService) {
-      form.setValue("service", preSelectedService);
-    }
-  }, [preSelectedService, form]);
 
   function onSubmit(data: z.infer<typeof formSchema>) {
     console.log(data);
     toast({
-      title: "Request Sent Successfully!",
-      description: "Our team will contact you shortly.",
-      className: "bg-green-600 text-white border-none",
+      title: "Priority Request Received",
+      description: "Our senior advisor will contact you shortly.",
+      className: "bg-slate-900 text-white border-none rounded-2xl",
     });
     form.reset();
   }
 
+  const contactMethods = [
+    {
+      icon: Phone,
+      title: "Direct Advisory",
+      desc: "Speak with our financial experts",
+      values: ["+91 90000 01339", "+91 90910 01008"],
+      hrefs: ["tel:+919000001339", "tel:+919091001008"],
+      color: "bg-primary/10 text-primary"
+    },
+    {
+      icon: Mail,
+      title: "Official Inquiry",
+      desc: "Detailed proposals and documentation",
+      values: ["info@expressfinancialservices.com"],
+      hrefs: ["mailto:info@expressfinancialservices.com"],
+      color: "bg-secondary/10 text-secondary"
+    },
+    {
+      icon: Clock,
+      title: "Business Hours",
+      desc: "Our active operational window",
+      values: ["Mon - Sat: 9:00 AM - 6:00 PM"],
+      hrefs: [],
+      color: "bg-slate-100 text-slate-600"
+    }
+  ];
+
   return (
     <Layout>
-      <div className="bg-primary py-20 text-white">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-serif font-bold mb-4">Contact Us</h1>
-          <p className="text-blue-100 max-w-2xl mx-auto text-lg">
-            Get in touch for expert financial advice and loan assistance.
-          </p>
+      {/* Editorial Header */}
+      <section className="bg-slate-950 pt-32 pb-48 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/40 blur-[120px] rounded-full -mr-64 -mt-64" />
         </div>
-      </div>
+        
+        <div className="container mx-auto px-6 relative z-10">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-4xl mx-auto text-center space-y-8"
+          >
+            <h2 className="text-sm uppercase tracking-[0.6em] font-black text-secondary">Connect With Excellence</h2>
+            <h1 className="text-5xl md:text-8xl font-serif font-black text-white leading-tight tracking-tighter">
+              Let's architect your <br/>
+              <span className="text-gradient italic font-light">financial future.</span>
+            </h1>
+            <p className="text-2xl text-slate-400 font-light max-w-2xl mx-auto leading-relaxed">
+              Experience the pinnacle of financial advisory. Reach out to our senior partners for bespoke solutions tailored to your ambition.
+            </p>
+          </motion.div>
+        </div>
+      </section>
 
-      <section className="py-20">
-        <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12">
+      <section className="pb-32 -mt-32 relative z-20">
+        <div className="container mx-auto px-6">
+          <div className="grid lg:grid-cols-12 gap-12 items-start">
             
-            {/* Contact Info */}
-            <div className="space-y-8">
-              <div className="bg-white p-12 rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-100 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16" />
-                <h3 className="text-3xl font-serif font-black text-slate-900 mb-10 tracking-tight text-center">Get In Touch</h3>
-                
-                <div className="space-y-10">
-                  <div className="flex items-center flex-col text-center gap-4 group">
-                    <div className="bg-primary/10 p-5 rounded-3xl text-primary group-hover:bg-primary group-hover:text-white transition-all duration-500 shadow-inner">
-                      <Phone className="h-8 w-8" />
+            {/* Senior Sidebar */}
+            <div className="lg:col-span-5 space-y-8">
+              <div className="grid gap-6">
+                {contactMethods.map((method, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                    className="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-100 group hover:shadow-2xl transition-all duration-500"
+                  >
+                    <div className="flex items-start gap-6">
+                      <div className={`${method.color} p-4 rounded-2xl group-hover:scale-110 transition-transform duration-500`}>
+                        <method.icon className="h-6 w-6" />
+                      </div>
+                      <div className="space-y-2">
+                        <h4 className="text-xl font-serif font-bold text-slate-900">{method.title}</h4>
+                        <p className="text-slate-500 text-sm mb-4">{method.desc}</p>
+                        {method.values.map((val, idx) => (
+                          method.hrefs[idx] ? (
+                            <a key={idx} href={method.hrefs[idx]} className="block text-lg font-medium text-slate-800 hover:text-primary transition-colors">
+                              {val}
+                            </a>
+                          ) : (
+                            <p key={idx} className="text-lg font-medium text-slate-800">{val}</p>
+                          )
+                        ))}
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Direct Lines</p>
-                      <a href="tel:+919000001339" className="text-2xl font-serif font-bold text-slate-900 hover:text-secondary transition-colors block leading-tight">90000 01339</a>
-                      <a href="tel:+919091001008" className="text-2xl font-serif font-bold text-slate-900 hover:text-secondary transition-colors block leading-tight">90910 01008</a>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center flex-col text-center gap-4 group">
-                    <div className="bg-secondary/10 p-5 rounded-3xl text-secondary group-hover:bg-secondary group-hover:text-white transition-all duration-500 shadow-inner">
-                      <Mail className="h-8 w-8" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Email Address</p>
-                      <a href="mailto:info@expressfinancialservices.com" className="text-xl font-serif font-bold text-slate-900 hover:text-primary transition-colors block">
-                        info@expressfinancialservices.com
-                      </a>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center flex-col text-center gap-4 group">
-                    <div className="bg-slate-100 p-5 rounded-3xl text-slate-600 group-hover:bg-slate-900 group-hover:text-white transition-all duration-500 shadow-inner">
-                      <MapPin className="h-8 w-8" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Office Location</p>
-                      <p className="text-lg font-serif font-medium text-slate-700 leading-relaxed">
-                        Near City Center, Main Road,<br />
-                        Hyderabad, Telangana - 500001
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                  </motion.div>
+                ))}
               </div>
 
-              {/* Map */}
-              <div className="h-[400px] w-full bg-slate-100 rounded-[2.5rem] overflow-hidden relative shadow-2xl shadow-slate-200/50 border border-slate-100">
-                 <iframe 
-                   src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d243647.3160407063!2d78.26795861198664!3d17.41229980062495!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bcb99daeaebd2c7%3A0xae93b78392bafbc2!2sHyderabad%2C%20Telangana!5e0!3m2!1sen!2sin!4v1709823456789!5m2!1sen!2sin" 
-                   width="100%" 
-                   height="100%" 
-                   style={{border:0}} 
-                   loading="lazy" 
-                   referrerPolicy="no-referrer-when-downgrade"
-                   title="Office Map"
-                 ></iframe>
+              {/* Trust Badge */}
+              <div className="bg-slate-900 rounded-[2rem] p-10 text-white relative overflow-hidden">
+                <div className="relative z-10 space-y-4">
+                  <div className="flex items-center gap-3 text-secondary">
+                    <Shield className="h-6 w-6" />
+                    <span className="text-xs font-black uppercase tracking-widest">Client Protection</span>
+                  </div>
+                  <h4 className="text-2xl font-serif font-bold">Your privacy is our priority.</h4>
+                  <p className="text-slate-400 text-sm leading-relaxed">
+                    All communications are strictly confidential and encrypted. We never share your data with third parties.
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* Contact Form */}
-            <Card className="shadow-xl border-t-4 border-t-secondary">
-              <CardContent className="p-8">
-                <h3 className="text-2xl font-serif font-bold text-slate-900 mb-2">Request a Call Back</h3>
-                <p className="text-slate-500 mb-8">Fill out the form below and we will get back to you within 24 hours.</p>
+            {/* Modern Lead Capture Form */}
+            <div className="lg:col-span-7">
+              <Card className="rounded-[3rem] border-0 shadow-3xl overflow-hidden bg-white">
+                <CardContent className="p-12 md:p-16">
+                  <div className="mb-12 space-y-4">
+                    <div className="flex items-center gap-3 text-primary">
+                      <MessageSquare className="h-6 w-6" />
+                      <span className="text-xs font-black uppercase tracking-widest">Immediate Response</span>
+                    </div>
+                    <h3 className="text-4xl font-serif font-black text-slate-900 tracking-tighter">Initiate Consultation</h3>
+                    <p className="text-slate-500 text-lg">Complete this form to receive a prioritized call from our senior financial advisor.</p>
+                  </div>
 
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">Full Name</label>
-                      <Input 
-                        placeholder="John Doe" 
-                        {...form.register("name")} 
-                        className={form.formState.errors.name ? "border-red-500" : ""}
-                      />
-                      {form.formState.errors.name && <p className="text-xs text-red-500">{form.formState.errors.name.message}</p>}
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                    <div className="grid md:grid-cols-2 gap-8">
+                      <div className="space-y-3">
+                        <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Full Identity</label>
+                        <Input 
+                          placeholder="e.g. Alexander Pierce" 
+                          {...form.register("name")} 
+                          className="h-16 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-primary transition-all text-lg px-6"
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Contact Number</label>
+                        <Input 
+                          placeholder="+91 00000 00000" 
+                          {...form.register("phone")}
+                          className="h-16 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-primary transition-all text-lg px-6"
+                        />
+                      </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">Mobile Number</label>
-                      <Input 
-                        placeholder="9876543210" 
-                        {...form.register("phone")}
-                        className={form.formState.errors.phone ? "border-red-500" : ""}
-                      />
-                      {form.formState.errors.phone && <p className="text-xs text-red-500">{form.formState.errors.phone.message}</p>}
+                    <div className="grid md:grid-cols-2 gap-8">
+                      <div className="space-y-3">
+                        <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Electronic Mail</label>
+                        <Input 
+                          placeholder="alexander@corporate.com" 
+                          type="email"
+                          {...form.register("email")}
+                          className="h-16 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-primary transition-all text-lg px-6"
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Desired Solution</label>
+                        <Select onValueChange={(value) => form.setValue("service", value)}>
+                          <SelectTrigger className="h-16 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-primary transition-all text-lg px-6">
+                            <SelectValue placeholder="Select expertise" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-2xl border-slate-100 shadow-2xl">
+                            <SelectItem value="Home Loans">Elite Home Financing</SelectItem>
+                            <SelectItem value="Business Loans">Corporate Capital</SelectItem>
+                            <SelectItem value="SME Loans">SME Growth Funding</SelectItem>
+                            <SelectItem value="Mortgage Loans">Property Leveraging</SelectItem>
+                            <SelectItem value="Other">Custom Advisory</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Email Address</label>
-                    <Input 
-                      placeholder="john@example.com" 
-                      type="email"
-                      {...form.register("email")}
-                      className={form.formState.errors.email ? "border-red-500" : ""}
-                    />
-                    {form.formState.errors.email && <p className="text-xs text-red-500">{form.formState.errors.email.message}</p>}
-                  </div>
+                    <div className="space-y-3">
+                      <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Executive Summary (Optional)</label>
+                      <Textarea 
+                        placeholder="Briefly describe your financial objectives..." 
+                        className="min-h-[150px] rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-primary transition-all text-lg p-6 resize-none"
+                        {...form.register("message")}
+                      />
+                    </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Service Interested In</label>
-                    <Select 
-                      onValueChange={(value) => form.setValue("service", value)}
-                      defaultValue={form.getValues("service")}
-                    >
-                      <SelectTrigger className={form.formState.errors.service ? "border-red-500" : ""}>
-                        <SelectValue placeholder="Select a service" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Home Loans">Home Loans</SelectItem>
-                        <SelectItem value="Personal Loans">Personal Loans</SelectItem>
-                        <SelectItem value="Business Loans">Business Loans</SelectItem>
-                        <SelectItem value="Car Loans">Car Loans</SelectItem>
-                        <SelectItem value="Mortgage Loans">Mortgage Loans</SelectItem>
-                        <SelectItem value="Education Loans">Education Loans</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {form.formState.errors.service && <p className="text-xs text-red-500">{form.formState.errors.service.message}</p>}
-                  </div>
+                    <Button type="submit" className="w-full h-20 text-xl bg-primary hover:bg-slate-900 font-bold rounded-2xl shadow-2xl shadow-primary/20 transition-all duration-500 group">
+                      Secure My Consultation <Send className="ml-3 w-6 h-6 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Message (Optional)</label>
-                    <Textarea 
-                      placeholder="Tell us more about your requirement..." 
-                      className="min-h-[100px]"
-                      {...form.register("message")}
-                    />
-                  </div>
+          </div>
+        </div>
+      </section>
 
-                  <Button type="submit" className="w-full h-12 text-lg bg-primary hover:bg-primary/90 font-bold">
-                    Submit Request <Send className="ml-2 w-4 h-4" />
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-
+      {/* Map Section */}
+      <section className="py-20 bg-slate-50">
+        <div className="container mx-auto px-6">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-8 mb-16">
+            <div className="space-y-2">
+              <h2 className="text-3xl font-serif font-black text-slate-900 tracking-tight">Our Headquarters</h2>
+              <p className="text-slate-500 flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> Near City Center, Main Road, Hyderabad</p>
+            </div>
+            <Button variant="outline" className="rounded-full px-10 h-14 border-slate-200 hover:bg-white text-lg font-bold">
+              Get Directions
+            </Button>
+          </div>
+          <div className="h-[500px] w-full bg-slate-200 rounded-[3rem] overflow-hidden relative shadow-2xl border-8 border-white">
+             <iframe 
+               src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d243647.3160407063!2d78.26795861198664!3d17.41229980062495!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bcb99daeaebd2c7%3A0xae93b78392bafbc2!2sHyderabad%2C%20Telangana!5e0!3m2!1sen!2sin!4v1709823456789!5m2!1sen!2sin" 
+               width="100%" 
+               height="100%" 
+               style={{border:0}} 
+               loading="lazy" 
+               referrerPolicy="no-referrer-when-downgrade"
+               title="Office Map"
+             ></iframe>
           </div>
         </div>
       </section>
