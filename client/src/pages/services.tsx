@@ -1,147 +1,223 @@
 import Layout from "@/components/layout";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
+import { 
+  ArrowUpRight, 
+  Home, 
+  Building, 
+  Briefcase, 
+  Building2, 
+  ShieldCheck, 
+  Clock, 
+  Zap, 
+  FileText, 
+  CheckCircle2
+} from "lucide-react";
 import { Link } from "wouter";
 
-const allServices = [
+const services = [
   {
     id: "home-loans",
-    title: "Home Loans",
-    description: "Make your dream home a reality with our hassle-free home loan solutions. We offer competitive interest rates and flexible tenures.",
-    benefits: ["Lowest interest rates", "Higher eligibility", "Minimal documentation", "Doorstep service"],
-    target: "Salaried & Self-employed individuals looking to buy or construct a home."
+    icon: Home,
+    title: "Premium Home Financing",
+    subtitle: "Elite Mortgages for Bespoke Residences",
+    desc: "Experience seamless property acquisition with our customized mortgage solutions. We offer competitive interest rates and high-loan-to-value ratios tailored for premium real estate.",
+    features: ["Interest rates from 8.5%", "Tenure up to 30 years", "Zero processing fee for elite clients", "Bespoke repayment plans"],
+    image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800",
+    color: "from-blue-500/10 to-blue-600/5"
   },
   {
     id: "mortgage-loans",
-    title: "Mortgage Loans",
-    description: "Unlock the hidden value of your property. Get a loan against property for personal or business needs with extended repayment options.",
-    benefits: ["High loan value", "Longer repayment tenure", "Lower interest than personal loans", "Quick processing"],
-    target: "Property owners needing funds for expansion, medical, or marriage expenses."
-  },
-  {
-    id: "sme-loans",
-    title: "SME Loans",
-    description: "Fuel your business growth with our tailored SME loan products designed for small and medium enterprises.",
-    benefits: ["Customized limits", "Collateral-free options", "Competitive rates", "Quick disbursement"],
-    target: "Small & Medium Business owners."
-  },
-  {
-    id: "car-loans",
-    title: "Car Loans",
-    description: "Drive home your dream car today. We offer funding for new and used cars with up to 100% on-road funding for select profiles.",
-    benefits: ["Up to 100% funding", "Fast approval", "Flexible EMI options", " minimal paperwork"],
-    target: "Anyone looking to purchase a personal or commercial vehicle."
+    icon: Building,
+    title: "Property Leveraging",
+    subtitle: "Capitalize on Your Fixed Assets",
+    desc: "Unlock the inherent value of your residential or commercial property. Our mortgage-backed credit lines provide the liquidity needed for major life milestones or strategic reinvestment.",
+    features: ["Loan against property up to ₹50Cr", "Flexible end-use of funds", "Minimal documentation", "Instant approval window"],
+    image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=800",
+    color: "from-red-500/10 to-red-600/5"
   },
   {
     id: "business-loans",
-    title: "Business Loans",
-    description: "Expand your operations, buy inventory, or manage cash flow with our unsecured business loans.",
-    benefits: ["No collateral required", "Funds in 48 hours", "Flexible tenure", "Minimum documentation"],
-    target: "Business owners with 3+ years of vintage."
+    icon: Building2,
+    title: "Corporate Growth Capital",
+    subtitle: "Unsecured Funding for Global Ambition",
+    desc: "Fuel your enterprise's expansion with our rapid-access business credit. Designed for companies ready to scale, our solutions provide capital without collateral constraints.",
+    features: ["Unsecured loans up to ₹1Cr", "Approval in 48 hours", "Competitive corporate rates", "Flexible drawdown options"],
+    image: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=800",
+    color: "from-slate-500/10 to-slate-600/5"
   },
   {
-    id: "commercial-vehicle",
-    title: "Commercial Vehicle Loans",
-    description: "Funding for trucks, buses, tippers, and light commercial vehicles to keep your logistics business moving.",
-    benefits: ["Funding for new & used vehicles", "Simple documentation", "Quick turnaround", "Competitive rates"],
-    target: "Transport operators and fleet owners."
-  },
-  {
-    id: "personal-loans",
-    title: "Personal Loans",
-    description: "Quick funds for any personal need - be it travel, wedding, medical emergency, or home renovation.",
-    benefits: ["No security needed", "Instant approval", "Funds in 24 hours", "Easy repayment"],
-    target: "Salaried individuals."
-  },
-  {
-    id: "education-loans",
-    title: "Education Loans",
-    description: "Invest in your future. We provide education loans for studies in India and abroad covering tuition and living expenses.",
-    benefits: ["Covers 100% expenses", "Moratorium period", "Tax benefits", "Low interest rates"],
-    target: "Students pursuing higher education."
-  },
-  {
-    id: "lrd-loans",
-    title: "LRD Loans (Lease Rental Discounting)",
-    description: "Get a loan against your future rental income from commercial properties.",
-    benefits: ["High loan amount", "Utilize future income", "Long tenure", "Attractive rates"],
-    target: "Property owners with leased commercial spaces."
-  },
-  {
-    id: "project-funding",
-    title: "Project Funding",
-    description: "End-to-end financial support for real estate and infrastructure developers.",
-    benefits: ["Construction finance", "Flexible drawdowns", "Expert advisory", "Structured deals"],
-    target: "Real estate developers and builders."
-  },
-  {
-    id: "school-bus",
-    title: "School Bus Funding",
-    description: "Specialized loans for educational institutions to expand their transport fleet.",
-    benefits: ["Special rates for schools", "Seasonal repayment options", "Bulk funding", "Quick process"],
-    target: "Schools and Educational Trusts."
-  },
-  {
-    id: "life-insurance",
-    title: "Life Insurance",
-    description: "Protect your loved ones with our comprehensive life insurance plans.",
-    benefits: ["Financial security", "Tax savings", "Investment options", "Peace of mind"],
-    target: "Everyone looking to secure their family's future."
+    id: "sme-loans",
+    icon: Briefcase,
+    title: "SME Strategic Funding",
+    subtitle: "Empowering Local Enterprise",
+    desc: "Specialized financing for Small and Medium Enterprises. We understand the unique challenges of SMEs and provide the financial backbone necessary for sustainable scaling.",
+    features: ["Working capital limits", "Equipment & machinery financing", "Supply chain credit", "Dedicated relationship manager"],
+    image: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&q=80&w=800",
+    color: "from-blue-900/10 to-blue-800/5"
   }
+];
+
+const processSteps = [
+  { icon: FileText, title: "Initial Consultation", desc: "Expert assessment of your financial objectives and profile." },
+  { icon: Zap, title: "Rapid Analysis", desc: "Digital verification and precision risk assessment." },
+  { icon: ShieldCheck, title: "Strategic Approval", desc: "Formal credit sanction with bespoke terms." },
+  { icon: Clock, title: "Instant Liquidity", desc: "Seamless disbursement to your preferred accounts." }
 ];
 
 export default function Services() {
   return (
     <Layout>
-      <div className="bg-slate-50 py-20 border-b">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-serif font-bold mb-4 text-primary">Our Services</h1>
-          <p className="text-slate-600 max-w-2xl mx-auto text-lg">
-            We offer a wide range of financial products designed to meet your specific needs.
-          </p>
+      {/* Editorial Services Header */}
+      <section className="bg-slate-950 pt-32 pb-64 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/30 blur-[120px] rounded-full -mt-64" />
+          <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-secondary/30 blur-[120px] rounded-full -mb-64" />
         </div>
-      </div>
+        
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="max-w-4xl mx-auto text-center space-y-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              <h2 className="text-sm uppercase tracking-[0.6em] font-black text-secondary">Our Capabilities</h2>
+              <h1 className="text-5xl md:text-8xl font-serif font-black text-white leading-tight tracking-tighter">
+                Institutional Grade <br/>
+                <span className="text-gradient italic font-light">Financial Solutions.</span>
+              </h1>
+              <p className="text-2xl text-slate-400 font-light max-w-2xl mx-auto leading-relaxed">
+                Since 2005, we have curated a suite of premium financial products designed for precision, velocity, and sustainable growth.
+              </p>
+            </motion.div>
+          </div>
+        </div>
+      </section>
 
-      <section className="py-20 container mx-auto px-4 max-w-4xl">
-        <Accordion type="single" collapsible className="w-full space-y-4">
-          {allServices.map((service) => (
-            <AccordionItem key={service.id} value={service.id} className="border border-slate-200 rounded-lg bg-white overflow-hidden data-[state=open]:shadow-md transition-all">
-              <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-slate-50">
-                <span className="text-xl font-bold text-slate-800 text-left">{service.title}</span>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 py-6 bg-slate-50/50">
-                <div className="space-y-6">
-                  <p className="text-slate-700 text-lg leading-relaxed">
-                    {service.description}
-                  </p>
-                  
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div>
-                      <h4 className="font-semibold text-primary mb-2">Key Benefits</h4>
-                      <ul className="list-disc pl-5 space-y-1 text-slate-600">
-                        {service.benefits.map((benefit, i) => (
-                          <li key={i}>{benefit}</li>
-                        ))}
-                      </ul>
+      {/* Senior Service Showcase */}
+      <section className="pb-40 -mt-40 relative z-20">
+        <div className="container mx-auto px-6">
+          <div className="space-y-32">
+            {services.map((service, i) => (
+              <motion.div
+                key={service.id}
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-100px" }}
+                transition={{ duration: 0.8 }}
+                className={`grid lg:grid-cols-2 gap-20 items-center ${i % 2 === 1 ? 'lg:flex-row-reverse' : ''}`}
+              >
+                <div className={`${i % 2 === 1 ? 'lg:order-2' : ''} space-y-10`}>
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4 text-primary">
+                      <div className="bg-white p-3 rounded-2xl shadow-xl ring-1 ring-slate-100">
+                        <service.icon className="h-6 w-6" />
+                      </div>
+                      <span className="text-xs font-black uppercase tracking-[0.4em]">{service.subtitle}</span>
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-primary mb-2">Who is this for?</h4>
-                      <p className="text-slate-600">{service.target}</p>
-                    </div>
+                    <h3 className="text-5xl font-serif font-black text-slate-900 tracking-tighter leading-tight">
+                      {service.title}
+                    </h3>
+                    <p className="text-xl text-slate-600 leading-relaxed font-light">
+                      {service.desc}
+                    </p>
                   </div>
 
-                  <div className="pt-4">
+                  <div className="grid sm:grid-cols-2 gap-6">
+                    {service.features.map((feature, idx) => (
+                      <div key={idx} className="flex items-center gap-3 group">
+                        <div className="bg-secondary/10 p-1.5 rounded-full text-secondary transition-colors group-hover:bg-secondary group-hover:text-white">
+                          <CheckCircle2 className="h-4 w-4" />
+                        </div>
+                        <span className="text-sm font-bold text-slate-700 tracking-tight">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-6">
                     <Link href={`/contact?service=${service.title}`}>
-                      <Button className="bg-secondary text-primary hover:bg-secondary/90 font-bold">
-                        Enquire Now
+                      <Button size="lg" className="h-16 px-10 rounded-2xl bg-slate-900 hover:bg-primary text-lg font-bold shadow-2xl transition-all group">
+                        Consult for {service.title} <ArrowUpRight className="ml-2 h-5 w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                       </Button>
                     </Link>
                   </div>
                 </div>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+
+                <div className={`${i % 2 === 1 ? 'lg:order-1' : ''} relative`}>
+                  <div className={`absolute inset-0 bg-gradient-to-tr ${service.color} blur-3xl rounded-[3rem] -z-10`} />
+                  <div className="relative h-[500px] md:h-[600px] rounded-[3rem] overflow-hidden shadow-3xl border-8 border-white group">
+                    <img 
+                      src={service.image} 
+                      alt={service.title} 
+                      className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Elite Process Timeline */}
+      <section className="py-40 bg-slate-50 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-white -skew-x-12 translate-x-1/4 -z-0" />
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="text-center max-w-3xl mx-auto mb-24 space-y-4">
+            <h2 className="text-sm uppercase tracking-[0.5em] font-black text-secondary">The Velocity Framework</h2>
+            <h3 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">Bespoke Advisory Process</h3>
+            <p className="text-xl text-slate-500 font-light">Four strategic stages from inquiry to capital deployment.</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {processSteps.map((step, i) => (
+              <div key={i} className="relative group">
+                {i < 3 && (
+                  <div className="hidden lg:block absolute top-12 left-[80%] w-full h-[2px] bg-slate-200 -z-10">
+                    <div className="h-full bg-primary w-0 group-hover:w-full transition-all duration-700" />
+                  </div>
+                )}
+                <div className="bg-white p-10 rounded-[2.5rem] shadow-xl hover:shadow-2xl transition-all duration-500 h-full border border-slate-100">
+                  <div className="w-16 h-16 bg-slate-950 rounded-2xl flex items-center justify-center mb-8 text-white shadow-lg group-hover:bg-primary transition-colors">
+                    <step.icon className="h-8 w-8" />
+                  </div>
+                  <h4 className="text-2xl font-serif font-bold text-slate-900 mb-4">{step.title}</h4>
+                  <p className="text-slate-500 text-sm leading-relaxed">{step.desc}</p>
+                  <div className="mt-8 text-xs font-black text-slate-200">0{i + 1}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Final Conversion Section */}
+      <section className="py-40">
+        <div className="container mx-auto px-6">
+          <div className="bg-primary rounded-[4rem] p-16 md:p-32 relative overflow-hidden text-center shadow-3xl text-white">
+            <div className="absolute top-0 left-0 w-full h-full opacity-30 pointer-events-none">
+              <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-white/20 blur-[120px] rounded-full -ml-64 -mt-64" />
+              <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-secondary/30 blur-[120px] rounded-full -mr-64 -mb-64" />
+            </div>
+            <div className="relative z-10 space-y-10 max-w-5xl mx-auto">
+              <h2 className="text-5xl md:text-8xl font-serif font-black leading-[1.1] tracking-tighter">Elevate your financial <br/> <span className="italic font-light">architecture today.</span></h2>
+              <div className="flex flex-wrap justify-center gap-6 pt-10">
+                <Link href="/contact">
+                  <Button size="lg" className="h-24 px-16 rounded-[2.5rem] bg-white text-primary hover:bg-slate-900 hover:text-white text-2xl font-bold transition-all shadow-3xl border-none">
+                    Open Priority Case
+                  </Button>
+                </Link>
+                <Link href="/about">
+                  <Button size="lg" variant="outline" className="h-24 px-16 rounded-[2.5rem] border-white/30 text-white hover:bg-white/10 text-2xl font-bold backdrop-blur-sm">
+                    View Case Studies
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
     </Layout>
   );
