@@ -33,13 +33,16 @@ export default function Home() {
         
         <div className="container mx-auto px-4 relative z-10 text-white pt-20">
           <div className="max-w-2xl animate-in slide-in-from-left duration-700">
-            {/* Removed the white badge container and used filters for a clean white version on dark bg */}
-            <div className="mb-8 animate-in zoom-in duration-500">
+            {/* Using a more robust filter to ensure only the logo content is visible on dark bg */}
+            <div className="mb-8 animate-in zoom-in duration-500 flex items-center overflow-hidden">
               <img 
                 src={logoImage} 
                 alt="Express Financial Services Logo" 
-                className="h-16 md:h-20 w-auto brightness-0 invert" 
-                style={{ clipPath: 'inset(2px 2px 2px 2px)' }}
+                className="h-16 md:h-20 w-auto" 
+                style={{ 
+                  filter: 'brightness(0) invert(1)',
+                  mixBlendMode: 'screen'
+                }}
               />
             </div>
             <h1 className="text-5xl md:text-7xl font-bold font-serif mb-6 leading-tight">
