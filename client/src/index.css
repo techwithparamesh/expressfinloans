@@ -36,9 +36,9 @@
 }
 
 :root {
-  /* Blue & White Professional Theme */
-  --background: 210 20% 98%; /* Very light blueish gray */
-  --foreground: 222 47% 11%; /* Deep Navy */
+  /* Adjusted to match Logo colors: Deep Blue (#003399) and Red (#ED1C24) */
+  --background: 210 20% 98%;
+  --foreground: 222 47% 11%;
 
   --card: 0 0% 100%;
   --card-foreground: 222 47% 11%;
@@ -46,13 +46,13 @@
   --popover: 0 0% 100%;
   --popover-foreground: 222 47% 11%;
 
-  /* Express Financial Blue */
-  --primary: 215 100% 35%; /* Strong Professional Blue */
+  /* Logo Blue: #003399 */
+  --primary: 220 100% 30%; 
   --primary-foreground: 0 0% 100%;
 
-  /* Gold/Yellow Accent for CTA */
-  --secondary: 45 93% 47%; /* Gold */
-  --secondary-foreground: 222 47% 11%;
+  /* Logo Red: #ED1C24 */
+  --secondary: 358 85% 53%;
+  --secondary-foreground: 0 0% 100%;
 
   --muted: 210 40% 96.1%;
   --muted-foreground: 215.4 16.3% 46.9%;
@@ -65,7 +65,7 @@
 
   --border: 214.3 31.8% 91.4%;
   --input: 214.3 31.8% 91.4%;
-  --ring: 222.2 84% 4.9%;
+  --ring: 220 100% 30%;
 
   --radius: 0.5rem;
 }

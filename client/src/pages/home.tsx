@@ -2,8 +2,9 @@ import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "wouter";
-import { ArrowRight, Home as HomeIcon, Building2, Car, Briefcase, GraduationCap, HeartPulse, Building, Bus, Landmark } from "lucide-react";
+import { ArrowRight, Home as HomeIcon, Building2, Car, Briefcase, GraduationCap, HeartPulse, Building, Bus } from "lucide-react";
 import heroImage from "@assets/generated_images/modern_family_home_with_happy_couple_keys.png";
+import logoImage from "@assets/image_1768392877999.png";
 
 const services = [
   { icon: HomeIcon, title: "Home Loans", desc: "Get the lowest interest rates for your dream home." },
@@ -32,16 +33,18 @@ export default function Home() {
         
         <div className="container mx-auto px-4 relative z-10 text-white pt-20">
           <div className="max-w-2xl animate-in slide-in-from-left duration-700">
+            {/* Added Logo to Hero */}
+            <img src={logoImage} alt="Express Financial Services Logo" className="h-24 mb-8 invert brightness-0" />
             <h1 className="text-5xl md:text-7xl font-bold font-serif mb-6 leading-tight">
               Dream Home <br/>
-              <span className="text-secondary">Made Possible</span>
+              <span className="text-[#ED1C24]">Made Possible</span>
             </h1>
             <p className="text-xl md:text-2xl text-slate-200 mb-8 font-light">
               Trusted financial solutions since 2005. We help you build your future with fast, transparent, and secure funding.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link href="/contact">
-                <Button size="lg" className="bg-secondary text-primary hover:bg-secondary/90 font-bold text-lg px-8 h-14">
+                <Button size="lg" className="bg-[#ED1C24] text-white hover:bg-[#ED1C24]/90 font-bold text-lg px-8 h-14 border-none shadow-lg">
                   Apply Now
                 </Button>
               </Link>
@@ -58,15 +61,15 @@ export default function Home() {
       {/* About Preview */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4 text-center max-w-3xl">
-          <span className="text-primary font-bold tracking-wider uppercase text-sm">Since 2005</span>
+          <span className="text-[#003399] font-bold tracking-wider uppercase text-sm">Since 2005</span>
           <h2 className="text-4xl font-serif font-bold mt-2 mb-6 text-slate-900">Your Trusted Financial Partner</h2>
           <p className="text-lg text-slate-600 mb-8 leading-relaxed">
             Express Financial Services has been a pillar of trust for over 18 years. 
-            Founded by <span className="font-semibold text-primary">Mosali Harinadha Reddy</span>, 
+            Founded by <span className="font-semibold text-[#003399]">Mosali Harinadha Reddy</span>, 
             we specialize in making complex financial processes simple, transparent, and accessible for everyone.
           </p>
           <Link href="/about">
-            <Button variant="link" className="text-primary text-lg group">
+            <Button variant="link" className="text-[#003399] text-lg group">
               Know More About Us <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
             </Button>
           </Link>
@@ -85,7 +88,7 @@ export default function Home() {
             {services.map((service, index) => (
               <Card key={index} className="border-none shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                 <CardHeader className="pb-2">
-                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4 text-primary">
+                  <div className="w-12 h-12 bg-[#003399]/10 rounded-lg flex items-center justify-center mb-4 text-[#003399]">
                     <service.icon className="w-6 h-6" />
                   </div>
                   <CardTitle className="text-xl font-bold text-slate-800">{service.title}</CardTitle>
@@ -99,7 +102,7 @@ export default function Home() {
           
           <div className="text-center mt-12">
             <Link href="/services">
-              <Button size="lg" className="bg-primary hover:bg-primary/90">View All Services</Button>
+              <Button size="lg" className="bg-[#003399] hover:bg-[#003399]/90 text-white">View All Services</Button>
             </Link>
           </div>
         </div>
