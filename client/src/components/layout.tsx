@@ -129,11 +129,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <div className="lg:col-span-5">
               <Link href="/">
                 <a className="flex flex-col mb-8">
-                  <div className="w-fit mb-6">
+                  <div className="w-fit mb-6 bg-white rounded-lg px-2 py-1">
                     <img 
                       src={logoImage} 
                       alt="Logo" 
-                      className="h-12 md:h-14 w-auto mix-blend-screen" 
+                      className="h-12 md:h-14 w-auto" 
                     />
                   </div>
                   <p className="text-slate-400 text-lg leading-relaxed max-w-md mb-8">
