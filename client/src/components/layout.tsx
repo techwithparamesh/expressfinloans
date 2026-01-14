@@ -51,7 +51,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         ))}
       </div>
 
-      {/* Senior Header Design with Logo */}
+      {/* Senior Header Design with Fixed Logo Whitebox */}
       <header
         className={`fixed top-0 left-0 right-0 z-40 transition-all duration-500 ${
           isScrolled 
@@ -62,12 +62,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="container mx-auto px-6 flex justify-between items-center">
           <Link href="/">
             <a className="flex items-center gap-3 group">
-              <img 
-                src={logoImage} 
-                alt="Express Financial Services Logo" 
-                className="h-10 md:h-14 w-auto mix-blend-multiply transition-transform group-hover:scale-105" 
-                style={{ clipPath: 'inset(2px 2px 2px 2px)' }}
-              />
+              <div className="bg-white p-1 rounded shadow-sm border border-slate-100">
+                <img 
+                  src={logoImage} 
+                  alt="Express Financial Services Logo" 
+                  className="h-10 md:h-12 w-auto transition-transform group-hover:scale-105" 
+                />
+              </div>
             </a>
           </Link>
 
@@ -132,12 +133,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <div className="lg:col-span-5">
               <Link href="/">
                 <a className="flex flex-col mb-8">
-                  <img 
-                    src={logoImage} 
-                    alt="Logo" 
-                    className="h-12 md:h-16 w-auto brightness-0 invert self-start mb-6" 
-                    style={{ clipPath: 'inset(2px 2px 2px 2px)' }}
-                  />
+                  <div className="bg-white p-2 rounded-lg w-fit mb-6">
+                    <img 
+                      src={logoImage} 
+                      alt="Logo" 
+                      className="h-12 md:h-14 w-auto" 
+                    />
+                  </div>
                   <p className="text-slate-400 text-lg leading-relaxed max-w-md mb-8">
                     Pioneering financial excellence since 2005. We provide bespoke solutions that empower individuals and enterprises to scale new heights.
                   </p>
