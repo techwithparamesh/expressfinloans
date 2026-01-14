@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Phone, Mail, Instagram, Menu, X, ChevronRight } from "lucide-react";
+import { Phone, Mail, Instagram, Menu, ChevronRight } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -51,18 +51,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         ))}
       </div>
 
-      {/* Senior Header Design with Fixed Logo Whitebox */}
+      {/* Senior Header Design - Fixed Logo Aesthetics */}
       <header
         className={`fixed top-0 left-0 right-0 z-40 transition-all duration-500 ${
           isScrolled 
-            ? "py-3 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm" 
-            : "py-6 bg-white/40 backdrop-blur-sm"
+            ? "py-3 bg-white/95 backdrop-blur-xl border-b border-slate-200 shadow-lg" 
+            : "py-6 bg-white/10 backdrop-blur-md"
         }`}
       >
         <div className="container mx-auto px-6 flex justify-between items-center">
           <Link href="/">
             <a className="flex items-center gap-3 group">
-              <div className="bg-white p-1 rounded shadow-sm border border-slate-100">
+              <div className="bg-white p-2.5 rounded-xl shadow-xl border border-slate-100 flex items-center justify-center">
                 <img 
                   src={logoImage} 
                   alt="Express Financial Services Logo" 
@@ -76,7 +76,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {navLinks.map((link) => (
               <Link key={link.href} href={link.href}>
                 <a className={`text-sm font-bold uppercase tracking-widest transition-all relative group ${
-                  location === link.href ? "text-primary" : "text-slate-600 hover:text-slate-900"
+                  location === link.href 
+                    ? "text-primary" 
+                    : isScrolled ? "text-slate-700" : "text-white"
                 }`}>
                   {link.label}
                   <span className={`absolute -bottom-1 left-0 w-0 h-0.5 bg-secondary transition-all group-hover:w-full ${
@@ -86,7 +88,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </Link>
             ))}
             <Link href="/contact">
-              <Button className="rounded-full px-8 bg-slate-900 hover:bg-primary transition-all shadow-xl shadow-slate-200">
+              <Button className="rounded-full px-8 bg-slate-900 hover:bg-primary transition-all shadow-xl shadow-slate-200 text-white">
                 Consult Now
               </Button>
             </Link>
@@ -94,7 +96,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           <Sheet>
             <SheetTrigger asChild className="lg:hidden">
-              <Button variant="ghost" size="icon" className="rounded-full">
+              <Button variant="ghost" size="icon" className={`rounded-full ${isScrolled ? "text-slate-900" : "text-white"}`}>
                 <Menu className="h-6 w-6" />
               </Button>
             </SheetTrigger>
@@ -133,7 +135,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <div className="lg:col-span-5">
               <Link href="/">
                 <a className="flex flex-col mb-8">
-                  <div className="bg-white p-2 rounded-lg w-fit mb-6">
+                  <div className="bg-white p-3 rounded-2xl w-fit mb-6 shadow-2xl">
                     <img 
                       src={logoImage} 
                       alt="Logo" 

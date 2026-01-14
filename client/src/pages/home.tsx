@@ -24,8 +24,8 @@ const featuredServices = [
 export default function Home() {
   return (
     <Layout>
-      {/* Cinematic Hero */}
-      <section className="relative h-[100vh] flex items-center overflow-hidden">
+      {/* Cinematic Hero - Fixed Spacing and Overlap */}
+      <section className="relative min-h-screen flex items-center overflow-hidden bg-slate-950">
         <motion.div 
           initial={{ scale: 1.1 }}
           animate={{ scale: 1 }}
@@ -35,26 +35,26 @@ export default function Home() {
           <img 
             src={heroImage} 
             alt="Financial Success" 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover opacity-60"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/40 to-transparent" />
         </motion.div>
         
-        <div className="container mx-auto px-6 relative z-10 text-white pb-32">
+        <div className="container mx-auto px-6 relative z-10 text-white pt-20 pb-48">
           <div className="max-w-4xl">
             <motion.div
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <div className="mb-10 inline-block bg-white p-3 rounded-xl shadow-2xl">
+              <div className="mb-10 inline-block bg-white/95 p-4 rounded-2xl shadow-2xl backdrop-blur-sm border border-white/20">
                 <img 
                   src={logoImage} 
                   alt="Express Financial Services" 
-                  className="h-16 md:h-20 w-auto" 
+                  className="h-12 md:h-16 w-auto" 
                 />
               </div>
-              <h1 className="text-6xl md:text-9xl font-black font-serif leading-[0.9] mb-8 tracking-tighter">
+              <h1 className="text-6xl md:text-8xl font-black font-serif leading-[1] mb-8 tracking-tighter">
                 Financial <br/>
                 <span className="text-gradient">Precision.</span>
               </h1>
@@ -77,14 +77,14 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Floating Stats Bar - Fixed Overlap and Alignment */}
-        <div className="absolute bottom-0 left-0 right-0 glass border-t-0 border-x-0 py-10 z-20">
-          <div className="container mx-auto px-6">
+        {/* Floating Stats Bar - Redesigned to avoid overlap */}
+        <div className="absolute bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-white/5 backdrop-blur-2xl">
+          <div className="container mx-auto px-6 py-12">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-12 items-center">
               {stats.map((stat, i) => (
-                <div key={i} className="text-center md:text-left border-slate-200 lg:border-r last:border-0 pr-4">
-                  <p className="text-4xl md:text-5xl font-serif font-black text-slate-900 mb-1 leading-none">{stat.value}</p>
-                  <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-500">{stat.label}</p>
+                <div key={i} className="text-center lg:text-left border-slate-700 lg:border-r last:border-0 px-4 group">
+                  <p className="text-4xl md:text-5xl font-serif font-black text-white mb-2 group-hover:text-secondary transition-colors">{stat.value}</p>
+                  <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400 group-hover:text-white transition-colors">{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -186,7 +186,7 @@ export default function Home() {
                     <h4 className="text-3xl font-serif font-bold text-slate-900 mb-6 tracking-tight">{service.title}</h4>
                     <p className="text-slate-500 text-lg leading-relaxed mb-10 flex-grow">{service.desc}</p>
                     <Link href="/services">
-                      <a className="text-sm uppercase font-black tracking-widest text-primary flex items-center gap-3 group/btn">
+                      <a className="text-sm uppercase font-black tracking-widest text-primary flex items-center gap-3 group/btn cursor-pointer">
                         Explore <ArrowUpRight className="h-5 w-5 transition-transform group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1" />
                       </a>
                     </Link>
