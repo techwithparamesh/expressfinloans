@@ -1,0 +1,194 @@
+You are a senior full-stack web developer and UI/UX designer.
+
+Build a COMPLETE, PROFESSIONAL, RESPONSIVE MULTI-PAGE WEBSITE
+for a finance company named:
+
+"EXPRESS FINANCIAL SERVICES"
+Tagline: "For Your Every Financial Need"
+Since: 2005
+
+Managing Director:
+Name: Mosali Harinadha Reddy
+
+========================
+GENERAL REQUIREMENTS
+========================
+1. Website must be fully responsive (mobile, tablet, desktop)
+2. Clean, professional financial-services look
+3. Colors inspired by blue & white (trust, finance theme)
+4. Use modern UI with proper spacing and typography
+5. All buttons, links, and redirects must work correctly
+6. SEO-friendly structure
+7. Use HTML, CSS, JavaScript (no frameworks)
+8. Folder-based multi-page structure
+
+========================
+PAGES REQUIRED
+========================
+- Home (index.html)
+- About Us (about.html)
+- Services (services.html)
+- Contact Us (contact.html)
+
+========================
+HEADER & FOOTER (COMMON)
+========================
+Header:
+- Logo (text logo is fine)
+- Navigation menu:
+  Home | About Us | Services | Contact Us
+- Sticky header on scroll
+
+Footer:
+- Company name
+- Short description
+- Quick links
+- Contact info
+- Copyright © current year
+
+========================
+FLOATING CONTACT ICONS
+========================
+On the RIGHT SIDE (fixed position):
+- WhatsApp icon (click → open WhatsApp chat)
+- Instagram icon (redirect to profile)
+- Email icon (mailto link)
+
+Icons must be round, floating, clickable, and visible on all pages.
+
+========================
+HOME PAGE CONTENT
+========================
+Hero Section:
+- Heading: "Dream Home Made Possible"
+- Subheading: Trusted financial solutions since 2005
+- Call-to-action buttons:
+  "Apply Now" → Contact page
+  "View Services" → Services page
+
+About Preview Section:
+- Short intro about Express Financial Services
+- Button: "Know More" → About page
+
+Services Preview:
+- Grid layout with icons and short descriptions for:
+  - Home Loans
+  - Mortgage Loans
+  - SME Loans
+  - Car Loans
+  - Business Loans
+  - Commercial Vehicle Loans
+  - Personal Loans
+  - Education Loans
+  - LRD Loans
+  - School Bus Funding
+  - Project Funding
+  - Life Insurance
+
+Partner Banks Section:
+- Display bank/insurance names as text grid
+
+========================
+ABOUT US PAGE
+========================
+Sections:
+1. Company Overview
+   - Founded in 2005
+   - Trusted financial advisory firm
+   - Customer-centric approach
+
+2. Managing Director Section
+   - Name: Mosali Harinadha Reddy
+   - Short professional bio
+
+3. Why Choose Us
+   - 15+ years experience
+   - Fast approvals
+   - Transparent process
+   - Multiple bank tie-ups
+   - Dedicated relationship managers
+
+========================
+SERVICES PAGE
+========================
+Each service MUST have its OWN detailed section with:
+- Heading
+- Description
+- Who is it for
+- Benefits
+
+Services to include:
+- Home Loans
+- Mortgage Loans
+- SME Loans
+- Car Loans
+- Business Loans
+- Commercial Vehicle Loans
+- Personal Loans
+- Education Loans
+- LRD Loans
+- School Bus Funding
+- Project Funding
+- Life Insurance
+
+Layout:
+- Card-based or accordion style
+- Clean professional formatting
+
+========================
+CONTACT US PAGE
+========================
+Contact Details:
+- Phone Numbers:
+  90000 01339
+  97054 62000
+  99485 62000
+  97051 62000
+  96405 62000
+
+- Email:
+  info@expressfinancialservices.com
+
+Contact Form:
+- Full Name
+- Mobile Number
+- Email
+- Service Interested In (dropdown)
+- Message
+- Submit button
+- On submit → show success message (JS validation)
+
+Location:
+- Embed Google Map (dummy embed link is fine)
+- Office address placeholder text
+
+========================
+FUNCTIONALITY
+========================
+- Navbar links must redirect correctly
+- Buttons must navigate properly
+- Contact form validation using JavaScript
+- Smooth scrolling
+- Mobile hamburger menu
+
+========================
+PROJECT STRUCTURE
+========================
+/project-root
+  ├── index.html
+  ├── about.html
+  ├── services.html
+  ├── contact.html
+  ├── css/
+  │     └── style.css
+  ├── js/
+  │     └── script.js
+  └── assets/
+        └── icons/images placeholders
+
+========================
+DELIVERABLE
+========================
+Generate ALL files with FULL CODE.
+No placeholders like "add content here".
+Production-ready clean code.
