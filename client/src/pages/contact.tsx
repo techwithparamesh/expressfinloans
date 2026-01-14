@@ -71,43 +71,41 @@ export default function Contact() {
             
             {/* Contact Info */}
             <div className="space-y-8">
-              <div className="bg-slate-50 p-8 rounded-xl border border-slate-100">
-                <h3 className="text-2xl font-serif font-bold text-slate-900 mb-6">Get In Touch</h3>
+              <div className="bg-white p-12 rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-100 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16" />
+                <h3 className="text-3xl font-serif font-black text-slate-900 mb-10 tracking-tight text-center">Get In Touch</h3>
                 
-                <div className="space-y-6">
-                  <div className="flex items-start gap-4">
-                    <div className="bg-white p-3 rounded-full shadow-sm text-primary">
-                      <Phone className="h-6 w-6" />
+                <div className="space-y-10">
+                  <div className="flex items-center flex-col text-center gap-4 group">
+                    <div className="bg-primary/10 p-5 rounded-3xl text-primary group-hover:bg-primary group-hover:text-white transition-all duration-500 shadow-inner">
+                      <Phone className="h-8 w-8" />
                     </div>
                     <div>
-                      <p className="font-bold text-slate-800">Phone Numbers</p>
-                      <p className="text-slate-600">90000 01339</p>
-                      <p className="text-slate-600">97054 62000</p>
-                      <p className="text-slate-600">99485 62000</p>
-                      <p className="text-slate-600">97051 62000</p>
-                      <p className="text-slate-600">96405 62000</p>
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Direct Lines</p>
+                      <a href="tel:+919000001339" className="text-2xl font-serif font-bold text-slate-900 hover:text-secondary transition-colors block leading-tight">90000 01339</a>
+                      <a href="tel:+919091001008" className="text-2xl font-serif font-bold text-slate-900 hover:text-secondary transition-colors block leading-tight">90910 01008</a>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-4">
-                    <div className="bg-white p-3 rounded-full shadow-sm text-primary">
-                      <Mail className="h-6 w-6" />
+                  <div className="flex items-center flex-col text-center gap-4 group">
+                    <div className="bg-secondary/10 p-5 rounded-3xl text-secondary group-hover:bg-secondary group-hover:text-white transition-all duration-500 shadow-inner">
+                      <Mail className="h-8 w-8" />
                     </div>
                     <div>
-                      <p className="font-bold text-slate-800">Email Address</p>
-                      <a href="mailto:info@expressfinancialservices.com" className="text-slate-600 hover:text-primary transition-colors">
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Email Address</p>
+                      <a href="mailto:info@expressfinancialservices.com" className="text-xl font-serif font-bold text-slate-900 hover:text-primary transition-colors block">
                         info@expressfinancialservices.com
                       </a>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-4">
-                    <div className="bg-white p-3 rounded-full shadow-sm text-primary">
-                      <MapPin className="h-6 w-6" />
+                  <div className="flex items-center flex-col text-center gap-4 group">
+                    <div className="bg-slate-100 p-5 rounded-3xl text-slate-600 group-hover:bg-slate-900 group-hover:text-white transition-all duration-500 shadow-inner">
+                      <MapPin className="h-8 w-8" />
                     </div>
                     <div>
-                      <p className="font-bold text-slate-800">Office Location</p>
-                      <p className="text-slate-600">
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Office Location</p>
+                      <p className="text-lg font-serif font-medium text-slate-700 leading-relaxed">
                         Near City Center, Main Road,<br />
                         Hyderabad, Telangana - 500001
                       </p>
@@ -117,7 +115,7 @@ export default function Contact() {
               </div>
 
               {/* Map */}
-              <div className="h-[300px] w-full bg-slate-200 rounded-xl overflow-hidden relative">
+              <div className="h-[400px] w-full bg-slate-100 rounded-[2.5rem] overflow-hidden relative shadow-2xl shadow-slate-200/50 border border-slate-100">
                  <iframe 
                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d243647.3160407063!2d78.26795861198664!3d17.41229980062495!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bcb99daeaebd2c7%3A0xae93b78392bafbc2!2sHyderabad%2C%20Telangana!5e0!3m2!1sen!2sin!4v1709823456789!5m2!1sen!2sin" 
                    width="100%" 

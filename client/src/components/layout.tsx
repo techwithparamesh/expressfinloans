@@ -179,8 +179,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   </div>
                   <div>
                     <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">Direct Lines</p>
-                    <p className="text-lg font-medium">+91 90000 01339</p>
-                    <p className="text-slate-400 text-sm">9:00 AM - 6:00 PM (IST)</p>
+                    <a href="tel:+919000001339" className="text-lg font-medium block hover:text-secondary transition-colors">+91 90000 01339</a>
+                    <a href="tel:+919091001008" className="text-lg font-medium block hover:text-secondary transition-colors">+91 90910 01008</a>
+                    <p className="text-slate-400 text-sm mt-1">9:00 AM - 6:00 PM (IST)</p>
                   </div>
                 </div>
                 <div className="flex gap-4">
