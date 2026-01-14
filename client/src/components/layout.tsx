@@ -24,9 +24,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { href: "/contact", label: "Contact Us" },
   ];
 
-  const primaryBlue = "#003399";
-  const primaryRed = "#ED1C24";
-
   return (
     <div className="min-h-screen flex flex-col font-sans">
       {/* Floating Action Buttons */}
@@ -66,8 +63,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       >
         <div className="container mx-auto px-4 flex justify-between items-center">
           <Link href="/">
-            <a className="flex items-center gap-3 group">
-              <img src={logoImage} alt="Express Financial Services" className="h-12 md:h-16 w-auto transition-transform group-hover:scale-105" />
+            <a className="flex items-center gap-3 group overflow-hidden">
+              <div className="relative h-12 md:h-16 overflow-hidden">
+                <img 
+                  src={logoImage} 
+                  alt="Express Financial Services" 
+                  className="h-full w-auto transition-transform group-hover:scale-105 mix-blend-multiply" 
+                  style={{ clipPath: 'inset(2px 2px 2px 2px)' }}
+                />
+              </div>
             </a>
           </Link>
 
@@ -97,7 +101,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </SheetTrigger>
             <SheetContent side="right">
               <div className="flex flex-col gap-6 mt-10">
-                <img src={logoImage} alt="Logo" className="h-12 w-auto self-start mb-4" />
+                <img src={logoImage} alt="Logo" className="h-12 w-auto self-start mb-4 mix-blend-multiply" style={{ clipPath: 'inset(2px 2px 2px 2px)' }} />
                 {navLinks.map((link) => (
                   <Link key={link.href} href={link.href}>
                     <a className={`text-lg font-bold ${location === link.href ? "text-[#ED1C24]" : "text-[#003399] hover:text-[#ED1C24]"}`}>
@@ -121,7 +125,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-1 md:col-span-2">
-              <img src={logoImage} alt="Express Financial Services" className="h-16 mb-6 brightness-0 invert" />
+              <img 
+                src={logoImage} 
+                alt="Express Financial Services" 
+                className="h-16 mb-6 brightness-0 invert" 
+                style={{ clipPath: 'inset(2px 2px 2px 2px)' }}
+              />
               <p className="text-slate-400 max-w-sm mb-6">
                 Your trusted partner for all financial needs since 2005. We make your dreams a reality with fast approvals and transparent processes.
               </p>

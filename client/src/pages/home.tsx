@@ -33,8 +33,15 @@ export default function Home() {
         
         <div className="container mx-auto px-4 relative z-10 text-white pt-20">
           <div className="max-w-2xl animate-in slide-in-from-left duration-700">
-            {/* Added Logo to Hero */}
-            <img src={logoImage} alt="Express Financial Services Logo" className="h-24 mb-8 invert brightness-0" />
+            {/* Added Logo to Hero with clipping to remove internal box */}
+            <div className="h-24 mb-8 overflow-hidden">
+              <img 
+                src={logoImage} 
+                alt="Express Financial Services Logo" 
+                className="h-full w-auto invert brightness-0" 
+                style={{ clipPath: 'inset(2px 2px 2px 2px)' }}
+              />
+            </div>
             <h1 className="text-5xl md:text-7xl font-bold font-serif mb-6 leading-tight">
               Dream Home <br/>
               <span className="text-[#ED1C24]">Made Possible</span>
