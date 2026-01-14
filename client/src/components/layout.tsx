@@ -137,7 +137,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-1 md:col-span-2">
-              <div className="bg-white/10 p-4 rounded-xl inline-block mb-6">
+              {/* Logo in footer - added back as requested without the box */}
+              <div className="mb-6">
                 <img 
                   src={logoImage} 
                   alt="Express Financial Services" 
