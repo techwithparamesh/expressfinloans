@@ -33,14 +33,19 @@ export default function Home() {
         
         <div className="container mx-auto px-4 relative z-10 text-white pt-20">
           <div className="max-w-2xl animate-in slide-in-from-left duration-700">
-            {/* Using a more robust filter to ensure only the logo content is visible on dark bg */}
-            <div className="mb-8 animate-in zoom-in duration-500 flex items-center overflow-hidden">
+            {/* 
+                The logo has a white background. 
+                To make it white-on-dark:
+                1. invert(1) turns White to Black and Black to White.
+                2. mix-blend-screen makes the new Black (formerly white) transparent.
+            */}
+            <div className="mb-8 animate-in zoom-in duration-500 flex items-center">
               <img 
                 src={logoImage} 
                 alt="Express Financial Services Logo" 
                 className="h-16 md:h-20 w-auto" 
                 style={{ 
-                  filter: 'brightness(0) invert(1)',
+                  filter: 'invert(1)',
                   mixBlendMode: 'screen'
                 }}
               />

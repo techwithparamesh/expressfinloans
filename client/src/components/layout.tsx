@@ -136,13 +136,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-1 md:col-span-2">
-              <div className="mb-6 flex items-center overflow-hidden">
+              <div className="mb-6 flex items-center">
                 <img 
                   src={logoImage} 
                   alt="Express Financial Services" 
                   className="h-12 md:h-16 w-auto" 
                   style={{ 
-                    filter: 'brightness(0) invert(1)',
+                    filter: 'invert(1)',
                     mixBlendMode: 'screen'
                   }}
                 />
