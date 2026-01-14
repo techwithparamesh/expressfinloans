@@ -33,12 +33,12 @@ export default function Home() {
         
         <div className="container mx-auto px-4 relative z-10 text-white pt-20">
           <div className="max-w-2xl animate-in slide-in-from-left duration-700">
-            {/* Added Logo to Hero with clipping to remove internal box */}
-            <div className="h-24 mb-8 overflow-hidden">
+            {/* Logo wrapped in a clean badge to remove the white box issue */}
+            <div className="inline-block bg-white p-4 rounded-2xl shadow-2xl mb-8 animate-in zoom-in duration-500">
               <img 
                 src={logoImage} 
                 alt="Express Financial Services Logo" 
-                className="h-full w-auto invert brightness-0" 
+                className="h-12 md:h-16 w-auto mix-blend-multiply" 
                 style={{ clipPath: 'inset(2px 2px 2px 2px)' }}
               />
             </div>
