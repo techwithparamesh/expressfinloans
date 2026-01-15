@@ -17,7 +17,9 @@ import {
   HeartPulse,
   Landmark,
   Bus,
-  Activity
+  Activity,
+  UserCheck,
+  CreditCard
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -29,8 +31,8 @@ const services = [
     subtitle: "Dream Home Made Possible",
     desc: "Experience seamless property acquisition with our customized mortgage solutions. We offer competitive interest rates and high-loan-to-value ratios tailored for premium real estate.",
     features: ["Interest rates from 8.5%", "Tenure up to 30 years", "Zero processing fee for elite clients", "Bespoke repayment plans"],
-    image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800",
-    color: "from-blue-500/10 to-blue-600/5"
+    image: "https://images.unsplash.com/photo-1580587767513-39988814077b?auto=format&fit=crop&q=80&w=800",
+    color: "from-blue-600/20 to-blue-700/10"
   },
   {
     id: "mortgage-loans",
@@ -84,7 +86,7 @@ const services = [
   },
   {
     id: "personal-loan",
-    icon: Landmark,
+    icon: UserCheck,
     title: "Personal Loan",
     subtitle: "Funds for Every Need",
     desc: "Unsecured personal credit for weddings, travel, medical emergencies, or debt consolidation. Get the financial support you need with total privacy and speed.",
@@ -104,7 +106,7 @@ const services = [
   },
   {
     id: "lrd-loans",
-    icon: Landmark,
+    icon: CreditCard,
     title: "LRD Loans",
     subtitle: "Lease Rental Discounting",
     desc: "Leverage your future lease rentals from commercial properties to get immediate capital. Ideal for property owners with established corporate tenants.",
@@ -182,7 +184,7 @@ export default function Services() {
       </section>
 
       {/* Senior Service Showcase */}
-      <section className="pb-40 -mt-40 relative z-20">
+      <section className="pb-40 -mt-56 relative z-20">
         <div className="container mx-auto px-6">
           <div className="space-y-32">
             {services.map((service, i) => (
