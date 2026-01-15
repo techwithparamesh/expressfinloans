@@ -31,8 +31,9 @@ const services = [
     subtitle: "Dream Home Made Possible",
     desc: "Experience seamless property acquisition with our customized mortgage solutions. We offer competitive interest rates and high-loan-to-value ratios tailored for premium real estate.",
     features: ["Interest rates from 8.5%", "Tenure up to 30 years", "Zero processing fee for elite clients", "Bespoke repayment plans"],
-    image: "https://images.unsplash.com/photo-1580587767513-39988814077b?auto=format&fit=crop&q=80&w=800",
-    color: "from-blue-600/20 to-blue-700/10"
+    image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=800",
+    color: "from-blue-600/30 to-blue-700/20",
+    isDarkBg: true
   },
   {
     id: "mortgage-loans",
@@ -101,7 +102,7 @@ const services = [
     subtitle: "Investing in Futures",
     desc: "Comprehensive funding for domestic and international studies. We cover tuition fees, living expenses, and travel, ensuring your academic journey is unhindered.",
     features: ["Covers 100% of expenses", "Moratorium period available", "Tax benefits under Sec 80E", "Preferential rates for top universities"],
-    image: "https://images.unsplash.com/photo-1523050338692-7b835a07733f?auto=format&fit=crop&q=80&w=800",
+    image: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=800",
     color: "from-cyan-500/10 to-cyan-600/5"
   },
   {
@@ -157,7 +158,7 @@ export default function Services() {
   return (
     <Layout>
       {/* Editorial Services Header */}
-      <section className="bg-slate-950 pt-32 pb-64 relative overflow-hidden">
+      <section className="bg-slate-950 pt-32 pb-48 relative overflow-hidden">
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/30 blur-[120px] rounded-full -mt-64" />
           <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-secondary/30 blur-[120px] rounded-full -mb-64" />
@@ -184,7 +185,7 @@ export default function Services() {
       </section>
 
       {/* Senior Service Showcase */}
-      <section className="pb-40 -mt-56 relative z-20">
+      <section className="pb-40 relative z-20">
         <div className="container mx-auto px-6">
           <div className="space-y-32">
             {services.map((service, i) => (
@@ -202,12 +203,14 @@ export default function Services() {
                       <div className="bg-white p-3 rounded-2xl shadow-xl ring-1 ring-slate-100">
                         <service.icon className="h-6 w-6" />
                       </div>
-                      <span className="text-xs font-black uppercase tracking-[0.4em]">{service.subtitle}</span>
+                      <span className={`text-xs font-black uppercase tracking-[0.4em] ${service.isDarkBg ? 'text-blue-400' : 'text-primary'}`}>
+                        {service.subtitle}
+                      </span>
                     </div>
-                    <h3 className="text-5xl font-serif font-black text-slate-900 tracking-tighter leading-tight">
+                    <h3 className={`text-5xl font-serif font-black tracking-tighter leading-tight ${service.isDarkBg ? 'text-white' : 'text-slate-900'}`}>
                       {service.title}
                     </h3>
-                    <p className="text-xl text-slate-600 leading-relaxed font-light">
+                    <p className={`text-xl leading-relaxed font-light ${service.isDarkBg ? 'text-slate-300' : 'text-slate-600'}`}>
                       {service.desc}
                     </p>
                   </div>
@@ -218,14 +221,16 @@ export default function Services() {
                         <div className="bg-secondary/10 p-1.5 rounded-full text-secondary transition-colors group-hover:bg-secondary group-hover:text-white">
                           <CheckCircle2 className="h-4 w-4" />
                         </div>
-                        <span className="text-sm font-bold text-slate-700 tracking-tight">{feature}</span>
+                        <span className={`text-sm font-bold tracking-tight ${service.isDarkBg ? 'text-slate-200' : 'text-slate-700'}`}>
+                          {feature}
+                        </span>
                       </div>
                     ))}
                   </div>
 
                   <div className="pt-6">
                     <Link href={`/contact?service=${service.title}`}>
-                      <Button size="lg" className="h-16 px-10 rounded-2xl bg-slate-900 hover:bg-primary text-lg font-bold shadow-2xl transition-all group">
+                      <Button size="lg" className={`h-16 px-10 rounded-2xl text-lg font-bold shadow-2xl transition-all group ${service.isDarkBg ? 'bg-white text-slate-950 hover:bg-secondary hover:text-white' : 'bg-slate-900 text-white hover:bg-primary'}`}>
                         Consult for {service.title} <ArrowUpRight className="ml-2 h-5 w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                       </Button>
                     </Link>
@@ -234,11 +239,14 @@ export default function Services() {
 
                 <div className={`${i % 2 === 1 ? 'lg:order-1' : ''} relative`}>
                   <div className={`absolute inset-0 bg-gradient-to-tr ${service.color} blur-3xl rounded-[3rem] -z-10`} />
-                  <div className="relative h-[500px] md:h-[600px] rounded-[3rem] overflow-hidden shadow-3xl border-8 border-white group">
+                  <div className="relative h-[400px] md:h-[600px] rounded-[3rem] overflow-hidden shadow-3xl border-8 border-white group">
                     <img 
                       src={service.image} 
                       alt={service.title} 
                       className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+                      onError={(e) => {
+                        e.currentTarget.src = "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800";
+                      }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   </div>
