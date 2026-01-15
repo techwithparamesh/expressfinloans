@@ -12,6 +12,7 @@ import {
   Building2,
   CheckCircle2
 } from "lucide-react";
+import { Link } from "wouter";
 import founderImage from "@assets/IMG-20260112-WA0000_1768436447893.jpg";
 
 const values = [
@@ -148,10 +149,10 @@ export default function About() {
       </section>
 
       {/* Timeline Section */}
-      <section className="py-40">
+      <section className="py-40 overflow-hidden">
         <div className="container mx-auto px-6">
-          <div className="grid lg:grid-cols-2 gap-24 items-start">
-            <div className="sticky top-32 space-y-10">
+          <div className="grid lg:grid-cols-2 gap-24 items-start relative">
+            <div className="lg:sticky lg:top-32 space-y-10 z-10 bg-white/80 backdrop-blur-sm lg:bg-transparent py-8 lg:py-0">
               <div className="space-y-6">
                 <h2 className="text-sm uppercase tracking-[0.5em] font-black text-primary">Timeline</h2>
                 <h3 className="text-5xl md:text-7xl font-serif font-black text-slate-900 tracking-tighter leading-tight">
@@ -163,11 +164,11 @@ export default function About() {
                 From our first loan disbursement in 2005 to managing institutional-grade assets today, our journey is defined by the success of our clients.
               </p>
             </div>
-            <div className="space-y-16 lg:pt-20">
+            <div className="space-y-16 lg:pt-20 relative">
               {milestones.map((milestone, i) => (
-                <div key={i} className="flex gap-10 group">
+                <div key={i} className="flex gap-10 group relative bg-white/50 backdrop-blur-sm p-6 rounded-3xl lg:bg-transparent lg:p-0">
                   <div className="flex flex-col items-center">
-                    <div className="w-16 h-16 rounded-full border-2 border-primary flex items-center justify-center text-primary font-serif font-bold shrink-0 group-hover:bg-primary group-hover:text-white transition-all">
+                    <div className="w-16 h-16 rounded-full border-2 border-primary flex items-center justify-center text-primary font-serif font-bold shrink-0 group-hover:bg-primary group-hover:text-white transition-all z-10 bg-white">
                       {milestone.year.slice(2)}
                     </div>
                     {i < milestones.length - 1 && <div className="w-[2px] h-full bg-slate-100 my-4" />}
