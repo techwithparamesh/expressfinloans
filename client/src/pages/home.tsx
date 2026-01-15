@@ -105,7 +105,7 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="space-y-6 pt-16">
-                  <div className="h-96 rounded-[2.5rem] bg-slate-900 overflow-hidden relative shadow-2xl shadow-slate-900/20">
+                  <div className="h-96 rounded-[2.5rem] bg-slate-950 overflow-hidden relative shadow-2xl shadow-slate-900/20">
                     <Globe className="absolute bottom-8 left-8 h-12 w-12 text-white/10" />
                   </div>
                   <div className="h-72 rounded-[2.5rem] bg-slate-50 overflow-hidden relative border border-slate-200">
@@ -193,7 +193,7 @@ export default function Home() {
       {/* CTA Section */}
       <section className="py-40">
         <div className="container mx-auto px-6">
-          <div className="bg-slate-900 rounded-[4rem] p-16 md:p-32 relative overflow-hidden text-center shadow-3xl">
+          <div className="bg-slate-950 rounded-[4rem] p-16 md:p-32 relative overflow-hidden text-center shadow-3xl">
             <div className="absolute top-0 left-0 w-full h-full opacity-30 pointer-events-none">
               <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-primary/30 blur-[120px] rounded-full -ml-64 -mt-64" />
               <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-secondary/30 blur-[120px] rounded-full -mr-64 -mb-64" />
@@ -205,7 +205,7 @@ export default function Home() {
               </p>
               <div className="pt-10">
                 <Link href="/contact">
-                  <Button size="lg" className="h-24 px-20 rounded-[2.5rem] bg-primary hover:bg-white hover:text-primary text-2xl font-bold transition-all shadow-3xl shadow-primary/30 border-none">
+                  <Button size="lg" className="h-24 px-20 rounded-[2.5rem] bg-secondary hover:bg-white hover:text-secondary text-2xl font-bold transition-all shadow-3xl shadow-secondary/30 border-none">
                     Schedule a Consultation
                   </Button>
                 </Link>
