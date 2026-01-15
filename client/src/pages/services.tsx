@@ -33,7 +33,7 @@ const services = [
     features: ["Interest rates from 8.5%", "Tenure up to 30 years", "Zero processing fee for elite clients", "Bespoke repayment plans"],
     image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=800",
     color: "from-blue-600/30 to-blue-700/20",
-    isDarkBg: true
+    isDarkBg: false
   },
   {
     id: "mortgage-loans",
@@ -185,7 +185,7 @@ export default function Services() {
       </section>
 
       {/* Senior Service Showcase */}
-      <section className="pb-40 relative z-20">
+      <section className="pb-40 pt-20 relative z-20 bg-white">
         <div className="container mx-auto px-6">
           <div className="space-y-32">
             {services.map((service, i) => (
@@ -230,9 +230,9 @@ export default function Services() {
 
                   <div className="pt-6">
                     <Link href={`/contact?service=${service.title}`}>
-                      <Button size="lg" className={`h-16 px-10 rounded-2xl text-lg font-bold shadow-2xl transition-all group ${service.isDarkBg ? 'bg-white text-slate-950 hover:bg-secondary hover:text-white' : 'bg-slate-900 text-white hover:bg-primary'}`}>
+                      <button className={`h-16 px-10 rounded-2xl text-lg font-bold shadow-2xl transition-all group flex items-center justify-center ${service.isDarkBg ? 'bg-white text-slate-950 hover:bg-secondary hover:text-white' : 'bg-slate-900 text-white hover:bg-primary'}`}>
                         Consult for {service.title} <ArrowUpRight className="ml-2 h-5 w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                      </Button>
+                      </button>
                     </Link>
                   </div>
                 </div>

@@ -24,7 +24,7 @@ export default function Home() {
   return (
     <Layout>
       {/* Cinematic Hero - Fixed Spacing and Overlap */}
-      <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-slate-950">
+      <section className="relative min-h-[100vh] flex flex-col justify-center overflow-hidden bg-slate-950">
         <motion.div 
           initial={{ scale: 1.1 }}
           animate={{ scale: 1 }}
@@ -39,7 +39,7 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/40 to-transparent" />
         </motion.div>
         
-        <div className="container mx-auto px-6 relative z-10 text-white pt-20 pb-48">
+        <div className="container mx-auto px-6 relative z-10 text-white pt-20 pb-20">
           <div className="max-w-4xl">
             <motion.div
               initial={{ opacity: 0, x: -50 }}
@@ -56,7 +56,7 @@ export default function Home() {
               <div className="flex flex-wrap gap-6">
                 <Link href="/contact">
                   <Button size="lg" className="h-16 px-10 rounded-2xl bg-secondary text-white hover:bg-secondary/90 text-lg font-bold shadow-2xl shadow-secondary/20 group border-none">
-                    Start Your Journey <ArrowUpRight className="ml-2 h-5 w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    Enquire Now <ArrowUpRight className="ml-2 h-5 w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                   </Button>
                 </Link>
                 <Link href="/services">
@@ -69,8 +69,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Floating Stats Bar - Redesigned to avoid overlap */}
-        <div className="absolute bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-white/5 backdrop-blur-2xl">
+        {/* Floating Stats Bar - Integrated into flow to avoid overlap */}
+        <div className="relative z-20 border-t border-white/10 bg-white/5 backdrop-blur-2xl mt-auto">
           <div className="container mx-auto px-6 py-12">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-12 items-center">
               {stats.map((stat, i) => (
