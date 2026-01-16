@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { motion, AnimatePresence } from "framer-motion";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import logoImage from "@assets/image_1768392877999.png";
 import footerLogoImage from "@assets/Express-removebg-preview_1768403943209.png";
 
@@ -32,25 +33,33 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-primary/20 selection:text-primary">
-      {/* Enhanced Floating Action Buttons */}
-      <div className="fixed right-6 bottom-6 z-50 flex flex-col gap-4">
-        {[
-          { icon: WhatsAppIcon, color: "bg-[#25D366]", href: "https://wa.me/919000001339" },
-          { icon: Instagram, color: "bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888]", href: "https://instagram.com" },
-          { icon: Mail, color: "bg-primary", href: "mailto:info@expressfinancialservices.com" }
-        ].map((item, i) => (
-          <motion.a
-            key={i}
-            whileHover={{ scale: 1.1, y: -5 }}
-            whileTap={{ scale: 0.9 }}
-            href={item.href}
-            target="_blank"
-            className={`${item.color} text-white p-3.5 rounded-2xl shadow-2xl ring-4 ring-white/20 backdrop-blur-sm`}
-          >
-            <item.icon className="h-6 w-6" />
-          </motion.a>
-        ))}
-      </div>
+      {/* Enhanced Floating Action Buttons with Tooltips */}
+      <TooltipProvider>
+        <div className="fixed right-6 bottom-6 z-50 flex flex-col gap-4">
+          {[
+            { icon: WhatsAppIcon, color: "bg-[#25D366]", href: "https://wa.me/919000001339", tooltip: "WhatsApp Us" },
+            { icon: Instagram, color: "bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888]", href: "https://instagram.com", tooltip: "Follow Us" },
+            { icon: Mail, color: "bg-primary", href: "mailto:info@expressfinancialservices.com", tooltip: "Email Us" }
+          ].map((item, i) => (
+            <Tooltip key={i} delayDuration={0}>
+              <TooltipTrigger asChild>
+                <motion.a
+                  whileHover={{ scale: 1.1, y: -5 }}
+                  whileTap={{ scale: 0.9 }}
+                  href={item.href}
+                  target="_blank"
+                  className={`${item.color} text-white p-3.5 rounded-2xl shadow-2xl ring-4 ring-white/20 backdrop-blur-sm`}
+                >
+                  <item.icon className="h-6 w-6" />
+                </motion.a>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="bg-slate-900 text-white border-none font-bold py-2 px-4 rounded-xl shadow-xl">
+                {item.tooltip}
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+      </TooltipProvider>
 
       {/* Senior Header Design - Solid White Background */}
       <header
