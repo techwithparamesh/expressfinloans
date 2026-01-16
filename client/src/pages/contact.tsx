@@ -106,7 +106,7 @@ export default function Contact() {
                       <Mail className="h-6 w-6" />
                     </div>
                     <div>
-                      <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Official Email</p>
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Email Address</p>
                       <p className="text-xl font-bold text-slate-900">info@expressfinancialservices.com</p>
                     </div>
                   </div>
@@ -116,7 +116,7 @@ export default function Contact() {
                       <MapPin className="h-6 w-6" />
                     </div>
                     <div>
-                      <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">HQ Address</p>
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Office Location</p>
                       <p className="text-xl font-bold text-slate-900 leading-tight">Elite Financial District,<br/>Hyderabad, India</p>
                     </div>
                   </div>
