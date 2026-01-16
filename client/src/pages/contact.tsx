@@ -183,7 +183,7 @@ export default function Contact() {
                           name="email"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-[10px] uppercase font-black tracking-widest text-slate-400">Electronic Mail</FormLabel>
+                              <FormLabel className="text-[10px] uppercase font-black tracking-widest text-slate-400">Email Address</FormLabel>
                               <FormControl>
                                 <Input className="h-16 rounded-2xl bg-slate-50 border-none px-6 focus:ring-2 focus:ring-primary/20 text-lg" placeholder="alexander@corporate.com" {...field} />
                               </FormControl>
