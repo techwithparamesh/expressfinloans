@@ -95,7 +95,7 @@ export default function Contact() {
                       <Phone className="h-6 w-6" />
                     </div>
                     <div>
-                      <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Direct Line</p>
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Phone Number</p>
                       <p className="text-xl font-bold text-slate-900">+91 90000 01339</p>
                       <p className="text-sm text-slate-500">Mon-Sat, 9am - 6pm</p>
                     </div>
