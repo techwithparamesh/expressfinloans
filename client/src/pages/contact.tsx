@@ -209,6 +209,7 @@ export default function Contact() {
                                   <SelectItem value="business-loans" className="rounded-xl py-3 px-4 focus:bg-primary/5">Business Loans</SelectItem>
                                   <SelectItem value="education-loans" className="rounded-xl py-3 px-4 focus:bg-primary/5">Education Loans</SelectItem>
                                   <SelectItem value="project-funding" className="rounded-xl py-3 px-4 focus:bg-primary/5">Project Funding</SelectItem>
+                                  <SelectItem value="other" className="rounded-xl py-3 px-4 focus:bg-primary/5">Other Solutions</SelectItem>
                                 </SelectContent>
                               </Select>
                               <FormMessage />
