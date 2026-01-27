@@ -81,16 +81,22 @@ app.use((req, res, next) => {
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
+  // Other ports are firewalled. Default to 5020 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
+  const port = parseInt(process.env.PORT || "5020", 10);
+  const listenOptions: Parameters<typeof httpServer.listen>[0] = {
+    port,
+    host: "0.0.0.0",
+  };
+
+  // `reusePort` is not supported on Windows.
+  if (process.platform !== "win32") {
+    (listenOptions as any).reusePort = true;
+  }
+
   httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
+    listenOptions,
     () => {
       log(`serving on port ${port}`);
     },
