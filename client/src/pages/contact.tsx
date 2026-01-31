@@ -107,7 +107,7 @@ export default function Contact() {
                     </div>
                     <div>
                       <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Email Address</p>
-                      <p className="text-xl font-bold text-slate-900">info@expressfinancialservices.com</p>
+                      <p className="text-xl font-bold text-slate-900 break-all">info@expressfinancialservices.com</p>
                     </div>
                   </div>
 

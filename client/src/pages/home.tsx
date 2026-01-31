@@ -115,7 +115,7 @@ export default function Home() {
               </div>
             </motion.div>
 
-            <div className="space-y-12">
+            <div className="space-y-12 text-center lg:text-left">
               <div className="space-y-6">
                 <h2 className="text-sm uppercase tracking-[0.5em] font-black text-secondary">Our Philosophy</h2>
                 <h3 className="text-3xl sm:text-5xl md:text-7xl font-serif font-black text-slate-900 leading-[1.1] tracking-tighter">
@@ -151,7 +151,7 @@ export default function Home() {
       {/* Elevated Services Grid */}
       <section className="py-24 sm:py-32 lg:py-40 bg-slate-50">
         <div className="container mx-auto px-6">
-          <div className="flex flex-col md:flex-row justify-between items-end gap-10 mb-24">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-10 mb-24">
             <div className="space-y-4">
               <h2 className="text-sm uppercase tracking-[0.5em] font-black text-primary">Capabilities</h2>
               <h3 className="text-4xl sm:text-6xl font-serif font-black text-slate-900 tracking-tighter">Core Expertise</h3>

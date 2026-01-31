@@ -48,7 +48,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   whileTap={{ scale: 0.9 }}
                   href={item.href}
                   target="_blank"
-                  className={`${item.color} text-white p-3 sm:p-3.5 rounded-xl sm:rounded-2xl shadow-2xl ring-2 sm:ring-4 ring-white/20 backdrop-blur-sm`}
+                  className={`${i > 0 ? "hidden sm:inline-flex" : "inline-flex"} ${item.color} text-white p-3 sm:p-3.5 rounded-xl sm:rounded-2xl shadow-2xl ring-2 sm:ring-4 ring-white/20 backdrop-blur-sm`}
                 >
                   <item.icon className="h-5 w-5 sm:h-6 sm:w-6" />
                 </motion.a>
@@ -199,7 +199,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   </div>
                   <div>
                     <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">Official Inquiry</p>
-                    <p className="text-lg font-medium">info@expressfinancialservices.com</p>
+                    <p className="text-lg font-medium break-all">info@expressfinancialservices.com</p>
                   </div>
                 </div>
               </div>
