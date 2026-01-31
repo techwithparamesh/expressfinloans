@@ -158,7 +158,7 @@ export default function Services() {
   return (
     <Layout>
       {/* Editorial Services Header */}
-      <section className="bg-slate-950 pt-32 pb-48 relative overflow-hidden">
+      <section className="bg-slate-950 pt-24 sm:pt-32 pb-24 sm:pb-48 relative overflow-hidden">
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/30 blur-[120px] rounded-full -mt-64" />
           <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-secondary/30 blur-[120px] rounded-full -mb-64" />
@@ -172,11 +172,11 @@ export default function Services() {
               className="space-y-6"
             >
               <h2 className="text-sm uppercase tracking-[0.6em] font-black text-secondary">Our Capabilities</h2>
-              <h1 className="text-5xl md:text-8xl font-serif font-black text-white leading-tight tracking-tighter">
+              <h1 className="text-4xl sm:text-5xl md:text-8xl font-serif font-black text-white leading-tight tracking-tighter">
                 Institutional Grade <br/>
                 <span className="text-gradient italic font-light">Financial Solutions.</span>
               </h1>
-              <p className="text-2xl text-slate-400 font-light max-w-2xl mx-auto leading-relaxed">
+              <p className="text-base sm:text-xl md:text-2xl text-slate-400 font-light max-w-2xl mx-auto leading-relaxed">
                 Since 2005, we have curated a suite of premium financial products designed for precision, velocity, and sustainable growth.
               </p>
             </motion.div>
@@ -185,9 +185,9 @@ export default function Services() {
       </section>
 
       {/* Senior Service Showcase */}
-      <section className="pb-40 pt-20 relative z-20 bg-white">
+      <section className="pb-24 sm:pb-40 pt-12 sm:pt-20 relative z-20 bg-white">
         <div className="container mx-auto px-6">
-          <div className="space-y-32">
+          <div className="space-y-16 sm:space-y-24 lg:space-y-32">
             {services.map((service, i) => (
               <motion.div
                 key={service.id}
@@ -195,7 +195,7 @@ export default function Services() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-100px" }}
                 transition={{ duration: 0.8 }}
-                className={`grid lg:grid-cols-2 gap-20 items-center ${i % 2 === 1 ? 'lg:flex-row-reverse' : ''}`}
+                className={`grid lg:grid-cols-2 gap-10 sm:gap-16 lg:gap-20 items-center ${i % 2 === 1 ? 'lg:flex-row-reverse' : ''}`}
               >
                 <div className={`${i % 2 === 1 ? 'lg:order-2' : ''} space-y-10`}>
                   <div className="space-y-6">
@@ -207,10 +207,10 @@ export default function Services() {
                         {service.subtitle}
                       </span>
                     </div>
-                    <h3 className={`text-5xl font-serif font-black tracking-tighter leading-tight ${service.isDarkBg ? 'text-white' : 'text-slate-900'}`}>
+                    <h3 className={`text-3xl sm:text-4xl lg:text-5xl font-serif font-black tracking-tighter leading-tight ${service.isDarkBg ? 'text-white' : 'text-slate-900'}`}>
                       {service.title}
                     </h3>
-                    <p className={`text-xl leading-relaxed font-light ${service.isDarkBg ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <p className={`text-base sm:text-lg md:text-xl leading-relaxed font-light ${service.isDarkBg ? 'text-slate-300' : 'text-slate-600'}`}>
                       {service.desc}
                     </p>
                   </div>
@@ -230,7 +230,7 @@ export default function Services() {
 
                   <div className="pt-6">
                     <Link href={`/contact?service=${service.title}`}>
-                      <button className={`h-16 px-10 rounded-2xl text-lg font-bold shadow-2xl transition-all group flex items-center justify-center ${service.isDarkBg ? 'bg-white text-slate-950 hover:bg-secondary hover:text-white' : 'bg-slate-900 text-white hover:bg-primary'}`}>
+                      <button className={`h-14 sm:h-16 w-full sm:w-auto px-8 sm:px-10 rounded-2xl text-base sm:text-lg font-bold shadow-2xl transition-all group flex items-center justify-center ${service.isDarkBg ? 'bg-white text-slate-950 hover:bg-secondary hover:text-white' : 'bg-slate-900 text-white hover:bg-primary'}`}>
                         Consult for {service.title} <ArrowUpRight className="ml-2 h-5 w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                       </button>
                     </Link>
@@ -239,7 +239,7 @@ export default function Services() {
 
                 <div className={`${i % 2 === 1 ? 'lg:order-1' : ''} relative`}>
                   <div className={`absolute inset-0 bg-gradient-to-tr ${service.color} blur-3xl rounded-[3rem] -z-10`} />
-                  <div className="relative h-[400px] md:h-[600px] rounded-[3rem] overflow-hidden shadow-3xl border-8 border-white group">
+                  <div className="relative h-[320px] sm:h-[400px] md:h-[600px] rounded-[2rem] sm:rounded-[3rem] overflow-hidden shadow-3xl border-4 sm:border-8 border-white group">
                     <img 
                       src={service.image} 
                       alt={service.title} 
@@ -258,7 +258,7 @@ export default function Services() {
       </section>
 
       {/* Elite Process Timeline */}
-      <section className="py-40 bg-slate-50 relative overflow-hidden">
+      <section className="py-20 sm:py-32 lg:py-40 bg-slate-50 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-1/2 h-full bg-white -skew-x-12 translate-x-1/4 -z-0" />
         <div className="container mx-auto px-6 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-24 space-y-4">
@@ -275,7 +275,7 @@ export default function Services() {
                     <div className="h-full bg-primary w-0 group-hover:w-full transition-all duration-700" />
                   </div>
                 )}
-                <div className="bg-white p-10 rounded-[2.5rem] shadow-xl hover:shadow-2xl transition-all duration-500 h-full border border-slate-100">
+                <div className="bg-white p-8 sm:p-10 rounded-[2rem] sm:rounded-[2.5rem] shadow-xl hover:shadow-2xl transition-all duration-500 h-full border border-slate-100">
                   <div className="w-16 h-16 bg-slate-950 rounded-2xl flex items-center justify-center mb-8 text-white shadow-lg group-hover:bg-primary transition-colors">
                     <step.icon className="h-8 w-8" />
                   </div>
@@ -290,23 +290,26 @@ export default function Services() {
       </section>
 
       {/* Final Conversion Section */}
-      <section className="py-40">
+      <section className="py-24 sm:py-32 lg:py-40">
         <div className="container mx-auto px-6">
-          <div className="bg-primary rounded-[4rem] p-16 md:p-32 relative overflow-hidden text-center shadow-3xl text-white">
+          <div className="bg-primary rounded-[2.5rem] sm:rounded-[3rem] lg:rounded-[4rem] p-8 sm:p-12 md:p-20 lg:p-32 relative overflow-hidden text-center shadow-3xl text-white">
             <div className="absolute top-0 left-0 w-full h-full opacity-30 pointer-events-none">
               <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-white/20 blur-[120px] rounded-full -ml-64 -mt-64" />
               <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-secondary/30 blur-[120px] rounded-full -mr-64 -mb-64" />
             </div>
             <div className="relative z-10 space-y-10 max-w-5xl mx-auto">
-              <h2 className="text-5xl md:text-8xl font-serif font-black leading-[1.1] tracking-tighter">Elevate your financial <br/> <span className="italic font-light">architecture today.</span></h2>
-              <div className="flex flex-wrap justify-center gap-6 pt-10">
+              <h2 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-serif font-black leading-[1.1] tracking-tighter">
+                Elevate your financial
+                <span className="block italic font-light">architecture today.</span>
+              </h2>
+              <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-4 sm:gap-6 pt-6 sm:pt-10">
                 <Link href="/contact">
-                  <Button size="lg" className="h-24 px-16 rounded-[2.5rem] bg-white text-primary hover:bg-slate-900 hover:text-white text-2xl font-bold transition-all shadow-3xl border-none">
+                  <Button size="lg" className="h-14 sm:h-16 md:h-20 lg:h-24 w-full sm:w-auto px-10 sm:px-12 md:px-14 lg:px-16 rounded-2xl sm:rounded-[2rem] lg:rounded-[2.5rem] bg-white text-primary hover:bg-slate-900 hover:text-white text-base sm:text-lg md:text-xl lg:text-2xl font-bold transition-all shadow-3xl border-none">
                     Open Priority Case
                   </Button>
                 </Link>
                 <Link href="/about">
-                  <Button size="lg" variant="outline" className="h-24 px-16 rounded-[2.5rem] border-white/30 text-white hover:bg-white/10 text-2xl font-bold backdrop-blur-sm">
+                  <Button size="lg" variant="outline" className="h-14 sm:h-16 md:h-20 lg:h-24 w-full sm:w-auto px-10 sm:px-12 md:px-14 lg:px-16 rounded-2xl sm:rounded-[2rem] lg:rounded-[2.5rem] border-white/30 text-white hover:bg-white/10 text-base sm:text-lg md:text-xl lg:text-2xl font-bold backdrop-blur-sm">
                     View Case Studies
                   </Button>
                 </Link>

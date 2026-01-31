@@ -39,28 +39,28 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/40 to-transparent" />
         </motion.div>
         
-        <div className="container mx-auto px-6 relative z-10 text-white pt-20 pb-20">
+        <div className="container mx-auto px-6 relative z-10 text-white pt-20 pb-16 sm:pb-20">
           <div className="max-w-4xl">
             <motion.div
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <h1 className="text-6xl md:text-8xl font-black font-serif leading-[1] mb-8 tracking-tighter">
+              <h1 className="text-4xl sm:text-6xl md:text-8xl font-black font-serif leading-[1.05] mb-6 sm:mb-8 tracking-tighter">
                 Financial <br/>
                 <span className="text-gradient">Precision.</span>
               </h1>
-              <p className="text-xl md:text-2xl text-slate-300 mb-12 font-light leading-relaxed max-w-2xl">
+              <p className="text-base sm:text-xl md:text-2xl text-slate-300 mb-8 sm:mb-12 font-light leading-relaxed max-w-2xl">
                 Bespoke financial architecture for those who demand excellence. Since 2005, we've redefined the standards of wealth advisory.
               </p>
-              <div className="flex flex-wrap gap-6">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-4 sm:gap-6">
                 <Link href="/contact">
-                  <Button size="lg" className="h-16 px-10 rounded-2xl bg-secondary text-white hover:bg-secondary/90 text-lg font-bold shadow-2xl shadow-secondary/20 group border-none">
+                  <Button size="lg" className="h-14 sm:h-16 w-full sm:w-auto px-8 sm:px-10 rounded-2xl bg-secondary text-white hover:bg-secondary/90 text-base sm:text-lg font-bold shadow-2xl shadow-secondary/20 group border-none">
                     Enquire Now <ArrowUpRight className="ml-2 h-5 w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                   </Button>
                 </Link>
                 <Link href="/services">
-                  <Button size="lg" variant="outline" className="h-16 px-10 rounded-2xl text-white border-white/30 hover:bg-white/10 text-lg font-bold backdrop-blur-sm">
+                  <Button size="lg" variant="outline" className="h-14 sm:h-16 w-full sm:w-auto px-8 sm:px-10 rounded-2xl text-white border-white/30 hover:bg-white/10 text-base sm:text-lg font-bold backdrop-blur-sm">
                     Our Expertise
                   </Button>
                 </Link>
@@ -72,10 +72,10 @@ export default function Home() {
         {/* Floating Stats Bar - Integrated into flow to avoid overlap */}
         <div className="relative z-20 border-t border-white/10 bg-white/5 backdrop-blur-2xl mt-auto">
           <div className="container mx-auto px-6 py-12">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-12 items-center">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-12 items-center">
               {stats.map((stat, i) => (
                 <div key={i} className="text-center lg:text-left border-slate-700 lg:border-r last:border-0 px-4 group">
-                  <p className="text-4xl md:text-5xl font-serif font-black text-white mb-2 group-hover:text-secondary transition-colors">{stat.value}</p>
+                  <p className="text-3xl sm:text-4xl md:text-5xl font-serif font-black text-white mb-2 group-hover:text-secondary transition-colors">{stat.value}</p>
                   <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400 group-hover:text-white transition-colors">{stat.label}</p>
                 </div>
               ))}
@@ -85,10 +85,10 @@ export default function Home() {
       </section>
 
       {/* Philosophy Section */}
-      <section className="py-40 bg-white relative overflow-hidden">
+      <section className="py-24 sm:py-32 lg:py-40 bg-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-1/3 h-full bg-slate-50 -z-10 skew-x-12 translate-x-1/2" />
         <div className="container mx-auto px-6">
-          <div className="grid lg:grid-cols-2 gap-24 items-center">
+          <div className="grid lg:grid-cols-2 gap-12 sm:gap-24 items-center">
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
@@ -118,12 +118,12 @@ export default function Home() {
             <div className="space-y-12">
               <div className="space-y-6">
                 <h2 className="text-sm uppercase tracking-[0.5em] font-black text-secondary">Our Philosophy</h2>
-                <h3 className="text-5xl md:text-7xl font-serif font-black text-slate-900 leading-[1.1] tracking-tighter">
+                <h3 className="text-3xl sm:text-5xl md:text-7xl font-serif font-black text-slate-900 leading-[1.1] tracking-tighter">
                   Integrity is our <br/>
                   <span className="italic font-light text-primary/80">only currency.</span>
                 </h3>
               </div>
-              <p className="text-2xl text-slate-600 leading-relaxed font-light">
+              <p className="text-base sm:text-lg md:text-2xl text-slate-600 leading-relaxed font-light">
                 At Express Financial Services, we believe that wealth is more than just numbers—it's about the security and freedom to pursue what truly matters. Our advisors don't just process loans; they architect futures.
               </p>
               <div className="grid sm:grid-cols-2 gap-10">
@@ -149,15 +149,15 @@ export default function Home() {
       </section>
 
       {/* Elevated Services Grid */}
-      <section className="py-40 bg-slate-50">
+      <section className="py-24 sm:py-32 lg:py-40 bg-slate-50">
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-end gap-10 mb-24">
             <div className="space-y-4">
               <h2 className="text-sm uppercase tracking-[0.5em] font-black text-primary">Capabilities</h2>
-              <h3 className="text-6xl font-serif font-black text-slate-900 tracking-tighter">Core Expertise</h3>
+              <h3 className="text-4xl sm:text-6xl font-serif font-black text-slate-900 tracking-tighter">Core Expertise</h3>
             </div>
             <Link href="/services">
-              <Button size="lg" className="rounded-full bg-slate-900 hover:bg-primary px-12 h-16 text-lg shadow-2xl shadow-slate-200">
+              <Button size="lg" className="rounded-full bg-slate-900 hover:bg-primary px-10 sm:px-12 h-14 sm:h-16 text-base sm:text-lg shadow-2xl shadow-slate-200 w-full md:w-auto">
                 All Solutions
               </Button>
             </Link>
@@ -171,9 +171,9 @@ export default function Home() {
                 className="group h-full"
               >
                 <Card className="h-full border-0 shadow-sm hover:shadow-2xl transition-all duration-500 rounded-[3rem] overflow-hidden bg-white">
-                  <CardContent className="p-12 flex flex-col h-full">
-                    <div className="w-20 h-20 bg-slate-50 rounded-[1.5rem] flex items-center justify-center mb-10 text-slate-900 group-hover:bg-primary group-hover:text-white transition-all duration-500 shadow-inner">
-                      <service.icon className="w-10 h-10" />
+                  <CardContent className="p-8 sm:p-12 flex flex-col h-full">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 rounded-[1.5rem] flex items-center justify-center mb-8 sm:mb-10 text-slate-900 group-hover:bg-primary group-hover:text-white transition-all duration-500 shadow-inner">
+                      <service.icon className="w-8 h-8 sm:w-10 sm:h-10" />
                     </div>
                     <h4 className="text-3xl font-serif font-bold text-slate-900 mb-6 tracking-tight">{service.title}</h4>
                     <p className="text-slate-500 text-lg leading-relaxed mb-10 flex-grow">{service.desc}</p>
@@ -191,21 +191,24 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-40">
+      <section className="py-24 sm:py-32 lg:py-40">
         <div className="container mx-auto px-6">
-          <div className="bg-slate-950 rounded-[4rem] p-16 md:p-32 relative overflow-hidden text-center shadow-3xl">
+          <div className="bg-slate-950 rounded-[2.5rem] sm:rounded-[3rem] lg:rounded-[4rem] p-8 sm:p-12 md:p-20 lg:p-32 relative overflow-hidden text-center shadow-3xl">
             <div className="absolute top-0 left-0 w-full h-full opacity-30 pointer-events-none">
               <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-primary/30 blur-[120px] rounded-full -ml-64 -mt-64" />
               <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-secondary/30 blur-[120px] rounded-full -mr-64 -mb-64" />
             </div>
             <div className="relative z-10 space-y-10 max-w-5xl mx-auto">
-              <h2 className="text-5xl md:text-8xl font-serif font-black text-white leading-[1.1] tracking-tighter">Ready to elevate your <br/> <span className="text-secondary">financial horizon?</span></h2>
-              <p className="text-slate-400 text-2xl md:text-3xl font-light leading-relaxed">
+              <h2 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-serif font-black text-white leading-[1.1] tracking-tighter">
+                Ready to elevate your
+                <span className="block text-secondary">financial horizon?</span>
+              </h2>
+              <p className="text-slate-400 text-base sm:text-lg md:text-2xl font-light leading-relaxed max-w-3xl mx-auto">
                 Join thousands of individuals and enterprises who trust us for their most critical financial decisions.
               </p>
-              <div className="pt-10">
+              <div className="pt-6 sm:pt-10 pb-10 sm:pb-0">
                 <Link href="/contact">
-                  <Button size="lg" className="h-24 px-20 rounded-[2.5rem] bg-secondary hover:bg-white hover:text-secondary text-2xl font-bold transition-all shadow-3xl shadow-secondary/30 border-none">
+                  <Button size="lg" className="h-14 sm:h-16 md:h-20 lg:h-24 w-full sm:w-auto px-10 sm:px-12 md:px-16 lg:px-20 rounded-2xl sm:rounded-[2rem] lg:rounded-[2.5rem] bg-secondary hover:bg-white hover:text-secondary text-base sm:text-lg md:text-xl lg:text-2xl font-bold transition-all shadow-3xl shadow-secondary/30 border-none">
                     Schedule a Consultation
                   </Button>
                 </Link>

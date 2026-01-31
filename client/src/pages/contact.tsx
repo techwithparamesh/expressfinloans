@@ -57,7 +57,7 @@ export default function Contact() {
   return (
     <Layout>
       {/* Cinematic Header */}
-      <section className="bg-slate-950 pt-32 pb-64 relative overflow-hidden">
+      <section className="bg-slate-950 pt-24 sm:pt-32 pb-24 sm:pb-64 relative overflow-hidden">
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-primary/30 blur-[130px] rounded-full -mt-64" />
           <div className="absolute bottom-0 left-1/4 w-[600px] h-[600px] bg-secondary/30 blur-[130px] rounded-full -mb-64" />
@@ -70,7 +70,7 @@ export default function Contact() {
             className="max-w-4xl mx-auto space-y-8"
           >
             <h2 className="text-sm uppercase tracking-[0.6em] font-black text-secondary">Connect With Us</h2>
-            <h1 className="text-5xl md:text-8xl font-serif font-black text-white leading-tight tracking-tighter">
+            <h1 className="text-4xl sm:text-5xl md:text-8xl font-serif font-black text-white leading-tight tracking-tighter">
               Bespoke <br/>
               <span className="text-gradient italic font-light">Financial Advisory.</span>
             </h1>
@@ -78,12 +78,12 @@ export default function Contact() {
         </div>
       </section>
 
-      <section className="pb-40 -mt-40 relative z-20">
+      <section className="pb-24 sm:pb-40 -mt-20 sm:-mt-40 relative z-20">
         <div className="container mx-auto px-6">
           <div className="grid lg:grid-cols-12 gap-16">
             {/* Contact Info */}
             <div className="lg:col-span-5 space-y-12">
-              <div className="bg-white p-12 rounded-[3rem] shadow-3xl border border-slate-100 space-y-10">
+              <div className="bg-white p-8 sm:p-12 rounded-[2rem] sm:rounded-[3rem] shadow-3xl border border-slate-100 space-y-10">
                 <div className="space-y-4">
                   <h3 className="text-3xl font-serif font-bold text-slate-900">Reach Out Directly</h3>
                   <p className="text-slate-500 font-light text-lg">Speak with our certified financial strategists.</p>
@@ -123,7 +123,7 @@ export default function Contact() {
                 </div>
               </div>
 
-              <div className="bg-slate-950 p-12 rounded-[3rem] text-white overflow-hidden relative group">
+              <div className="bg-slate-950 p-8 sm:p-12 rounded-[2rem] sm:rounded-[3rem] text-white overflow-hidden relative group">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 blur-3xl -mr-16 -mt-16 group-hover:bg-primary/40 transition-all duration-500" />
                 <div className="relative z-10 space-y-6">
                   <ShieldCheck className="h-12 w-12 text-secondary" />
@@ -135,15 +135,15 @@ export default function Contact() {
 
             {/* Form */}
             <div className="lg:col-span-7">
-              <div className="bg-white p-12 md:p-16 rounded-[4rem] shadow-3xl border border-slate-100 relative overflow-hidden">
+              <div className="bg-white p-8 sm:p-12 md:p-16 rounded-[2.5rem] sm:rounded-[4rem] shadow-3xl border border-slate-100 relative overflow-hidden">
                 <div className="space-y-10 relative z-10">
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-primary font-bold text-sm uppercase tracking-[0.2em]">
                       <MessageSquare className="h-4 w-4" />
                       Immediate Response
                     </div>
-                    <h3 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">Initiate Consultation</h3>
-                    <p className="text-xl text-slate-500 font-light leading-relaxed">Complete this form to receive a prioritized call from our senior financial advisor.</p>
+                    <h3 className="text-3xl sm:text-5xl font-serif font-black text-slate-900 tracking-tighter">Initiate Consultation</h3>
+                    <p className="text-base sm:text-xl text-slate-500 font-light leading-relaxed">Complete this form to receive a prioritized call from our senior financial advisor.</p>
                   </div>
 
                   <Form {...form}>
@@ -156,7 +156,7 @@ export default function Contact() {
                             <FormItem>
                               <FormLabel className="text-[10px] uppercase font-black tracking-widest text-slate-400">Full Identity</FormLabel>
                               <FormControl>
-                                <Input className="h-16 rounded-2xl bg-slate-50 border-none px-6 focus:ring-2 focus:ring-primary/20 text-lg" placeholder="e.g. Alexander Pierce" {...field} />
+                                <Input className="h-14 sm:h-16 rounded-2xl bg-slate-50 border-none px-5 sm:px-6 focus:ring-2 focus:ring-primary/20 text-base sm:text-lg" placeholder="e.g. Alexander Pierce" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -169,7 +169,7 @@ export default function Contact() {
                             <FormItem>
                               <FormLabel className="text-[10px] uppercase font-black tracking-widest text-slate-400">Contact Number</FormLabel>
                               <FormControl>
-                                <Input className="h-16 rounded-2xl bg-slate-50 border-none px-6 focus:ring-2 focus:ring-primary/20 text-lg" placeholder="+91 00000 00000" {...field} />
+                                <Input className="h-14 sm:h-16 rounded-2xl bg-slate-50 border-none px-5 sm:px-6 focus:ring-2 focus:ring-primary/20 text-base sm:text-lg" placeholder="+91 00000 00000" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -185,7 +185,7 @@ export default function Contact() {
                             <FormItem>
                               <FormLabel className="text-[10px] uppercase font-black tracking-widest text-slate-400">Email Address</FormLabel>
                               <FormControl>
-                                <Input className="h-16 rounded-2xl bg-slate-50 border-none px-6 focus:ring-2 focus:ring-primary/20 text-lg" placeholder="alexander@corporate.com" {...field} />
+                                <Input className="h-14 sm:h-16 rounded-2xl bg-slate-50 border-none px-5 sm:px-6 focus:ring-2 focus:ring-primary/20 text-base sm:text-lg" placeholder="alexander@corporate.com" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -199,7 +199,7 @@ export default function Contact() {
                               <FormLabel className="text-[10px] uppercase font-black tracking-widest text-slate-400">Desired Solution</FormLabel>
                               <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
-                                  <SelectTrigger className="h-16 rounded-2xl bg-slate-50 border-none px-6 focus:ring-2 focus:ring-primary/20 text-lg">
+                                  <SelectTrigger className="h-14 sm:h-16 rounded-2xl bg-slate-50 border-none px-5 sm:px-6 focus:ring-2 focus:ring-primary/20 text-base sm:text-lg">
                                     <SelectValue placeholder="Select expertise" />
                                   </SelectTrigger>
                                 </FormControl>
@@ -226,7 +226,7 @@ export default function Contact() {
                             <FormLabel className="text-[10px] uppercase font-black tracking-widest text-slate-400">Executive Summary (Optional)</FormLabel>
                             <FormControl>
                               <Textarea 
-                                className="min-h-[180px] rounded-3xl bg-slate-50 border-none p-6 focus:ring-2 focus:ring-primary/20 text-lg resize-none" 
+                                className="min-h-[140px] sm:min-h-[180px] rounded-3xl bg-slate-50 border-none p-5 sm:p-6 focus:ring-2 focus:ring-primary/20 text-base sm:text-lg resize-none" 
                                 placeholder="Briefly describe your financial objectives..." 
                                 {...field} 
                               />
@@ -236,7 +236,7 @@ export default function Contact() {
                         )}
                       />
 
-                      <Button type="submit" className="w-full h-20 rounded-3xl bg-slate-900 hover:bg-primary text-xl font-bold shadow-2xl transition-all duration-300 group">
+                      <Button type="submit" className="w-full h-16 sm:h-20 rounded-3xl bg-slate-900 hover:bg-primary text-base sm:text-xl font-bold shadow-2xl transition-all duration-300 group">
                         Confirm Request <ArrowRight className="ml-2 h-6 w-6 group-hover:translate-x-1 transition-transform" />
                       </Button>
                     </form>
