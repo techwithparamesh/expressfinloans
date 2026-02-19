@@ -1,0 +1,295 @@
+import Layout from "@/components/layout";
+import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
+import { 
+  ArrowUpRight, 
+  ShieldCheck, 
+  Clock, 
+  Zap, 
+  FileText, 
+  CheckCircle2,
+} from "lucide-react";
+import { Link } from "wouter";
+import { servicesData } from "@/data/services";
+
+const services = servicesData;
+
+const processSteps = [
+  { icon: FileText, title: "Initial Consultation", desc: "Expert assessment of your financial objectives and profile." },
+  { icon: Zap, title: "Rapid Analysis", desc: "Digital verification and precision risk assessment." },
+  { icon: ShieldCheck, title: "Strategic Approval", desc: "Formal credit sanction with bespoke terms." },
+  { icon: Clock, title: "Instant Liquidity", desc: "Seamless disbursement to your preferred accounts." }
+];
+
+export default function Services() {
+  return (
+    <Layout>
+      {/* Editorial Services Header */}
+      <section className="bg-slate-950 pt-24 sm:pt-32 pb-24 sm:pb-48 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/30 blur-[120px] rounded-full -mt-64" />
+          <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-secondary/30 blur-[120px] rounded-full -mb-64" />
+        </div>
+        
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="max-w-4xl mx-auto text-center space-y-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              <h2 className="text-sm uppercase tracking-[0.6em] font-black text-secondary">Our Capabilities</h2>
+              <h1 className="text-4xl sm:text-5xl md:text-8xl font-serif font-black text-white leading-tight tracking-tighter">
+                Institutional Grade <br/>
+                <span className="text-gradient italic font-light">Financial Solutions.</span>
+              </h1>
+              <p className="text-base sm:text-xl md:text-2xl text-slate-400 font-light max-w-2xl mx-auto leading-relaxed">
+                Since 2005, we have curated a suite of premium financial products designed for precision, velocity, and sustainable growth.
+              </p>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Senior Service Showcase */}
+      <section className="pb-24 sm:pb-40 pt-12 sm:pt-20 relative z-20 bg-white">
+        <div className="container mx-auto px-6">
+          <div className="space-y-16 sm:space-y-24 lg:space-y-32">
+            {services.map((service, i) => (
+              <motion.div
+                key={service.id}
+                id={service.id}
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-100px" }}
+                transition={{ duration: 0.8 }}
+                className={`grid lg:grid-cols-2 gap-10 sm:gap-16 lg:gap-20 items-center ${i % 2 === 1 ? 'lg:flex-row-reverse' : ''}`}
+              >
+                <div className={`${i % 2 === 1 ? 'lg:order-2' : ''} space-y-10`}>
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4 text-primary">
+                      <div className="bg-white p-3 rounded-2xl shadow-xl ring-1 ring-slate-100">
+                        <service.icon className="h-6 w-6" />
+                      </div>
+                      <span className={`text-xs font-black uppercase tracking-[0.4em] ${service.isDarkBg ? 'text-blue-400' : 'text-primary'}`}>
+                        {service.subtitle}
+                      </span>
+                    </div>
+                    <h3 className={`text-3xl sm:text-4xl lg:text-5xl font-serif font-black tracking-tighter leading-tight ${service.isDarkBg ? 'text-white' : 'text-slate-900'}`}>
+                      {service.title}
+                    </h3>
+                    <p className={`text-base sm:text-lg md:text-xl leading-relaxed font-light ${service.isDarkBg ? 'text-slate-300' : 'text-slate-600'}`}>
+                      {service.desc}
+                    </p>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-6">
+                    {service.features.map((feature, idx) => (
+                      <div key={idx} className="flex items-center gap-3 group">
+                        <div className="bg-secondary/10 p-1.5 rounded-full text-secondary transition-colors group-hover:bg-secondary group-hover:text-white">
+                          <CheckCircle2 className="h-4 w-4" />
+                        </div>
+                        <span className={`text-sm font-bold tracking-tight ${service.isDarkBg ? 'text-slate-200' : 'text-slate-700'}`}>
+                          {feature}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-6 flex gap-4">
+                    <Link href={`/services/${service.id}`}>
+                      <button className={`h-14 sm:h-16 w-full sm:w-auto px-8 sm:px-10 rounded-2xl text-base sm:text-lg font-bold shadow-2xl transition-all group flex items-center justify-center ${service.isDarkBg ? 'bg-white text-slate-950 hover:bg-secondary hover:text-white' : 'bg-slate-900 text-white hover:bg-primary'}`}>
+                        Learn More <ArrowUpRight className="ml-2 h-5 w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                      </button>
+                    </Link>
+                    <Link href={`/contact?service=${service.title}`}>
+                      <button className={`h-14 sm:h-16 w-full sm:w-auto px-8 sm:px-10 rounded-2xl text-base sm:text-lg font-bold shadow-2xl transition-all group flex items-center justify-center border-2 ${service.isDarkBg ? 'border-white text-white hover:bg-white hover:text-slate-950' : 'border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white'}`}>
+                        Consult Now <ArrowUpRight className="ml-2 h-5 w-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                      </button>
+                    </Link>
+                  </div>
+                </div>
+
+                <div className={`${i % 2 === 1 ? 'lg:order-1' : ''} relative`}>
+                  <div className={`absolute inset-0 bg-gradient-to-tr ${service.color} blur-3xl rounded-[3rem] -z-10`} />
+                  <div className="relative h-[320px] sm:h-[400px] md:h-[600px] rounded-[2rem] sm:rounded-[3rem] overflow-hidden shadow-3xl border-4 sm:border-8 border-white group">
+                    <img 
+                      src={service.image} 
+                      alt={service.title} 
+                      className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+                      onError={(e) => {
+                        e.currentTarget.src = "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800";
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Lending & Insurance Partners - Horizontal Scroll */}
+      <section className="py-16 sm:py-20 bg-slate-950 text-white relative overflow-hidden">
+        <div className="absolute inset-0 opacity-30 pointer-events-none">
+          <div className="absolute -top-40 left-0 w-[420px] h-[420px] bg-primary/40 blur-[120px] rounded-full" />
+          <div className="absolute -bottom-40 right-0 w-[420px] h-[420px] bg-secondary/40 blur-[120px] rounded-full" />
+        </div>
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="flex flex-col gap-8 sm:gap-10">
+            <div className="space-y-3 text-center sm:text-left">
+              <p className="text-[10px] sm:text-xs uppercase tracking-[0.5em] font-black text-secondary">
+                Trusted Lending Ecosystem
+              </p>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif font-black">
+                Partner Banks & Institutions
+              </h2>
+              <p className="text-slate-300 text-sm sm:text-base max-w-3xl mx-auto sm:mx-0">
+                We collaborate with leading banks, NBFCs, and insurance providers to secure the most competitive offers for every
+                loan program you see above.
+              </p>
+            </div>
+
+            <div className="marquee rounded-[2rem] bg-white/5 border border-white/10 py-5 sm:py-6 px-2 sm:px-4">
+              <div className="marquee-inner gap-4 sm:gap-6">
+                {[
+                  "ICICI Bank",
+                  "HDFC Bank",
+                  "SBI",
+                  "Axis Bank",
+                  "Yes Bank",
+                  "Kotak Mahindra Bank",
+                  "Bank of Baroda",
+                  "Canara Bank",
+                  "Union Bank of India",
+                  "Bandhan Bank",
+                  "IDFC FIRST Bank",
+                  "BOI",
+                  "Aditya Birla Capital",
+                  "Bajaj Finserv",
+                  "Chola",
+                  "Mahindra Finance",
+                  "Tata Capital",
+                  "L&T Finance",
+                  "ICICI Lombard",
+                  "ICICI Prudential",
+                  "LIC Housing Finance",
+                  "Liberty General Insurance",
+                  "Reliance General Insurance",
+                  "HDFC ERGO",
+                  "SBI General",
+                  "IFFCO Tokio",
+                  "digit Insurance",
+                  "Royal Sundaram",
+                  "Zurich",
+                ]
+                  .concat([
+                    "ICICI Bank",
+                    "HDFC Bank",
+                    "SBI",
+                    "Axis Bank",
+                    "Yes Bank",
+                    "Kotak Mahindra Bank",
+                    "Bank of Baroda",
+                    "Canara Bank",
+                    "Union Bank of India",
+                    "Bandhan Bank",
+                    "IDFC FIRST Bank",
+                    "BOI",
+                    "Aditya Birla Capital",
+                    "Bajaj Finserv",
+                    "Chola",
+                    "Mahindra Finance",
+                    "Tata Capital",
+                    "L&T Finance",
+                    "ICICI Lombard",
+                    "ICICI Prudential",
+                    "LIC Housing Finance",
+                    "Liberty General Insurance",
+                    "Reliance General Insurance",
+                    "HDFC ERGO",
+                    "SBI General",
+                    "IFFCO Tokio",
+                    "digit Insurance",
+                    "Royal Sundaram",
+                    "Zurich",
+                  ])
+                  .map((partner, index) => (
+                    <div
+                      key={`${partner}-${index}`}
+                      className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-full bg-white text-slate-900 text-xs sm:text-sm font-semibold shadow-lg whitespace-nowrap border border-slate-200/60"
+                    >
+                      {partner}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Elite Process Timeline */}
+      <section className="py-20 sm:py-32 lg:py-40 bg-slate-50 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-white -skew-x-12 translate-x-1/4 -z-0" />
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="text-center max-w-3xl mx-auto mb-24 space-y-4">
+            <h2 className="text-sm uppercase tracking-[0.5em] font-black text-secondary">The Velocity Framework</h2>
+            <h3 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">Bespoke Advisory Process</h3>
+            <p className="text-xl text-slate-500 font-light">Four strategic stages from inquiry to capital deployment.</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {processSteps.map((step, i) => (
+              <div key={i} className="relative group">
+                {i < 3 && (
+                  <div className="hidden lg:block absolute top-12 left-[80%] w-full h-[2px] bg-slate-200 -z-10">
+                    <div className="h-full bg-primary w-0 group-hover:w-full transition-all duration-700" />
+                  </div>
+                )}
+                <div className="bg-white p-8 sm:p-10 rounded-[2rem] sm:rounded-[2.5rem] shadow-xl hover:shadow-2xl transition-all duration-500 h-full border border-slate-100">
+                  <div className="w-16 h-16 bg-slate-950 rounded-2xl flex items-center justify-center mb-8 text-white shadow-lg group-hover:bg-primary transition-colors">
+                    <step.icon className="h-8 w-8" />
+                  </div>
+                  <h4 className="text-2xl font-serif font-bold text-slate-900 mb-4">{step.title}</h4>
+                  <p className="text-slate-500 text-sm leading-relaxed">{step.desc}</p>
+                  <div className="mt-8 text-xs font-black text-slate-200">0{i + 1}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Final Conversion Section */}
+      <section className="py-24 sm:py-32 lg:py-40">
+        <div className="container mx-auto px-6">
+          <div className="bg-primary rounded-[2.5rem] sm:rounded-[3rem] lg:rounded-[4rem] p-8 sm:p-12 md:p-20 lg:p-32 relative overflow-hidden text-center shadow-3xl text-white">
+            <div className="absolute top-0 left-0 w-full h-full opacity-30 pointer-events-none">
+              <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-white/20 blur-[120px] rounded-full -ml-64 -mt-64" />
+              <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-secondary/30 blur-[120px] rounded-full -mr-64 -mb-64" />
+            </div>
+            <div className="relative z-10 space-y-10 max-w-5xl mx-auto">
+              <h2 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-serif font-black leading-[1.1] tracking-tighter">
+                Elevate your financial
+                <span className="block italic font-light">architecture today.</span>
+              </h2>
+              <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-4 sm:gap-6 pt-6 sm:pt-10">
+                <Link href="/contact">
+                  <Button size="lg" className="h-14 sm:h-16 md:h-20 lg:h-24 w-full sm:w-auto px-10 sm:px-12 md:px-14 lg:px-16 rounded-2xl sm:rounded-[2rem] lg:rounded-[2.5rem] bg-white text-primary hover:bg-slate-900 hover:text-white text-base sm:text-lg md:text-xl lg:text-2xl font-bold transition-all shadow-3xl border-none">
+                    Open Priority Case
+                  </Button>
+                </Link>
+                <Link href="/about">
+                  <Button size="lg" variant="outline" className="h-14 sm:h-16 md:h-20 lg:h-24 w-full sm:w-auto px-10 sm:px-12 md:px-14 lg:px-16 rounded-2xl sm:rounded-[2rem] lg:rounded-[2.5rem] border-white/30 text-white hover:bg-white/10 text-base sm:text-lg md:text-xl lg:text-2xl font-bold backdrop-blur-sm">
+                    View Case Studies
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </Layout>
+  );
+}
