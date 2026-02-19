@@ -52,8 +52,8 @@ export default function About() {
               </h1>
               <div className="w-24 h-1 bg-primary mx-auto" />
               <p className="text-lg sm:text-xl text-slate-600 font-light leading-relaxed max-w-3xl mx-auto">
-                Established in 2005, Express Financial Services has been a trusted partner in financial solutions, 
-                helping thousands of individuals and businesses achieve their goals through comprehensive loan products 
+                Established in 2005, Express Financial Services has been a trusted partner in financial solutions,
+                helping thousands of individuals and businesses achieve their goals through comprehensive loan products
                 and expert advisory services.
               </p>
             </motion.div>
@@ -75,8 +75,8 @@ export default function About() {
                 Our Mission
               </h2>
               <p className="text-lg text-slate-600 leading-relaxed">
-                To provide accessible, transparent, and efficient financial solutions that empower our clients 
-                to achieve their personal and business objectives. We strive to simplify the loan application 
+                To provide accessible, transparent, and efficient financial solutions that empower our clients
+                to achieve their personal and business objectives. We strive to simplify the loan application
                 process while maintaining the highest standards of service and integrity.
               </p>
             </motion.div>
@@ -91,8 +91,8 @@ export default function About() {
                 Our Vision
               </h2>
               <p className="text-lg text-slate-600 leading-relaxed">
-                To become India's most trusted financial services partner, recognized for our commitment to 
-                client success, innovative solutions, and ethical business practices. We aim to bridge the 
+                To become India's most trusted financial services partner, recognized for our commitment to
+                client success, innovative solutions, and ethical business practices. We aim to bridge the
                 gap between financial aspirations and reality for individuals and enterprises across the nation.
               </p>
             </motion.div>
@@ -285,13 +285,13 @@ export default function About() {
               </div>
               <div className="space-y-4 text-slate-600 leading-relaxed">
                 <p>
-                  With over 20 years of experience in the financial services industry, Mr. Mosali Harinadha Reddy 
-                  has been instrumental in shaping Express Financial Services into a trusted name in the sector. 
-                  Under his leadership, the company has consistently delivered exceptional results and maintained 
+                  With over 20 years of experience in the financial services industry, Mr. Mosali Harinadha Reddy
+                  has been instrumental in shaping Express Financial Services into a trusted name in the sector.
+                  Under his leadership, the company has consistently delivered exceptional results and maintained
                   the highest standards of service excellence.
                 </p>
                 <p>
-                  His vision and commitment to client success have driven the company's growth from a boutique 
+                  His vision and commitment to client success have driven the company's growth from a boutique
                   advisory firm to a comprehensive financial services provider managing assets worth over ₹500Cr.
                 </p>
               </div>
