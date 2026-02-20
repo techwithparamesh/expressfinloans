@@ -22,6 +22,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -139,7 +140,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <a href="tel:+919000001339" className="p-2 rounded-full bg-primary/10 text-primary">
                   <Phone className="h-5 w-5" />
                 </a>
-                <Sheet>
+                <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                   <SheetTrigger asChild>
                     <Button variant="ghost" size="icon" className="rounded-full text-slate-900">
                       <Menu className="h-6 w-6" />
@@ -148,17 +149,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <SheetContent side="right" className="w-full sm:w-[350px] overflow-y-auto">
                     <div className="flex flex-col gap-6 mt-12">
                       <Link href="/">
-                        <a className="text-xl font-serif font-bold text-slate-900 hover:text-primary transition-colors">Home</a>
+                        <a onClick={() => setIsMobileMenuOpen(false)} className="text-xl font-serif font-bold text-slate-900 hover:text-primary transition-colors">Home</a>
                       </Link>
                       <Link href="/about">
-                        <a className="text-xl font-serif font-bold text-slate-900 hover:text-primary transition-colors">About Us</a>
+                        <a onClick={() => setIsMobileMenuOpen(false)} className="text-xl font-serif font-bold text-slate-900 hover:text-primary transition-colors">About Us</a>
                       </Link>
                       <Link href="/contact">
-                        <a className="text-xl font-serif font-bold text-slate-900 hover:text-primary transition-colors">Contact Us</a>
+                        <a onClick={() => setIsMobileMenuOpen(false)} className="text-xl font-serif font-bold text-slate-900 hover:text-primary transition-colors">Contact Us</a>
                       </Link>
                       <button
-                        onClick={() => setIsCalculatorOpen(true)}
-                        className="flex items-center gap-3 text-xl font-serif font-bold text-secondary hover:text-secondary/80 transition-colors"
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          setIsCalculatorOpen(true);
+                        }}
+                        className="flex items-center gap-3 text-xl font-serif font-bold text-secondary hover:text-secondary/80 transition-colors text-left"
                       >
                         <Calculator className="h-5 w-5" />
                         EMI Calculator
@@ -168,7 +172,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         <div className="grid grid-cols-1 gap-2">
                           {serviceLinks.map((s) => (
                             <Link key={s.href} href={s.href}>
-                              <a className="block text-base font-semibold text-slate-700 hover:text-primary transition-colors py-1">{s.label}</a>
+                              <a onClick={() => setIsMobileMenuOpen(false)} className="block text-base font-semibold text-slate-700 hover:text-primary transition-colors py-1">{s.label}</a>
                             </Link>
                           ))}
                         </div>

@@ -289,8 +289,8 @@ export default function Home() {
                 </Button>
               </div>
 
-              {/* Quick contact */}
-              <div className="flex flex-wrap items-center gap-6 pt-4 text-sm">
+              {/* Quick contact - hidden on mobile as floating buttons serve this purpose */}
+              <div className="hidden md:flex flex-wrap items-center gap-6 pt-4 text-sm">
                 <a href="tel:+919876543210" className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors">
                   <Phone className="h-4 w-4" />
                   <span>+91 98765 43210</span>
