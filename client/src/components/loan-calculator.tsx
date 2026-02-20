@@ -1,269 +1,268 @@
-import { useState, useMemo } from "react";
-import { Slider } from "@/components/ui/slider";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  X, 
+  Calculator, 
+  Clock,
+  Percent,
+  IndianRupee,
+  ArrowRight,
+  PieChart
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Calculator, TrendingUp, DollarSign, Calendar, Percent } from "lucide-react";
-import { motion } from "framer-motion";
+import { 
+  loanTypes, 
+  calculateEMI, 
+  calculateTotalInterest,
+  formatCurrency,
+  LoanTypeConfig 
+} from "@/data/bankRates";
+import { Link } from "wouter";
 
 interface LoanCalculatorProps {
-  defaultLoanAmount?: number;
-  defaultTenure?: number;
-  defaultInterestRate?: number;
-  minLoanAmount?: number;
-  maxLoanAmount?: number;
-  minTenure?: number;
-  maxTenure?: number;
-  minInterestRate?: number;
-  maxInterestRate?: number;
-  loanType?: string;
+  isOpen: boolean;
+  onClose: () => void;
+  preSelectedLoanType?: string;
 }
 
-export default function LoanCalculator({
-  defaultLoanAmount = 500000,
-  defaultTenure = 5,
-  defaultInterestRate = 8.5,
-  minLoanAmount = 100000,
-  maxLoanAmount = 10000000,
-  minTenure = 1,
-  maxTenure = 30,
-  minInterestRate = 6,
-  maxInterestRate = 18,
-  loanType = "Loan",
-}: LoanCalculatorProps) {
-  const [loanAmount, setLoanAmount] = useState(defaultLoanAmount);
-  const [tenure, setTenure] = useState(defaultTenure);
-  const [interestRate, setInterestRate] = useState(defaultInterestRate);
+export default function LoanCalculator({ isOpen, onClose, preSelectedLoanType }: LoanCalculatorProps) {
+  const [selectedLoanType, setSelectedLoanType] = useState<LoanTypeConfig>(
+    loanTypes.find(l => l.id === preSelectedLoanType) || loanTypes[0]
+  );
+  const [loanAmount, setLoanAmount] = useState(selectedLoanType.defaultAmount);
+  const [tenure, setTenure] = useState(selectedLoanType.defaultTenure);
+  const [interestRate, setInterestRate] = useState(selectedLoanType.banks[0]?.rate || 8.5);
 
-  const calculations = useMemo(() => {
-    const monthlyRate = interestRate / 12 / 100;
-    const numPayments = tenure * 12;
-
-    let emi = 0;
-    let totalInterest = 0;
-    let totalAmount = 0;
-
-    if (monthlyRate > 0 && numPayments > 0) {
-      emi =
-        (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, numPayments)) /
-        (Math.pow(1 + monthlyRate, numPayments) - 1);
-      totalAmount = emi * numPayments;
-      totalInterest = totalAmount - loanAmount;
-    } else {
-      emi = loanAmount / numPayments;
-      totalAmount = loanAmount;
-      totalInterest = 0;
+  useEffect(() => {
+    if (preSelectedLoanType) {
+      const loanType = loanTypes.find(l => l.id === preSelectedLoanType);
+      if (loanType) {
+        setSelectedLoanType(loanType);
+        setLoanAmount(loanType.defaultAmount);
+        setTenure(loanType.defaultTenure);
+        setInterestRate(loanType.banks[0]?.rate || 8.5);
+      }
     }
+  }, [preSelectedLoanType]);
 
-    return {
-      emi: Math.round(emi),
-      totalAmount: Math.round(totalAmount),
-      totalInterest: Math.round(totalInterest),
-    };
-  }, [loanAmount, tenure, interestRate]);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(amount);
+  const handleLoanTypeChange = (loanType: LoanTypeConfig) => {
+    setSelectedLoanType(loanType);
+    setLoanAmount(loanType.defaultAmount);
+    setTenure(Math.min(tenure, loanType.maxTenure));
+    setInterestRate(loanType.banks[0]?.rate || 8.5);
   };
 
-  const formatNumber = (num: number) => {
-    return new Intl.NumberFormat("en-IN").format(num);
-  };
+  const emi = calculateEMI(loanAmount, interestRate, tenure);
+  const totalInterest = calculateTotalInterest(loanAmount, emi, tenure);
+  const totalPayment = loanAmount + totalInterest;
+  const principalPercentage = (loanAmount / totalPayment) * 100;
+
+  if (!isOpen) return null;
 
   return (
-    <Card className="border-0 shadow-2xl rounded-3xl overflow-hidden bg-gradient-to-br from-white to-slate-50">
-      <CardHeader className="bg-gradient-to-r from-primary to-primary/90 text-white p-8">
-        <div className="flex items-center gap-4">
-          <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
-            <Calculator className="h-8 w-8" />
-          </div>
-          <div>
-            <CardTitle className="text-2xl font-black text-white mb-1">
-              {loanType} Calculator
-            </CardTitle>
-            <p className="text-white/80 text-sm font-medium">
-              Calculate your EMI, total interest, and total amount payable
-            </p>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent className="p-8 space-y-8">
-        {/* Loan Amount Slider */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <DollarSign className="h-5 w-5 text-primary" />
-              <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                Loan Amount
-              </label>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-black text-slate-900">
-                {formatCurrency(loanAmount)}
-              </div>
-              <div className="text-xs text-slate-500 font-medium">
-                ₹{formatNumber(minLoanAmount)} - ₹{formatNumber(maxLoanAmount)}
-              </div>
-            </div>
-          </div>
-          <Slider
-            value={[loanAmount]}
-            onValueChange={(value) => setLoanAmount(value[0])}
-            min={minLoanAmount}
-            max={maxLoanAmount}
-            step={50000}
-            className="w-full"
-          />
-          <div className="flex justify-between text-xs text-slate-500 font-medium">
-            <span>₹{formatNumber(minLoanAmount)}</span>
-            <span>₹{formatNumber(maxLoanAmount)}</span>
-          </div>
-        </div>
-
-        {/* Tenure Slider */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Calendar className="h-5 w-5 text-primary" />
-              <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                Loan Tenure
-              </label>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-black text-slate-900">
-                {tenure} {tenure === 1 ? "Year" : "Years"}
-              </div>
-              <div className="text-xs text-slate-500 font-medium">
-                {minTenure} - {maxTenure} Years
-              </div>
-            </div>
-          </div>
-          <Slider
-            value={[tenure]}
-            onValueChange={(value) => setTenure(value[0])}
-            min={minTenure}
-            max={maxTenure}
-            step={1}
-            className="w-full"
-          />
-          <div className="flex justify-between text-xs text-slate-500 font-medium">
-            <span>{minTenure} Year</span>
-            <span>{maxTenure} Years</span>
-          </div>
-        </div>
-
-        {/* Interest Rate Slider */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Percent className="h-5 w-5 text-primary" />
-              <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                Interest Rate (p.a.)
-              </label>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-black text-slate-900">
-                {interestRate.toFixed(2)}%
-              </div>
-              <div className="text-xs text-slate-500 font-medium">
-                {minInterestRate}% - {maxInterestRate}% p.a.
-              </div>
-            </div>
-          </div>
-          <Slider
-            value={[interestRate]}
-            onValueChange={(value) => setInterestRate(value[0])}
-            min={minInterestRate}
-            max={maxInterestRate}
-            step={0.1}
-            className="w-full"
-          />
-          <div className="flex justify-between text-xs text-slate-500 font-medium">
-            <span>{minInterestRate}%</span>
-            <span>{maxInterestRate}%</span>
-          </div>
-        </div>
-
-        {/* Results Section */}
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl p-6 border-2 border-primary/20"
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center gap-3 mb-6">
-            <TrendingUp className="h-6 w-6 text-primary" />
-            <h3 className="text-lg font-black text-slate-900 uppercase tracking-wide">
-              Your Loan Breakdown
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-xl p-5 shadow-lg border border-slate-200">
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                Monthly EMI
+          {/* Header */}
+          <div className="bg-gradient-to-r from-primary to-blue-700 text-white p-4 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 p-2 sm:p-3 rounded-xl">
+                  <Calculator className="h-5 w-5 sm:h-6 sm:w-6" />
+                </div>
+                <div>
+                  <h2 className="text-lg sm:text-xl font-bold">EMI Calculator</h2>
+                  <p className="text-white/80 text-xs sm:text-sm">Calculate your monthly payments</p>
+                </div>
               </div>
-              <div className="text-3xl font-black text-primary">
-                {formatCurrency(calculations.emi)}
-              </div>
-              <div className="text-xs text-slate-500 mt-1">
-                Per month for {tenure * 12} months
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl p-5 shadow-lg border border-slate-200">
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                Total Interest
-              </div>
-              <div className="text-3xl font-black text-secondary">
-                {formatCurrency(calculations.totalInterest)}
-              </div>
-              <div className="text-xs text-slate-500 mt-1">
-                Over {tenure} {tenure === 1 ? "year" : "years"}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl p-5 shadow-lg border border-slate-200">
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                Total Amount
-              </div>
-              <div className="text-3xl font-black text-slate-900">
-                {formatCurrency(calculations.totalAmount)}
-              </div>
-              <div className="text-xs text-slate-500 mt-1">
-                Principal + Interest
-              </div>
+              <button 
+                onClick={onClose}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+              >
+                <X className="h-5 w-5 sm:h-6 sm:w-6" />
+              </button>
             </div>
           </div>
 
-          <div className="mt-6 pt-6 border-t border-primary/20">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600 font-medium">Principal Amount</span>
-              <span className="font-black text-slate-900">{formatCurrency(loanAmount)}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm mt-2">
-              <span className="text-slate-600 font-medium">Total Interest Payable</span>
-              <span className="font-black text-secondary">{formatCurrency(calculations.totalInterest)}</span>
-            </div>
-            <div className="flex items-center justify-between text-base mt-3 pt-3 border-t border-slate-200">
-              <span className="text-slate-900 font-bold">Total Amount Payable</span>
-              <span className="font-black text-primary text-lg">{formatCurrency(calculations.totalAmount)}</span>
+          <div className="overflow-y-auto max-h-[calc(90vh-100px)]">
+            <div className="p-4 sm:p-6 space-y-5">
+              {/* Loan Type Selector */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 block">
+                  Select Loan Type
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {loanTypes.map((type) => (
+                    <button
+                      key={type.id}
+                      onClick={() => handleLoanTypeChange(type)}
+                      className={`p-2.5 sm:p-3 rounded-xl border-2 text-left transition-all ${
+                        selectedLoanType.id === type.id
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-slate-200 hover:border-slate-300 text-slate-700"
+                      }`}
+                    >
+                      <span className="text-xs sm:text-sm font-semibold block truncate">{type.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Loan Amount Slider */}
+              <div className="bg-slate-50 rounded-2xl p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <IndianRupee className="h-4 w-4 text-slate-500" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Loan Amount</span>
+                  </div>
+                  <span className="text-xl sm:text-2xl font-bold text-slate-900">{formatCurrency(loanAmount)}</span>
+                </div>
+                <input
+                  type="range"
+                  min={selectedLoanType.minAmount}
+                  max={selectedLoanType.maxAmount}
+                  step={selectedLoanType.minAmount >= 1000000 ? 100000 : 10000}
+                  value={loanAmount}
+                  onChange={(e) => setLoanAmount(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-200 rounded-full appearance-none cursor-pointer accent-primary"
+                />
+                <div className="flex justify-between text-xs text-slate-400 mt-2">
+                  <span>{formatCurrency(selectedLoanType.minAmount)}</span>
+                  <span>{formatCurrency(selectedLoanType.maxAmount)}</span>
+                </div>
+              </div>
+
+              {/* Interest Rate Slider */}
+              <div className="bg-slate-50 rounded-2xl p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Percent className="h-4 w-4 text-slate-500" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Interest Rate</span>
+                  </div>
+                  <span className="text-xl sm:text-2xl font-bold text-primary">{interestRate}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={5}
+                  max={20}
+                  step={0.1}
+                  value={interestRate}
+                  onChange={(e) => setInterestRate(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-200 rounded-full appearance-none cursor-pointer accent-primary"
+                />
+                <div className="flex justify-between text-xs text-slate-400 mt-2">
+                  <span>5%</span>
+                  <span>20%</span>
+                </div>
+              </div>
+
+              {/* Tenure Slider */}
+              <div className="bg-slate-50 rounded-2xl p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-slate-500" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Loan Tenure</span>
+                  </div>
+                  <span className="text-xl sm:text-2xl font-bold text-slate-900">{tenure} {tenure === 1 ? 'Year' : 'Years'}</span>
+                </div>
+                <input
+                  type="range"
+                  min={selectedLoanType.minTenure}
+                  max={selectedLoanType.maxTenure}
+                  step={1}
+                  value={tenure}
+                  onChange={(e) => setTenure(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-200 rounded-full appearance-none cursor-pointer accent-primary"
+                />
+                <div className="flex justify-between text-xs text-slate-400 mt-2">
+                  <span>{selectedLoanType.minTenure} Year{selectedLoanType.minTenure > 1 ? 's' : ''}</span>
+                  <span>{selectedLoanType.maxTenure} Years</span>
+                </div>
+              </div>
+
+              {/* Results */}
+              <div className="bg-gradient-to-br from-primary to-blue-700 rounded-2xl p-5 sm:p-6 text-white">
+                <div className="flex items-center gap-2 mb-4">
+                  <PieChart className="h-5 w-5" />
+                  <span className="text-sm font-semibold">Your EMI Breakdown</span>
+                </div>
+                
+                <div className="text-center mb-6">
+                  <p className="text-white/70 text-sm mb-1">Monthly EMI</p>
+                  <p className="text-4xl sm:text-5xl font-black">{formatCurrency(emi)}</p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mb-5">
+                  <div className="text-center">
+                    <p className="text-white/70 text-xs mb-1">Principal</p>
+                    <p className="text-lg font-bold">{formatCurrency(loanAmount)}</p>
+                  </div>
+                  <div className="text-center border-x border-white/20">
+                    <p className="text-white/70 text-xs mb-1">Total Interest</p>
+                    <p className="text-lg font-bold">{formatCurrency(totalInterest)}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-white/70 text-xs mb-1">Total Payment</p>
+                    <p className="text-lg font-bold">{formatCurrency(totalPayment)}</p>
+                  </div>
+                </div>
+
+                {/* Visual breakdown bar */}
+                <div className="mb-4">
+                  <div className="h-3 bg-white/20 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-white rounded-full transition-all duration-300"
+                      style={{ width: `${principalPercentage}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs mt-2">
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 bg-white rounded-full"></span>
+                      Principal ({principalPercentage.toFixed(0)}%)
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 bg-white/30 rounded-full"></span>
+                      Interest ({(100 - principalPercentage).toFixed(0)}%)
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link href={`/contact?service=${selectedLoanType.name}&amount=${loanAmount}`} className="flex-1">
+                  <Button 
+                    className="w-full bg-secondary hover:bg-secondary/90 text-white rounded-xl h-12 font-semibold"
+                    onClick={onClose}
+                  >
+                    Apply for {selectedLoanType.name} <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </Link>
+                <Button 
+                  variant="outline"
+                  className="rounded-xl h-12 font-semibold border-2"
+                  onClick={onClose}
+                >
+                  Close
+                </Button>
+              </div>
             </div>
           </div>
         </motion.div>
-
-        <Button
-          className="w-full h-14 bg-slate-900 hover:bg-primary text-white font-bold text-lg rounded-xl shadow-xl transition-all"
-          onClick={() => {
-            window.location.href = "/contact";
-          }}
-        >
-          Apply for {loanType} Now
-        </Button>
-      </CardContent>
-    </Card>
+      </motion.div>
+    </AnimatePresence>
   );
 }

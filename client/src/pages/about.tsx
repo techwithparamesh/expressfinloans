@@ -38,22 +38,28 @@ const milestones = [
 export default function About() {
   return (
     <Layout>
-      {/* Professional Hero Section */}
-      <section className="bg-white pt-24 sm:pt-32 pb-16 sm:pb-24 border-b border-slate-200">
-        <div className="container mx-auto px-6">
+      {/* Hero Section - Dark with gradients (matching Contact page) */}
+      <section className="bg-slate-950 pt-20 sm:pt-28 pb-20 sm:pb-28 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-primary/30 blur-[130px] rounded-full -mt-64" />
+          <div className="absolute bottom-0 left-1/4 w-[600px] h-[600px] bg-secondary/30 blur-[130px] rounded-full -mb-64" />
+        </div>
+        
+        <div className="container mx-auto px-6 relative z-10">
           <div className="max-w-4xl mx-auto text-center space-y-6">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="space-y-6"
             >
-              <h1 className="text-4xl sm:text-5xl md:text-6xl font-serif font-black text-slate-900 leading-tight tracking-tight">
-                About Express Financial Services
+              <h2 className="text-sm uppercase tracking-[0.4em] font-bold text-secondary">Our Story</h2>
+              <h1 className="text-4xl sm:text-5xl md:text-7xl font-serif font-black text-white leading-tight tracking-tight">
+                About{" "}
+                <span className="text-gradient italic font-light">Express Financial.</span>
               </h1>
-              <div className="w-24 h-1 bg-primary mx-auto" />
-              <p className="text-lg sm:text-xl text-slate-600 font-light leading-relaxed max-w-3xl mx-auto">
-                Established in 2005, Express Financial Services has been a trusted partner in financial solutions,
-                helping thousands of individuals and businesses achieve their goals through comprehensive loan products
+              <p className="text-lg sm:text-xl text-slate-300 font-light leading-relaxed max-w-3xl mx-auto">
+                Established in 2005, we've been a trusted partner in financial solutions,
+                helping thousands achieve their goals through comprehensive loan products
                 and expert advisory services.
               </p>
             </motion.div>

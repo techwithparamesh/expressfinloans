@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useRoute } from "wouter";
 import Layout from "@/components/layout";
 import LoanCalculator from "@/components/loan-calculator";
@@ -9,14 +10,14 @@ import {
   CheckCircle2,
   FileText,
   ShieldCheck,
-  Clock,
-  Zap,
+  Calculator,
 } from "lucide-react";
 import { Link } from "wouter";
 import NotFound from "./not-found";
 
 export default function ServiceDetail() {
   const [, params] = useRoute("/services/:serviceId");
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const serviceId = params?.serviceId;
 
   if (!serviceId) {
@@ -63,12 +64,27 @@ export default function ServiceDetail() {
         </div>
       </section>
 
-      {/* Loan Calculator - prominent, right after hero */}
+      {/* EMI Calculator CTA - prominent, right after hero */}
       {service.calculatorConfig && (
-        <section className="py-12 sm:py-16 bg-slate-50 border-b border-slate-200">
+        <section className="py-8 sm:py-12 bg-gradient-to-r from-primary to-blue-700 border-b border-slate-200">
           <div className="container mx-auto px-6">
-            <div className="max-w-2xl mx-auto">
-              <LoanCalculator {...service.calculatorConfig} loanType={service.title} />
+            <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-4 text-white">
+                <div className="bg-white/20 p-3 sm:p-4 rounded-2xl backdrop-blur-sm">
+                  <Calculator className="h-6 w-6 sm:h-8 sm:w-8" />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-bold">{service.title} Calculator</h3>
+                  <p className="text-white/80 text-sm">Compare EMI & interest rates from top banks</p>
+                </div>
+              </div>
+              <Button 
+                onClick={() => setIsCalculatorOpen(true)}
+                className="bg-white text-primary hover:bg-slate-100 rounded-full px-6 sm:px-8 py-3 font-bold shadow-lg"
+              >
+                <Calculator className="h-4 w-4 mr-2" />
+                Calculate EMI
+              </Button>
             </div>
           </div>
         </section>
@@ -259,6 +275,13 @@ export default function ServiceDetail() {
           </div>
         </div>
       </section>
+
+      {/* Loan Calculator Modal */}
+      <LoanCalculator 
+        isOpen={isCalculatorOpen} 
+        onClose={() => setIsCalculatorOpen(false)}
+        preSelectedLoanType={serviceId}
+      />
     </Layout>
   );
 }

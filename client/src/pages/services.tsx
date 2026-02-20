@@ -12,6 +12,48 @@ import {
 import { Link } from "wouter";
 import { servicesData } from "@/data/services";
 
+/* Logos from attached_assets – official bank & insurer logos */
+import logoHdfcBank from "@assets/HDFC_Bank_Logo.svg.png";
+import logoIciciBank from "@assets/icici-bank-logo.png";
+import logoSbi from "@assets/SBI-Logo.jpg";
+import logoAxisBank from "@assets/axis bank logo.jpg";
+import logoKotak from "@assets/kotak logo.png";
+import logoIndusInd from "@assets/IndusIndBankJPEGlogo.jpg";
+import logoYesBank from "@assets/YES Bank Logo.webp";
+import logoIdfc from "@assets/IDFC logo.jpg";
+import logoBaroda from "@assets/baroda logo.jpg";
+import logoCanara from "@assets/canara-bank-logo-400x300.webp";
+import logoPnb from "@assets/Punjab_National_Bank_new_logo.png";
+import logoIdbi from "@assets/IDBI-Bank-logo.jpg";
+import logoFederal from "@assets/federal bank logo.jpg";
+import logoLic from "@assets/Lic logo.png";
+import logoIciciPrudential from "@assets/ICICI Prudential.jpg";
+import logoSbiLife from "@assets/Sbi LIfe logo.jpg";
+import logoHdfcLife from "@assets/hdfc life logo.jpg";
+import logoAxisMaxLife from "@assets/Axis Max life.png";
+
+/** Partner banks & insurers – display name + logo from attached_assets */
+const partnerLogos: { name: string; logo: string }[] = [
+  { name: "HDFC Bank", logo: logoHdfcBank },
+  { name: "ICICI Bank", logo: logoIciciBank },
+  { name: "State Bank of India", logo: logoSbi },
+  { name: "Axis Bank", logo: logoAxisBank },
+  { name: "Kotak Mahindra Bank", logo: logoKotak },
+  { name: "IndusInd Bank", logo: logoIndusInd },
+  { name: "Yes Bank", logo: logoYesBank },
+  { name: "IDFC FIRST Bank", logo: logoIdfc },
+  { name: "Bank of Baroda", logo: logoBaroda },
+  { name: "Canara Bank", logo: logoCanara },
+  { name: "Punjab National Bank", logo: logoPnb },
+  { name: "IDBI Bank", logo: logoIdbi },
+  { name: "Federal Bank", logo: logoFederal },
+  { name: "LIC", logo: logoLic },
+  { name: "ICICI Prudential", logo: logoIciciPrudential },
+  { name: "SBI Life", logo: logoSbiLife },
+  { name: "HDFC Life", logo: logoHdfcLife },
+  { name: "Axis Max Life", logo: logoAxisMaxLife },
+];
+
 const services = servicesData;
 
 const processSteps = [
@@ -151,79 +193,30 @@ export default function Services() {
               </p>
             </div>
 
-            <div className="marquee rounded-[2rem] bg-white/5 border border-white/10 py-5 sm:py-6 px-2 sm:px-4">
-              <div className="marquee-inner gap-4 sm:gap-6">
-                {[
-                  "ICICI Bank",
-                  "HDFC Bank",
-                  "SBI",
-                  "Axis Bank",
-                  "Yes Bank",
-                  "Kotak Mahindra Bank",
-                  "Bank of Baroda",
-                  "Canara Bank",
-                  "Union Bank of India",
-                  "Bandhan Bank",
-                  "IDFC FIRST Bank",
-                  "BOI",
-                  "Aditya Birla Capital",
-                  "Bajaj Finserv",
-                  "Chola",
-                  "Mahindra Finance",
-                  "Tata Capital",
-                  "L&T Finance",
-                  "ICICI Lombard",
-                  "ICICI Prudential",
-                  "LIC Housing Finance",
-                  "Liberty General Insurance",
-                  "Reliance General Insurance",
-                  "HDFC ERGO",
-                  "SBI General",
-                  "IFFCO Tokio",
-                  "digit Insurance",
-                  "Royal Sundaram",
-                  "Zurich",
-                ]
-                  .concat([
-                    "ICICI Bank",
-                    "HDFC Bank",
-                    "SBI",
-                    "Axis Bank",
-                    "Yes Bank",
-                    "Kotak Mahindra Bank",
-                    "Bank of Baroda",
-                    "Canara Bank",
-                    "Union Bank of India",
-                    "Bandhan Bank",
-                    "IDFC FIRST Bank",
-                    "BOI",
-                    "Aditya Birla Capital",
-                    "Bajaj Finserv",
-                    "Chola",
-                    "Mahindra Finance",
-                    "Tata Capital",
-                    "L&T Finance",
-                    "ICICI Lombard",
-                    "ICICI Prudential",
-                    "LIC Housing Finance",
-                    "Liberty General Insurance",
-                    "Reliance General Insurance",
-                    "HDFC ERGO",
-                    "SBI General",
-                    "IFFCO Tokio",
-                    "digit Insurance",
-                    "Royal Sundaram",
-                    "Zurich",
-                  ])
-                  .map((partner, index) => (
+            <div className="relative">
+              <div className="marquee overflow-hidden py-2">
+                <div className="marquee-inner flex-nowrap gap-4 sm:gap-6">
+                  {[...partnerLogos, ...partnerLogos].map((partner, i) => (
                     <div
-                      key={`${partner}-${index}`}
-                      className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-full bg-white text-slate-900 text-xs sm:text-sm font-semibold shadow-lg whitespace-nowrap border border-slate-200/60"
+                      key={`${partner.name}-${i}`}
+                      className="flex items-center gap-2.5 shrink-0 h-[70px] sm:h-20 min-w-[200px] sm:min-w-[220px] bg-white rounded-[12px] px-4 sm:px-5 py-4 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105 border border-slate-100"
                     >
-                      {partner}
+                      <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center overflow-hidden">
+                        <img
+                          src={partner.logo}
+                          alt=""
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                      <span className="text-slate-900 font-semibold text-sm sm:text-base truncate">
+                        {partner.name}
+                      </span>
                     </div>
                   ))}
+                </div>
               </div>
+              <div className="pointer-events-none absolute top-0 right-0 bottom-0 w-12 bg-gradient-to-l from-slate-950 to-transparent z-10" aria-hidden />
+              <div className="pointer-events-none absolute top-0 left-0 bottom-0 w-12 bg-gradient-to-r from-slate-950 to-transparent z-10" aria-hidden />
             </div>
           </div>
         </div>

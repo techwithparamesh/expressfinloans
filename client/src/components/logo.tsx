@@ -1,48 +1,39 @@
 /**
- * Express Financial Services logo – matches provided design:
- * White background, "EXPRESS" in blue (#003399), "FINANCIAL SERVICES" in red (#ED1C24),
- * light gray vertical bar with pink/magenta swoosh on the left.
+ * Express Financial Services logo – text-only professional mark.
+ * "EXPRESS" in blue (#003399), "FINANCIAL SERVICES" in red (#ED1C24).
+ * Properly spaced for visual balance.
  */
 export default function Logo({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 320 56"
+      viewBox="0 0 220 48"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       aria-label="Express Financial Services"
     >
-      {/* Light gray vertical rectangle (left graphic) */}
-      <rect x="0" y="8" width="12" height="40" rx="1" fill="#E5E7EB" />
-
-      {/* Pink/magenta swoosh overlapping top-left of the bar */}
-      <path
-        d="M 2 10 Q 14 8 16 18 Q 18 26 10 32 L 4 28 Q 8 22 6 14 Z"
-        fill="#E879F9"
-      />
-
-      {/* EXPRESS – dark blue #003399 */}
+      {/* EXPRESS – dark blue, larger as primary brand name */}
       <text
-        x="28"
-        y="28"
+        x="0"
+        y="20"
         fill="#003399"
-        fontFamily="Arial, sans-serif"
-        fontSize="22"
-        fontWeight="700"
-        letterSpacing="0.02em"
+        fontFamily="Arial, Helvetica, sans-serif"
+        fontSize="24"
+        fontWeight="800"
+        letterSpacing="0.05em"
       >
         EXPRESS
       </text>
 
-      {/* FINANCIAL SERVICES – red #ED1C24 */}
+      {/* FINANCIAL SERVICES – red, slightly smaller as tagline */}
       <text
-        x="28"
-        y="46"
+        x="0"
+        y="40"
         fill="#ED1C24"
-        fontFamily="Arial, sans-serif"
-        fontSize="22"
+        fontFamily="Arial, Helvetica, sans-serif"
+        fontSize="16"
         fontWeight="700"
-        letterSpacing="0.02em"
+        letterSpacing="0.08em"
       >
         FINANCIAL SERVICES
       </text>

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Phone, Mail, Instagram, Menu, ChevronRight } from "lucide-react";
+import { Phone, Mail, Instagram, Menu, ChevronRight, Clock, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Logo from "@/components/logo";
-import footerLogoImage from "@assets/Express-removebg-preview_1768403943209.png";
+import LoanCalculator from "@/components/loan-calculator";
 
 interface WhatsAppIconProps {
   className?: string;
@@ -21,6 +21,7 @@ const WhatsAppIcon: React.FC<WhatsAppIconProps> = ({ className }) => (
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -73,83 +74,133 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </TooltipProvider>
 
-      {/* Senior Header Design - Solid White Background */}
-      <header
-        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 py-4 bg-white border-b border-slate-200 shadow-sm`}
-      >
-        <div className="container mx-auto px-6 flex justify-between items-center">
-          <Link href="/">
-            <a className="flex items-center gap-3 group">
-              <div className="flex items-center justify-center h-10 md:h-12 w-auto transition-transform group-hover:scale-105 [&_svg]:h-full [&_svg]:w-auto">
-                <Logo />
+      {/* HYBRID HEADER: Utility Bar + Main Nav + Services Strip */}
+      <header className="fixed top-0 left-0 right-0 z-40">
+        {/* Top Utility Bar - Dark, slim */}
+        <div className="bg-slate-900 text-white py-2 hidden sm:block">
+          <div className="container mx-auto px-6">
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-6">
+                <a href="tel:+919000001339" className="flex items-center gap-1.5 hover:text-secondary transition-colors">
+                  <Phone className="h-3 w-3" />
+                  <span>+91 90000 01339</span>
+                </a>
+                <a href="mailto:info@expressfinancialservices.com" className="flex items-center gap-1.5 hover:text-secondary transition-colors">
+                  <Mail className="h-3 w-3" />
+                  <span>info@expressfinancialservices.com</span>
+                </a>
               </div>
-            </a>
-          </Link>
+              <div className="flex items-center gap-1.5 text-slate-400">
+                <Clock className="h-3 w-3" />
+                <span>Mon - Sat: 9:00 AM - 6:00 PM</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-          <nav className="hidden lg:flex items-center gap-4 xl:gap-6 overflow-x-auto max-w-[calc(100vw-280px)] scrollbar-hide py-1">
-            <Link href="/">
-              <a className={`text-xs xl:text-sm font-bold uppercase tracking-wider whitespace-nowrap transition-all ${location === "/" ? "text-primary" : "text-slate-600 hover:text-primary"}`}>
-                Home
-              </a>
-            </Link>
-            {serviceLinks.map((s) => (
-              <Link key={s.href} href={s.href}>
-                <a className={`text-xs xl:text-sm font-bold uppercase tracking-wider whitespace-nowrap transition-all ${location === s.href ? "text-primary" : "text-slate-600 hover:text-primary"}`}>
-                  {s.label}
+        {/* Main Navigation - White, clean */}
+        <div className="bg-white border-b border-slate-200 shadow-sm">
+          <div className="container mx-auto px-6 py-3">
+            <div className="flex items-center justify-between">
+              <Link href="/">
+                <a className="flex items-center gap-3 group">
+                  <div className="flex items-center justify-center h-10 md:h-12 w-auto transition-transform group-hover:scale-105 [&_svg]:h-full [&_svg]:w-auto">
+                    <Logo />
+                  </div>
                 </a>
               </Link>
-            ))}
-            <Link href="/about">
-              <a className={`text-xs xl:text-sm font-bold uppercase tracking-wider whitespace-nowrap transition-all ${location === "/about" ? "text-primary" : "text-slate-600 hover:text-primary"}`}>
-                About
-              </a>
-            </Link>
-            <Link href="/contact">
-              <a className={`text-xs xl:text-sm font-bold uppercase tracking-wider whitespace-nowrap transition-all ${location === "/contact" ? "text-primary" : "text-slate-600 hover:text-primary"}`}>
-                Contact
-              </a>
-            </Link>
-            <Link href="/contact">
-              <Button className="rounded-full px-6 xl:px-8 bg-slate-900 hover:bg-primary transition-all shadow-xl shadow-slate-200 text-white text-xs xl:text-sm shrink-0">
-                Consult Now
-              </Button>
-            </Link>
-          </nav>
 
-          <Sheet>
-            <SheetTrigger asChild className="lg:hidden">
-              <Button variant="ghost" size="icon" className="rounded-full text-slate-900">
-                <Menu className="h-6 w-6" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-full sm:w-[350px] overflow-y-auto">
-              <div className="flex flex-col gap-6 mt-12">
+              <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
                 <Link href="/">
-                  <a className="text-xl font-serif font-bold text-slate-900 hover:text-primary transition-colors">Home</a>
+                  <a className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${location === "/" ? "text-primary bg-primary/10" : "text-slate-700 hover:text-primary hover:bg-slate-50"}`}>
+                    Home
+                  </a>
                 </Link>
-                <div className="border-t border-slate-200 pt-4">
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Services</p>
-                  <div className="grid grid-cols-1 gap-2">
-                    {serviceLinks.map((s) => (
-                      <Link key={s.href} href={s.href}>
-                        <a className="block text-base font-semibold text-slate-700 hover:text-primary transition-colors">{s.label}</a>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
                 <Link href="/about">
-                  <a className="text-xl font-serif font-bold text-slate-900 hover:text-primary transition-colors">About Us</a>
+                  <a className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${location === "/about" ? "text-primary bg-primary/10" : "text-slate-700 hover:text-primary hover:bg-slate-50"}`}>
+                    About Us
+                  </a>
                 </Link>
                 <Link href="/contact">
-                  <a className="text-xl font-serif font-bold text-slate-900 hover:text-primary transition-colors">Contact Us</a>
+                  <a className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${location === "/contact" ? "text-primary bg-primary/10" : "text-slate-700 hover:text-primary hover:bg-slate-50"}`}>
+                    Contact Us
+                  </a>
                 </Link>
+                <button
+                  onClick={() => setIsCalculatorOpen(true)}
+                  className="ml-2 flex items-center gap-2 px-4 py-2 rounded-full bg-secondary text-white text-sm font-semibold hover:bg-secondary/90 transition-all shadow-md"
+                >
+                  <Calculator className="h-4 w-4" />
+                  EMI Calculator
+                </button>
+              </nav>
+
+              <div className="lg:hidden flex items-center gap-2">
+                <a href="tel:+919000001339" className="p-2 rounded-full bg-primary/10 text-primary">
+                  <Phone className="h-5 w-5" />
+                </a>
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon" className="rounded-full text-slate-900">
+                      <Menu className="h-6 w-6" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-full sm:w-[350px] overflow-y-auto">
+                    <div className="flex flex-col gap-6 mt-12">
+                      <Link href="/">
+                        <a className="text-xl font-serif font-bold text-slate-900 hover:text-primary transition-colors">Home</a>
+                      </Link>
+                      <Link href="/about">
+                        <a className="text-xl font-serif font-bold text-slate-900 hover:text-primary transition-colors">About Us</a>
+                      </Link>
+                      <Link href="/contact">
+                        <a className="text-xl font-serif font-bold text-slate-900 hover:text-primary transition-colors">Contact Us</a>
+                      </Link>
+                      <button
+                        onClick={() => setIsCalculatorOpen(true)}
+                        className="flex items-center gap-3 text-xl font-serif font-bold text-secondary hover:text-secondary/80 transition-colors"
+                      >
+                        <Calculator className="h-5 w-5" />
+                        EMI Calculator
+                      </button>
+                      <div className="border-t border-slate-200 pt-4">
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Our Services</p>
+                        <div className="grid grid-cols-1 gap-2">
+                          {serviceLinks.map((s) => (
+                            <Link key={s.href} href={s.href}>
+                              <a className="block text-base font-semibold text-slate-700 hover:text-primary transition-colors py-1">{s.label}</a>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </SheetContent>
+                </Sheet>
               </div>
-            </SheetContent>
-          </Sheet>
+            </div>
+          </div>
+        </div>
+
+        {/* Services Strip - Light gray, all services visible */}
+        <div className="bg-slate-50 border-b border-slate-200">
+          <div className="overflow-x-auto scrollbar-hide">
+            <div className="container mx-auto px-6">
+              <div className="flex items-center gap-1 py-2 w-max min-w-full">
+                {serviceLinks.map((s) => (
+                  <Link key={s.href} href={s.href}>
+                    <a className={`px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wide whitespace-nowrap transition-all ${location === s.href ? "text-white bg-primary" : "text-slate-600 hover:text-primary hover:bg-white"}`}>
+                      {s.label}
+                    </a>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="flex-grow pt-24">
+      {/* Spacer for fixed header (utility bar + main nav + services strip) */}
+      <main className="flex-grow pt-[140px] sm:pt-[172px]">
         <AnimatePresence mode="wait">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -162,83 +213,129 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </AnimatePresence>
       </main>
 
-      <footer className="bg-slate-950 text-white pt-24 pb-12 overflow-hidden relative border-t-4 border-secondary">
+      <footer className="bg-slate-950 text-white pt-16 sm:pt-20 pb-8 overflow-hidden relative border-t-4 border-secondary">
         <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 blur-[100px] rounded-full -mr-48 -mt-48" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-secondary/10 blur-[80px] rounded-full -ml-32 -mb-32" />
+        
         <div className="container mx-auto px-6 relative z-10">
-          <div className="grid lg:grid-cols-12 gap-16 mb-20">
-            <div className="lg:col-span-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8 mb-12 sm:mb-16">
+            {/* Company Info */}
+            <div className="sm:col-span-2 lg:col-span-4">
               <Link href="/">
-                <a className="flex flex-col mb-8">
-                  <div className="w-fit mb-6">
-                    <img 
-                      src={footerLogoImage} 
-                      alt="Logo" 
-                      className="h-16 md:h-20 w-auto object-contain" 
-                    />
+                <a className="inline-block mb-6">
+                  <div className="bg-white rounded-xl p-3 w-fit">
+                    <Logo className="h-10 sm:h-12 w-auto" />
                   </div>
-                  <p className="text-slate-400 text-lg leading-relaxed max-w-md mb-8">
-                    Pioneering financial excellence since 2005. We provide bespoke solutions that empower individuals and enterprises to scale new heights.
-                  </p>
                 </a>
               </Link>
-              <div className="flex gap-4">
-                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-center min-w-[100px]">
-                  <p className="text-secondary font-black text-2xl">18+</p>
-                  <p className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Years of Trust</p>
+              <p className="text-slate-400 text-sm sm:text-base leading-relaxed mb-6 max-w-sm">
+                Your trusted financial partner since 2005. We help individuals and businesses achieve their goals with the best loan products and expert advisory.
+              </p>
+              <div className="flex gap-3">
+                <div className="bg-slate-900 px-4 py-3 rounded-xl border border-slate-800 text-center">
+                  <p className="text-secondary font-black text-xl">20+</p>
+                  <p className="text-[9px] uppercase font-bold tracking-wider text-slate-500">Years</p>
                 </div>
-                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-center min-w-[100px]">
-                  <p className="text-primary font-black text-2xl">5K+</p>
-                  <p className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Global Clients</p>
+                <div className="bg-slate-900 px-4 py-3 rounded-xl border border-slate-800 text-center">
+                  <p className="text-primary font-black text-xl">10K+</p>
+                  <p className="text-[9px] uppercase font-bold tracking-wider text-slate-500">Clients</p>
+                </div>
+                <div className="bg-slate-900 px-4 py-3 rounded-xl border border-slate-800 text-center">
+                  <p className="text-white font-black text-xl">₹500Cr</p>
+                  <p className="text-[9px] uppercase font-bold tracking-wider text-slate-500">Disbursed</p>
                 </div>
               </div>
             </div>
             
+            {/* Quick Links */}
             <div className="lg:col-span-2">
-              <h4 className="text-sm uppercase tracking-[0.2em] font-black text-slate-500 mb-8">Navigation</h4>
-              <ul className="space-y-4">
-                <li><Link href="/"><a className="text-slate-400 hover:text-white transition-all flex items-center gap-2 group"><ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 -ml-4 group-hover:ml-0 transition-all" />Home</a></Link></li>
-                <li><Link href="/about"><a className="text-slate-400 hover:text-white transition-all flex items-center gap-2 group"><ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 -ml-4 group-hover:ml-0 transition-all" />About Us</a></Link></li>
-                <li><Link href="/services"><a className="text-slate-400 hover:text-white transition-all flex items-center gap-2 group"><ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 -ml-4 group-hover:ml-0 transition-all" />Services</a></Link></li>
-                <li><Link href="/contact"><a className="text-slate-400 hover:text-white transition-all flex items-center gap-2 group"><ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 -ml-4 group-hover:ml-0 transition-all" />Contact Us</a></Link></li>
+              <h4 className="text-sm uppercase tracking-[0.15em] font-bold text-white mb-5">Quick Links</h4>
+              <ul className="space-y-3">
+                <li><Link href="/"><a className="text-slate-400 hover:text-secondary transition-colors text-sm">Home</a></Link></li>
+                <li><Link href="/about"><a className="text-slate-400 hover:text-secondary transition-colors text-sm">About Us</a></Link></li>
+                <li><Link href="/services"><a className="text-slate-400 hover:text-secondary transition-colors text-sm">All Services</a></Link></li>
+                <li><Link href="/contact"><a className="text-slate-400 hover:text-secondary transition-colors text-sm">Contact Us</a></Link></li>
               </ul>
             </div>
 
-            <div className="lg:col-span-5">
-              <h4 className="text-sm uppercase tracking-[0.2em] font-black text-slate-500 mb-8">Headquarters</h4>
-              <div className="space-y-6">
-                <div className="flex gap-4">
-                  <div className="bg-primary/10 p-3 rounded-xl h-fit">
-                    <Phone className="h-5 w-5 text-primary" />
+            {/* Our Services */}
+            <div className="lg:col-span-3">
+              <h4 className="text-sm uppercase tracking-[0.15em] font-bold text-white mb-5">Our Services</h4>
+              <ul className="space-y-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-x-4">
+                <li><Link href="/services/home-loans"><a className="text-slate-400 hover:text-secondary transition-colors text-sm">Home Loans</a></Link></li>
+                <li><Link href="/services/car-loans"><a className="text-slate-400 hover:text-secondary transition-colors text-sm">Car Loans</a></Link></li>
+                <li><Link href="/services/business-loans"><a className="text-slate-400 hover:text-secondary transition-colors text-sm">Business Loans</a></Link></li>
+                <li><Link href="/services/mortgage-loans"><a className="text-slate-400 hover:text-secondary transition-colors text-sm">Mortgage Loans</a></Link></li>
+                <li><Link href="/services/education-loans"><a className="text-slate-400 hover:text-secondary transition-colors text-sm">Education Loans</a></Link></li>
+                <li><Link href="/services/personal-loan"><a className="text-slate-400 hover:text-secondary transition-colors text-sm">Personal Loans</a></Link></li>
+              </ul>
+            </div>
+
+            {/* Contact Info */}
+            <div className="sm:col-span-2 lg:col-span-3">
+              <h4 className="text-sm uppercase tracking-[0.15em] font-bold text-white mb-5">Contact Us</h4>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="bg-primary/20 p-2 rounded-lg mt-0.5">
+                    <Phone className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">Direct Lines</p>
-                    <a href="tel:+919000001339" className="text-lg font-medium block hover:text-secondary transition-colors">+91 90000 01339</a>
-                    <a href="tel:+919091001008" className="text-lg font-medium block hover:text-secondary transition-colors">+91 90910 01008</a>
-                    <p className="text-slate-400 text-sm mt-1">9:00 AM - 6:00 PM (IST)</p>
+                    <a href="tel:+919000001339" className="text-white font-medium block hover:text-secondary transition-colors">+91 90000 01339</a>
+                    <a href="tel:+919091001008" className="text-slate-400 text-sm block hover:text-secondary transition-colors">+91 90910 01008</a>
                   </div>
                 </div>
-                <div className="flex gap-4">
-                  <div className="bg-secondary/10 p-3 rounded-xl h-fit">
-                    <Mail className="h-5 w-5 text-secondary" />
+                <div className="flex items-start gap-3">
+                  <div className="bg-secondary/20 p-2 rounded-lg mt-0.5">
+                    <Mail className="h-4 w-4 text-secondary" />
                   </div>
                   <div>
-                    <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">Official Inquiry</p>
-                    <p className="text-lg font-medium break-all">info@expressfinancialservices.com</p>
+                    <a href="mailto:info@expressfinancialservices.com" className="text-white font-medium hover:text-secondary transition-colors text-sm break-all">
+                      info@expressfinancialservices.com
+                    </a>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="bg-green-500/20 p-2 rounded-lg mt-0.5">
+                    <WhatsAppIcon className="h-4 w-4 text-green-500" />
+                  </div>
+                  <div>
+                    <a href="https://wa.me/919000001339" target="_blank" rel="noopener noreferrer" className="text-white font-medium hover:text-green-400 transition-colors text-sm">
+                      WhatsApp Us
+                    </a>
+                    <p className="text-slate-500 text-xs mt-0.5">Quick Response</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="bg-slate-800 p-2 rounded-lg mt-0.5">
+                    <Clock className="h-4 w-4 text-slate-400" />
+                  </div>
+                  <div>
+                    <p className="text-slate-300 text-sm">Mon - Sat: 9:00 AM - 7:00 PM</p>
+                    <p className="text-slate-500 text-xs mt-0.5">Sunday Closed</p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
           
-          <div className="pt-8 border-t border-slate-900 flex flex-col md:flex-row justify-between items-center gap-6">
-            <p className="text-slate-600 text-sm">© 2026 Express Financial Services. Crafted for excellence.</p>
-            <div className="flex gap-8">
-              <a href="#" className="text-slate-600 hover:text-white text-xs uppercase tracking-widest font-bold">Privacy Policy</a>
-              <a href="#" className="text-slate-600 hover:text-white text-xs uppercase tracking-widest font-bold">Terms of Service</a>
+          {/* Bottom Bar */}
+          <div className="pt-6 sm:pt-8 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <p className="text-slate-500 text-xs sm:text-sm text-center sm:text-left">
+              © 2026 Express Financial Services. All rights reserved.
+            </p>
+            <div className="flex gap-6">
+              <a href="#" className="text-slate-500 hover:text-white text-xs font-medium transition-colors">Privacy Policy</a>
+              <a href="#" className="text-slate-500 hover:text-white text-xs font-medium transition-colors">Terms of Service</a>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* Loan Calculator Modal */}
+      <LoanCalculator 
+        isOpen={isCalculatorOpen} 
+        onClose={() => setIsCalculatorOpen(false)} 
+      />
     </div>
   );
 }
