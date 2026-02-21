@@ -13,7 +13,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
-export default function StaffLayout({ children }: { children: React.ReactNode }) {
+const path = (base: string, p: string) => (base ? `${base}${p}` : p);
+
+export default function StaffLayout({
+  children,
+  basePath = "/staff",
+}: {
+  children: React.ReactNode;
+  basePath?: string;
+}) {
   const [user, setUser] = useState<StaffUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [location] = useLocation();
@@ -43,7 +51,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
     try {
       await logout();
       setUser(null);
-      window.location.href = "/staff/login";
+      window.location.href = path(basePath, "/login");
     } catch {
       toast({ title: "Logout failed", variant: "destructive" });
     }
@@ -63,13 +71,13 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
 
   const isAdmin = user.role === "admin";
   const nav = [
-    ...(isAdmin ? [{ href: "/staff/dashboard", label: "Dashboard", icon: LayoutDashboard }] : []),
-    ...(isAdmin ? [{ href: "/staff/employees", label: "Employees", icon: Users }] : []),
-    ...(isAdmin ? [{ href: "/staff/attendance", label: "Attendance", icon: Calendar }] : []),
-    ...(isAdmin ? [{ href: "/staff/leads", label: "All leads", icon: FileText }] : []),
-    ...(!isAdmin ? [{ href: "/staff/my-leads", label: "My leads", icon: ClipboardList }] : []),
-    ...(!isAdmin ? [{ href: "/staff/my-attendance", label: "My attendance", icon: Calendar }] : []),
-    { href: "/staff/profile", label: "Profile", icon: User },
+    ...(isAdmin ? [{ href: path(basePath, "/dashboard"), label: "Dashboard", icon: LayoutDashboard }] : []),
+    ...(isAdmin ? [{ href: path(basePath, "/employees"), label: "Employees", icon: Users }] : []),
+    ...(isAdmin ? [{ href: path(basePath, "/attendance"), label: "Attendance", icon: Calendar }] : []),
+    ...(isAdmin ? [{ href: path(basePath, "/leads"), label: "All leads", icon: FileText }] : []),
+    ...(!isAdmin ? [{ href: path(basePath, "/my-leads"), label: "My leads", icon: ClipboardList }] : []),
+    ...(!isAdmin ? [{ href: path(basePath, "/my-attendance"), label: "My attendance", icon: Calendar }] : []),
+    { href: path(basePath, "/profile"), label: "Profile", icon: User },
   ];
 
   return (

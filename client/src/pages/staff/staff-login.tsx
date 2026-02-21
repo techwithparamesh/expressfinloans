@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { login } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
-export default function StaffLogin() {
+export default function StaffLogin({ basePath: _basePath }: { basePath?: string }) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [username, setUsername] = useState("");

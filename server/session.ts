@@ -1,14 +1,11 @@
-import { createRequire } from "node:module";
 import session from "express-session";
 import type { Express } from "express";
-
-const require = createRequire(import.meta.url);
 
 const isProd = process.env.NODE_ENV === "production";
 const secret = process.env.SESSION_SECRET || "express-finloans-staff-secret-change-in-production";
 
-export function setupSession(app: Express) {
-  const store = getSessionStore();
+export async function setupSession(app: Express): Promise<void> {
+  const store = await getSessionStore();
   app.use(
     session({
       secret,
@@ -26,11 +23,12 @@ export function setupSession(app: Express) {
   );
 }
 
-function getSessionStore(): session.Store {
+async function getSessionStore(): Promise<session.Store> {
   const connectionString = process.env.DATABASE_URL;
   if (connectionString && connectionString.startsWith("mysql")) {
     try {
-      const MySQLStore = require("express-mysql-session")(session);
+      const expressMysqlSession = await import("express-mysql-session");
+      const MySQLStore = (expressMysqlSession.default || expressMysqlSession)(session);
       const u = new URL(connectionString);
       const store = new MySQLStore({
         host: u.hostname,
@@ -47,6 +45,7 @@ function getSessionStore(): session.Store {
       // fallback to memory if express-mysql-session fails
     }
   }
-  const MemoryStore = require("memorystore")(session);
+  const memorystore = await import("memorystore");
+  const MemoryStore = (memorystore.default || memorystore)(session);
   return new MemoryStore({ checkPeriod: 86400000 });
 }

@@ -14,6 +14,23 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Redirect /staff and /admin to staff subdomain when STAFF_DOMAIN is set (e.g. staff.expressfinloans.com)
+  const staffDomain = process.env.STAFF_DOMAIN?.trim().toLowerCase();
+  app.get(["/staff", "/staff/*", "/admin", "/admin/*"], (req, res, next) => {
+    const pathStrip = req.path.startsWith("/staff") ? req.path.slice(6) || "/" : req.path.startsWith("/admin") ? req.path.slice(6) || "/" : req.path;
+    if (staffDomain && req.hostname?.toLowerCase() !== staffDomain) {
+      const protocol = req.get("x-forwarded-proto") || req.protocol || "https";
+      return res.redirect(302, `${protocol}://${staffDomain}${pathStrip}`);
+    }
+    if (!staffDomain && req.path.startsWith("/admin")) {
+      return res.redirect(302, "/staff" + pathStrip);
+    }
+    if (pathStrip !== req.path) {
+      return res.redirect(302, pathStrip);
+    }
+    next();
+  });
+
   // --- Auth (no auth required) ---
   app.post("/api/auth/login", (req, res, next) => {
     passport.authenticate("local", (err: Error | null, user: Express.User | false) => {

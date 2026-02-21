@@ -64,7 +64,7 @@ app.use((req, res, next) => {
 (async () => {
   const { setupSession } = await import("./session");
   const { configurePassport } = await import("./auth");
-  setupSession(app);
+  await setupSession(app);
   configurePassport();
   app.use(passport.initialize());
   app.use(passport.session());

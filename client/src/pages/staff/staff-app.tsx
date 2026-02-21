@@ -17,9 +17,15 @@ function StaffRedirect({ to }: { to: string }) {
   return null;
 }
 
-export default function StaffApp() {
+const p = (base: string, path: string) => (base ? `${base}${path}` : path || "/");
+
+export default function StaffApp({ basePath = "/staff" }: { basePath?: string }) {
   const [user, setUser] = useState<StaffUser | null | undefined>(undefined);
   const [location, setLocation] = useLocation();
+
+  const loginPath = p(basePath, "/login");
+  const dashboardPath = p(basePath, "/dashboard");
+  const myLeadsPath = p(basePath, "/my-leads");
 
   useEffect(() => {
     getAuthMe()
@@ -35,32 +41,32 @@ export default function StaffApp() {
     );
   }
 
-  if (!user && location !== "/staff/login") {
-    setLocation("/staff/login");
+  if (!user && location !== loginPath) {
+    setLocation(loginPath);
     return null;
   }
 
-  if (user && location === "/staff/login") {
-    setLocation(user.role === "admin" ? "/staff/dashboard" : "/staff/my-leads");
+  if (user && location === loginPath) {
+    setLocation(user.role === "admin" ? dashboardPath : myLeadsPath);
     return null;
   }
 
   if (!user) {
-    return <StaffLogin />;
+    return <StaffLogin basePath={basePath} />;
   }
 
   return (
-    <StaffLayout>
+    <StaffLayout basePath={basePath}>
       <Switch>
-        <Route path="/staff/dashboard" component={StaffDashboard} />
-        <Route path="/staff/employees" component={StaffEmployees} />
-        <Route path="/staff/attendance" component={StaffAttendance} />
-        <Route path="/staff/leads" component={StaffLeads} />
-        <Route path="/staff/my-leads" component={StaffMyLeads} />
-        <Route path="/staff/my-attendance" component={StaffMyAttendance} />
-        <Route path="/staff/profile" component={StaffProfile} />
-        <Route path="/staff">
-          <StaffRedirect to={user.role === "admin" ? "/staff/dashboard" : "/staff/my-leads"} />
+        <Route path={p(basePath, "/dashboard")} component={StaffDashboard} />
+        <Route path={p(basePath, "/employees")} component={StaffEmployees} />
+        <Route path={p(basePath, "/attendance")} component={StaffAttendance} />
+        <Route path={p(basePath, "/leads")} component={StaffLeads} />
+        <Route path={p(basePath, "/my-leads")} component={StaffMyLeads} />
+        <Route path={p(basePath, "/my-attendance")} component={StaffMyAttendance} />
+        <Route path={p(basePath, "/profile")} component={StaffProfile} />
+        <Route path={basePath || "/"}>
+          <StaffRedirect to={user.role === "admin" ? dashboardPath : myLeadsPath} />
         </Route>
       </Switch>
     </StaffLayout>

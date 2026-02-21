@@ -11,7 +11,17 @@ import ServiceDetail from "@/pages/service-detail";
 import Contact from "@/pages/contact";
 import StaffApp from "@/pages/staff/staff-app";
 
-function Router() {
+const STAFF_HOSTS = (import.meta.env.VITE_STAFF_HOSTS || "")
+  .split(",")
+  .map((h: string) => h.trim().toLowerCase())
+  .filter(Boolean);
+
+function isStaffSubdomain(): boolean {
+  if (typeof window === "undefined" || STAFF_HOSTS.length === 0) return false;
+  return STAFF_HOSTS.includes(window.location.hostname.toLowerCase());
+}
+
+function PublicRouter() {
   return (
     <Switch>
       <Route path="/" component={Home} />
@@ -19,18 +29,25 @@ function Router() {
       <Route path="/services/:serviceId" component={ServiceDetail} />
       <Route path="/services" component={Services} />
       <Route path="/contact" component={Contact} />
-      <Route path="/staff/login" component={StaffApp} />
-      <Route path="/staff/dashboard" component={StaffApp} />
-      <Route path="/staff/employees" component={StaffApp} />
-      <Route path="/staff/attendance" component={StaffApp} />
-      <Route path="/staff/leads" component={StaffApp} />
-      <Route path="/staff/my-leads" component={StaffApp} />
-      <Route path="/staff/my-attendance" component={StaffApp} />
-      <Route path="/staff/profile" component={StaffApp} />
-      <Route path="/staff" component={StaffApp} />
+      <Route path="/staff/login" component={() => <StaffApp basePath="/staff" />} />
+      <Route path="/staff/dashboard" component={() => <StaffApp basePath="/staff" />} />
+      <Route path="/staff/employees" component={() => <StaffApp basePath="/staff" />} />
+      <Route path="/staff/attendance" component={() => <StaffApp basePath="/staff" />} />
+      <Route path="/staff/leads" component={() => <StaffApp basePath="/staff" />} />
+      <Route path="/staff/my-leads" component={() => <StaffApp basePath="/staff" />} />
+      <Route path="/staff/my-attendance" component={() => <StaffApp basePath="/staff" />} />
+      <Route path="/staff/profile" component={() => <StaffApp basePath="/staff" />} />
+      <Route path="/staff" component={() => <StaffApp basePath="/staff" />} />
       <Route component={NotFound} />
     </Switch>
   );
+}
+
+function Router() {
+  if (isStaffSubdomain()) {
+    return <StaffApp basePath="" />;
+  }
+  return <PublicRouter />;
 }
 
 function App() {
