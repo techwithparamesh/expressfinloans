@@ -1,5 +1,8 @@
+import { createRequire } from "node:module";
 import session from "express-session";
 import type { Express } from "express";
+
+const require = createRequire(import.meta.url);
 
 const isProd = process.env.NODE_ENV === "production";
 const secret = process.env.SESSION_SECRET || "express-finloans-staff-secret-change-in-production";
