@@ -1,4 +1,6 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
+import passport from "passport";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -60,6 +62,13 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  const { setupSession } = await import("./session");
+  const { configurePassport } = await import("./auth");
+  setupSession(app);
+  configurePassport();
+  app.use(passport.initialize());
+  app.use(passport.session());
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

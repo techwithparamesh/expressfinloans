@@ -9,6 +9,7 @@ import About from "@/pages/about";
 import Services from "@/pages/services";
 import ServiceDetail from "@/pages/service-detail";
 import Contact from "@/pages/contact";
+import StaffApp from "@/pages/staff/staff-app";
 
 function Router() {
   return (
@@ -18,6 +19,15 @@ function Router() {
       <Route path="/services/:serviceId" component={ServiceDetail} />
       <Route path="/services" component={Services} />
       <Route path="/contact" component={Contact} />
+      <Route path="/staff/login" component={StaffApp} />
+      <Route path="/staff/dashboard" component={StaffApp} />
+      <Route path="/staff/employees" component={StaffApp} />
+      <Route path="/staff/attendance" component={StaffApp} />
+      <Route path="/staff/leads" component={StaffApp} />
+      <Route path="/staff/my-leads" component={StaffApp} />
+      <Route path="/staff/my-attendance" component={StaffApp} />
+      <Route path="/staff/profile" component={StaffApp} />
+      <Route path="/staff" component={StaffApp} />
       <Route component={NotFound} />
     </Switch>
   );
