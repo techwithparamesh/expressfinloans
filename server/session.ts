@@ -31,27 +31,17 @@ async function getSessionStore(): Promise<session.Store> {
       "DATABASE_URL (mysql://...) is required for staff portal. Sessions and user data are stored in the database."
     );
   }
-  // Force TCP so MySQL uses 'user'@'127.0.0.1' (localhost → socket → 'user'@'localhost' causes Access denied)
+  // Force TCP: replace localhost with 127.0.0.1 in the URL so mysql2 doesn't use Unix socket.
+  // (Socket connections are seen by MySQL as 'user'@'localhost'; TCP as 'user'@'127.0.0.1'.)
   const normalizedUrl = connectionString.includes("localhost")
     ? connectionString.replace(/@localhost\b/, "@127.0.0.1")
     : connectionString;
-  const u = new URL(normalizedUrl);
-  const host = u.hostname === "localhost" ? "127.0.0.1" : u.hostname;
-  const port = u.port ? parseInt(u.port, 10) : 3306;
-  const database = u.pathname.replace(/^\//, "") || "expressfinloans";
 
-  // Create our own pool with explicit 127.0.0.1 so express-mysql-session doesn't use localhost/socket
-  const sessionPool = mysql.createPool({
-    host,
-    port,
-    user: u.username,
-    password: u.password,
-    database,
-  });
+  // Single connection string for the pool so the host is unambiguous
+  const sessionPool = mysql.createPool(normalizedUrl);
 
   const expressMysqlSession = await import("express-mysql-session");
   const MySQLStore = (expressMysqlSession.default || expressMysqlSession)(session);
-  // Pass our pool so the store uses TCP (127.0.0.1), not its own connection that may default to localhost
   const store = new MySQLStore(
     {
       clearExpired: true,
@@ -60,7 +50,6 @@ async function getSessionStore(): Promise<session.Store> {
     },
     sessionPool as any
   );
-  // Require DB session: if connection fails, throw
   if (typeof (store as any).onReady === "function") {
     await (store as any).onReady();
   }

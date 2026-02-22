@@ -253,8 +253,18 @@ This error appears on the **staff login page** (or in PM2 logs) when the app can
    EXIT;
    ```
 
-   Then restart the app (`pm2 restart expressfinloans-app` or equivalent). If the error persists, also ensure `DATABASE_URL` is set correctly for the process (steps 1–4 below). Optionally, you can force the app to use TCP by setting the host in the URL to `127.0.0.1`:  
-   `DATABASE_URL="mysql://expressfin:Express%23Fin321@127.0.0.1:3306/expressfinloans"`
+   Then restart the app (`pm2 restart expressfinloans-app` or equivalent).
+
+   **If the error still says 'expressfin'@'localhost':** On some systems the driver may still connect via Unix socket (reported as `localhost` by MySQL). Set the **same password for both** users so either connection method works:
+
+   ```sql
+   ALTER USER 'expressfin'@'localhost' IDENTIFIED BY 'Express#Fin321';
+   ALTER USER 'expressfin'@'127.0.0.1' IDENTIFIED BY 'Express#Fin321';
+   FLUSH PRIVILEGES;
+   EXIT;
+   ```
+
+   Use your actual DB password (the one in `DATABASE_URL`; if it contains `#`, in the URL it is `%23`). After that, restart the app again.
 
 1. **Check what password the MySQL user has**  
    Log in as root and see if the user exists and reset its password to match what you use in `DATABASE_URL`:
