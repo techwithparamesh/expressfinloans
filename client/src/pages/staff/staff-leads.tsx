@@ -38,6 +38,7 @@ type Lead = {
   id: string;
   employeeId: string;
   employeeName?: string;
+  employeeNumber?: string;
   date: string;
   customerName: string | null;
   customerPhone: string | null;
@@ -170,7 +171,8 @@ export default function StaffLeads() {
               <thead>
                 <tr className="border-b">
                   <th className="text-left py-2">Date</th>
-                  <th className="text-left py-2">Employee</th>
+                  <th className="text-left py-2">Employee name</th>
+                  <th className="text-left py-2">Employee ID</th>
                   <th className="text-left py-2">Customer</th>
                   <th className="text-left py-2">Phone</th>
                   <th className="text-left py-2">Loan type</th>
@@ -188,6 +190,7 @@ export default function StaffLeads() {
                   <tr key={l.id} className="border-b">
                     <td className="py-2">{l.date}</td>
                     <td className="py-2">{l.employeeName ?? l.employeeId}</td>
+                    <td className="py-2">{l.employeeNumber ?? "—"}</td>
                     <td className="py-2">{l.customerName ?? "—"}</td>
                     <td className="py-2">{l.customerPhone ?? "—"}</td>
                     <td className="py-2">{l.loanType ?? "—"}</td>

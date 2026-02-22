@@ -7,6 +7,8 @@ import { staffJson } from "@/lib/api";
 type Log = {
   id: string;
   employeeId: string;
+  employeeName: string;
+  employeeNumber: string;
   date: string;
   loginAt: string | null;
   logoutAt: string | null;
@@ -63,7 +65,8 @@ export default function StaffAttendance() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-2">Employee</th>
+                  <th className="text-left py-2">Employee name</th>
+                  <th className="text-left py-2">Employee ID</th>
                   <th className="text-left py-2">Date</th>
                   <th className="text-left py-2">Login</th>
                   <th className="text-left py-2">Logout</th>
@@ -74,7 +77,8 @@ export default function StaffAttendance() {
               <tbody>
                 {logs.map((l) => (
                   <tr key={l.id} className="border-b">
-                    <td className="py-2">{l.employeeId.slice(0, 8)}…</td>
+                    <td className="py-2">{l.employeeName || l.employeeId}</td>
+                    <td className="py-2">{l.employeeNumber || "—"}</td>
                     <td className="py-2">{l.date}</td>
                     <td className="py-2">{l.loginAt ? new Date(l.loginAt).toLocaleTimeString() : "—"}</td>
                     <td className="py-2">{l.logoutAt ? new Date(l.logoutAt).toLocaleTimeString() : "—"}</td>

@@ -27,6 +27,8 @@ import { useToast } from "@/hooks/use-toast";
 type InsuranceLead = {
   id: string;
   employeeId: string;
+  employeeName?: string;
+  employeeNumber?: string;
   date: string;
   customerName: string | null;
   contactNum: string | null;
@@ -158,7 +160,8 @@ export default function StaffInsuranceLeads() {
               <thead>
                 <tr className="border-b">
                   <th className="text-left py-2">Date</th>
-                  <th className="text-left py-2">Employee</th>
+                  <th className="text-left py-2">Employee name</th>
+                  <th className="text-left py-2">Employee ID</th>
                   <th className="text-left py-2">Customer</th>
                   <th className="text-left py-2">Contact</th>
                   <th className="text-left py-2">Insurance type</th>
@@ -174,7 +177,8 @@ export default function StaffInsuranceLeads() {
                 {leads.map((l) => (
                   <tr key={l.id} className="border-b">
                     <td className="py-2">{l.date}</td>
-                    <td className="py-2">{l.employeeId.slice(0, 8)}…</td>
+                    <td className="py-2">{l.employeeName ?? l.employeeId}</td>
+                    <td className="py-2">{l.employeeNumber ?? "—"}</td>
                     <td className="py-2">{l.customerName ?? "—"}</td>
                     <td className="py-2">{l.contactNum ?? "—"}</td>
                     <td className="py-2">{l.insuranceType ?? "—"}</td>

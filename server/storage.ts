@@ -21,6 +21,8 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser & { password: string }): Promise<User>;
   updateUser(id: string, data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl">>): Promise<User | undefined>;
+  getNextEmployeeNumber(): Promise<string>;
+  backfillEmployeeNumbers(): Promise<void>;
 
   getAttendanceLog(employeeId: string, date: string): Promise<AttendanceLog | undefined>;
   getAttendanceLogsByEmployee(employeeId: string, fromDate?: string, toDate?: string): Promise<AttendanceLog[]>;
@@ -64,17 +66,45 @@ export class DrizzleStorage implements IStorage {
     return u;
   }
 
+  async getNextEmployeeNumber(): Promise<string> {
+    await guardDb();
+    const employees = await db.select({ employeeNumber: users.employeeNumber }).from(users).where(eq(users.role, "employee"));
+    let max = 1000;
+    for (const row of employees) {
+      const n = row.employeeNumber ? parseInt(String(row.employeeNumber), 10) : NaN;
+      if (!Number.isNaN(n) && n > max) max = n;
+    }
+    return String(max + 1);
+  }
+
+  async backfillEmployeeNumbers(): Promise<void> {
+    await guardDb();
+    const employees = await db.select().from(users).where(eq(users.role, "employee")).orderBy(users.createdAt);
+    let next = 1001;
+    for (const u of employees) {
+      if (!(u as any).employeeNumber) {
+        await db.update(users).set({ employeeNumber: String(next) }).where(eq(users.id, u.id));
+        next += 1;
+      }
+    }
+  }
+
   async createUser(data: InsertUser & { password: string }): Promise<User> {
     await guardDb();
     const hashed = hashPassword(data.password);
-    await db.insert(users).values({
+    const role = (data as any).role ?? "employee";
+    const values: Record<string, unknown> = {
       username: data.username,
       password: hashed,
-      role: (data as any).role ?? "employee",
+      role,
       fullName: (data as any).fullName ?? null,
       email: (data as any).email ?? null,
       phone: (data as any).phone ?? null,
-    });
+    };
+    if (role === "employee") {
+      values.employeeNumber = await this.getNextEmployeeNumber();
+    }
+    await db.insert(users).values(values as any);
     const [u] = await db.select().from(users).where(eq(users.username, data.username)).limit(1);
     if (!u) throw new Error("Failed to create user");
     return u;
@@ -386,6 +416,13 @@ class NoDbStorage implements IStorage {
   async updateUser() {
     this.guard();
     return undefined;
+  }
+  async getNextEmployeeNumber() {
+    this.guard();
+    return "1001";
+  }
+  async backfillEmployeeNumbers() {
+    this.guard();
   }
   async getAttendanceLog() {
     this.guard();

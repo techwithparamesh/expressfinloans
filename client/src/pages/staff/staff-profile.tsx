@@ -75,14 +75,53 @@ export default function StaffProfile() {
                 </AvatarFallback>
               </Avatar>
               <div className="space-y-2 flex-1">
-                <Label htmlFor="avatarUrl">Profile photo URL</Label>
-                <Input
-                  id="avatarUrl"
-                  type="url"
-                  placeholder="https://…"
-                  value={avatarUrl}
-                  onChange={(e) => setAvatarUrl(e.target.value)}
-                />
+                <Label>Profile photo</Label>
+                <div className="flex flex-wrap gap-2 items-end">
+                  <Input
+                    id="avatarUrl"
+                    type="url"
+                    placeholder="Or paste image URL (https://…)"
+                    value={avatarUrl}
+                    onChange={(e) => setAvatarUrl(e.target.value)}
+                    className="flex-1 min-w-[200px]"
+                  />
+                  <div>
+                    <Input
+                      id="avatarFile"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = async () => {
+                          const dataUrl = reader.result as string;
+                          try {
+                            const r = await staffJson<{ avatarUrl: string }>("/staff/profile/avatar", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ image: dataUrl }),
+                            });
+                            setAvatarUrl(r.avatarUrl);
+                            toast({ title: "Photo uploaded" });
+                          } catch (err) {
+                            toast({ title: err instanceof Error ? err.message : "Upload failed", variant: "destructive" });
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                        e.target.value = "";
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById("avatarFile")?.click()}
+                    >
+                      Upload image
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="space-y-2">

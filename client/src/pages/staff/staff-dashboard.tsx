@@ -6,8 +6,8 @@ import { Users, Calendar, FileText, CheckCircle } from "lucide-react";
 type Dashboard = {
   today: string;
   employeeCount: number;
-  attendanceToday: { employeeId: string; employeeName: string; date: string; loginAt: string | null; logoutAt: string | null; leadsCount: number; status: string }[];
-  leadsToday: { id: string; employeeId: string; employeeName: string; date: string; customerName: string | null; status: string }[];
+  attendanceToday: { employeeId: string; employeeName: string; employeeNumber: string; date: string; loginAt: string | null; logoutAt: string | null; leadsCount: number; status: string }[];
+  leadsToday: { id: string; employeeId: string; employeeName: string; employeeNumber: string; date: string; customerName: string | null; status: string }[];
   totalClosures: number;
 };
 
@@ -80,7 +80,8 @@ export default function StaffDashboard() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-2">Employee</th>
+                  <th className="text-left py-2">Employee name</th>
+                  <th className="text-left py-2">Employee ID</th>
                   <th className="text-left py-2">Login</th>
                   <th className="text-left py-2">Logout</th>
                   <th className="text-left py-2">Leads</th>
@@ -91,6 +92,7 @@ export default function StaffDashboard() {
                 {data.attendanceToday.map((a) => (
                   <tr key={a.employeeId + a.date} className="border-b">
                     <td className="py-2">{a.employeeName || a.employeeId}</td>
+                    <td className="py-2">{a.employeeNumber || "—"}</td>
                     <td className="py-2">{a.loginAt ? new Date(a.loginAt).toLocaleTimeString() : "—"}</td>
                     <td className="py-2">{a.logoutAt ? new Date(a.logoutAt).toLocaleTimeString() : "—"}</td>
                     <td className="py-2">{a.leadsCount}</td>

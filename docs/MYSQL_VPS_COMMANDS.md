@@ -59,8 +59,7 @@ If you prefer to create tables in MySQL yourself, run the following (after creat
 ```sql
 USE expressfinloans;
 
--- Users (staff + admin). If the table already exists, add profile photo with:
--- ALTER TABLE users ADD COLUMN avatar_url VARCHAR(512) NULL;
+-- Users (staff + admin). If the table already exists, add missing columns with ALTER (see blocks below).
 CREATE TABLE users (
   id VARCHAR(36) PRIMARY KEY,
   username VARCHAR(255) NOT NULL UNIQUE,
@@ -70,6 +69,7 @@ CREATE TABLE users (
   email VARCHAR(255) NULL,
   phone VARCHAR(50) NULL,
   avatar_url VARCHAR(512) NULL,
+  employee_number VARCHAR(10) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -206,7 +206,30 @@ ALTER TABLE insurance_leads
   ADD COLUMN final_remarks VARCHAR(500) NULL;
 ```
 
+**Employee number (4-digit ID for staff):** To add the employee ID column used in attendance/leads (e.g. 1001, 1002), run:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE users ADD COLUMN employee_number VARCHAR(10) NULL;
+```
+
+Then run the app seed so existing employees get numbers assigned: `npm run seed` (from project dir with `DATABASE_URL` set).
+
 (Skip any column that already exists, or run one `ADD COLUMN` per line if your MySQL reports "Duplicate column".)
+
+**Quick reference – what you might be missing**
+
+| If you need … | Run this (see block above) |
+|---------------|----------------------------|
+| Full loan form (email, location, income_type, cibil, docs_collected, company_logged, roi, loan_disbursed) | First **ALTER TABLE leads** block in "If you already have the old leads table" |
+| Admin loan fields (payout_percent, payout_amount, reconsil, payment_status) | **Admin-only loan fields** ALTER block |
+| Profile photo (avatar) on users | In **CREATE TABLE users**: column `avatar_url`; or `ALTER TABLE users ADD COLUMN avatar_url VARCHAR(512) NULL;` |
+| Employee ID (4-digit) on users | **Employee number** ALTER above; then run `npm run seed` to backfill | 
+| Insurance leads table | **CREATE TABLE insurance_leads** in "If you already have the old leads table" |
+| Admin insurance fields (collected_premium, actual_premium, final_remarks) | **Admin-only insurance lead fields** ALTER block |
+
+Use `DESCRIBE table_name;` (see **Common database commands** below) to see which columns you already have.
 
 If you use **option A** (`npm run db:push`), Drizzle will apply these schema changes automatically.
 
@@ -359,6 +382,75 @@ UPDATE users SET password = 'PASTE_THE_HASH_HERE' WHERE username = 'Expressadmin
 ```
 
 Log in with username `Expressadmin` and password `MyNewPassword`.
+
+---
+
+## Common database commands (inspect, backup, restore)
+
+**Connect and select database**
+
+```bash
+mysql -u expressfin -p expressfinloans
+```
+
+Or as root then switch:
+
+```bash
+mysql -u root -p
+```
+
+```sql
+USE expressfinloans;
+```
+
+**List tables**
+
+```sql
+SHOW TABLES;
+```
+
+**Describe a table (see columns)**
+
+```sql
+DESCRIBE users;
+DESCRIBE leads;
+DESCRIBE attendance_logs;
+DESCRIBE insurance_leads;
+DESCRIBE sessions;
+```
+
+**Quick data checks**
+
+```sql
+SELECT id, username, role, full_name FROM users;
+SELECT id, employee_id, date, login_at, logout_at, leads_count, status FROM attendance_logs ORDER BY date DESC LIMIT 10;
+SELECT id, employee_id, date, customer_name, status FROM leads ORDER BY date DESC LIMIT 10;
+```
+
+**Backup database (from shell, not inside MySQL)**
+
+```bash
+mysqldump -u expressfin -p expressfinloans > backup_expressfinloans_$(date +%Y%m%d).sql
+```
+
+**Restore from backup**
+
+```bash
+mysql -u expressfin -p expressfinloans < backup_expressfinloans_20260220.sql
+```
+
+**Create user for TCP (127.0.0.1) – if app gets "Access denied"**
+
+Run as root, then:
+
+```sql
+CREATE USER 'expressfin'@'127.0.0.1' IDENTIFIED BY 'Express#Fin321';
+GRANT ALL PRIVILEGES ON expressfinloans.* TO 'expressfin'@'127.0.0.1';
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+(Use the same password as in your `DATABASE_URL`.)
 
 ---
 

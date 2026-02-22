@@ -1,8 +1,13 @@
-import type { Express } from "express";
+import express, { type Express } from "express";
 import { createServer, type Server } from "http";
+import path from "path";
+import fs from "fs";
 import passport from "passport";
 import { storage } from "./storage";
 import { requireAuth, requireAdmin } from "./auth";
+
+const UPLOADS_DIR = path.join(process.cwd(), "uploads");
+const AVATARS_DIR = path.join(UPLOADS_DIR, "avatars");
 
 const LEAD_MIN_FOR_PRESENT = 2;
 
@@ -14,6 +19,12 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  if (!fs.existsSync(AVATARS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    fs.mkdirSync(AVATARS_DIR, { recursive: true });
+  }
+  app.use("/uploads", express.static(UPLOADS_DIR));
+
   // Redirect /staff and /admin to staff subdomain when STAFF_DOMAIN is set (e.g. staff.expressfinloans.com)
   const staffDomain = process.env.STAFF_DOMAIN?.trim().toLowerCase();
   app.get(["/staff", "/staff/*", "/admin", "/admin/*"], (req, res, next) => {
@@ -95,7 +106,21 @@ export async function registerRoutes(
       const from = (req.query.from as string) || undefined;
       const to = (req.query.to as string) || undefined;
       const logs = await storage.getAllAttendanceLogs(from, to);
-      res.json(logs);
+      const employees = await storage.listEmployees();
+      const byId: Record<string, { name: string; number: string }> = {};
+      for (const u of employees) {
+        byId[u.id] = {
+          name: (u as any).fullName?.trim() || u.username || u.id,
+          number: (u as any).employeeNumber ?? "",
+        };
+      }
+      res.json(
+        logs.map((l) => ({
+          ...l,
+          employeeName: byId[l.employeeId]?.name ?? l.employeeId,
+          employeeNumber: byId[l.employeeId]?.number ?? "",
+        }))
+      );
     } catch (e) {
       next(e);
     }
@@ -153,14 +178,18 @@ export async function registerRoutes(
       const status = (req.query.status as string) || undefined;
       const list = await storage.getAllLeads({ employeeId, fromDate, toDate, status });
       const employees = await storage.listEmployees();
-      const nameByEmployeeId: Record<string, string> = {};
+      const byId: Record<string, { name: string; number: string }> = {};
       for (const u of employees) {
-        nameByEmployeeId[u.id] = u.fullName?.trim() || u.username || u.id;
+        byId[u.id] = {
+          name: (u as any).fullName?.trim() || u.username || u.id,
+          number: (u as any).employeeNumber ?? "",
+        };
       }
       res.json(
         list.map((l) => ({
           ...l,
-          employeeName: nameByEmployeeId[l.employeeId] ?? l.employeeId,
+          employeeName: byId[l.employeeId]?.name ?? l.employeeId,
+          employeeNumber: byId[l.employeeId]?.number ?? "",
         }))
       );
     } catch (e) {
@@ -281,7 +310,21 @@ export async function registerRoutes(
       const fromDate = (req.query.from as string) || undefined;
       const toDate = (req.query.to as string) || undefined;
       const list = await storage.getAllInsuranceLeads({ employeeId, fromDate, toDate });
-      res.json(list);
+      const employees = await storage.listEmployees();
+      const byId: Record<string, { name: string; number: string }> = {};
+      for (const u of employees) {
+        byId[u.id] = {
+          name: (u as any).fullName?.trim() || u.username || u.id,
+          number: (u as any).employeeNumber ?? "",
+        };
+      }
+      res.json(
+        list.map((l) => ({
+          ...l,
+          employeeName: byId[l.employeeId]?.name ?? l.employeeId,
+          employeeNumber: byId[l.employeeId]?.number ?? "",
+        }))
+      );
     } catch (e) {
       next(e);
     }
@@ -388,6 +431,30 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/staff/profile/avatar", requireAuth, async (req, res, next) => {
+    try {
+      const userId = (req.user as any).id;
+      const dataUrl = (req.body?.image as string)?.trim();
+      if (!dataUrl || !dataUrl.startsWith("data:image/")) {
+        return res.status(400).json({ message: "Send JSON body with image: data:image/...;base64,..." });
+      }
+      const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
+      if (!match) return res.status(400).json({ message: "Invalid image data URL" });
+      const ext = match[1] === "jpeg" ? "jpg" : match[1];
+      const base64 = match[2];
+      const buf = Buffer.from(base64, "base64");
+      if (buf.length > 5 * 1024 * 1024) return res.status(400).json({ message: "Image too large (max 5MB)" });
+      const filename = `${userId}.${ext}`;
+      const filepath = path.join(AVATARS_DIR, filename);
+      fs.writeFileSync(filepath, buf);
+      const avatarUrl = "/uploads/avatars/" + filename;
+      await storage.updateUser(userId, { avatarUrl });
+      res.json({ avatarUrl });
+    } catch (e) {
+      next(e);
+    }
+  });
+
   app.patch("/api/staff/profile/me", requireAuth, async (req, res, next) => {
     try {
       const userId = (req.user as any).id;
@@ -426,6 +493,7 @@ export async function registerRoutes(
           fullName: u.fullName ?? null,
           email: u.email ?? null,
           phone: u.phone ?? null,
+          employeeNumber: (u as any).employeeNumber ?? null,
         }))
       );
     } catch (e) {
@@ -477,20 +545,25 @@ export async function registerRoutes(
       const allAttendance = await storage.getAllAttendanceLogs(today, today);
       const allLeads = await storage.getAllLeads({ fromDate: today, toDate: today });
       const closures = await storage.getAllLeads({ status: "closed_won" });
-      const nameByEmployeeId: Record<string, string> = {};
+      const byId: Record<string, { name: string; number: string }> = {};
       for (const u of employees) {
-        nameByEmployeeId[u.id] = u.fullName?.trim() || u.username || u.id;
+        byId[u.id] = {
+          name: (u as any).fullName?.trim() || u.username || u.id,
+          number: (u as any).employeeNumber ?? "",
+        };
       }
       res.json({
         today,
         employeeCount: employees.length,
         attendanceToday: allAttendance.map((a) => ({
           ...a,
-          employeeName: nameByEmployeeId[a.employeeId] ?? a.employeeId,
+          employeeName: byId[a.employeeId]?.name ?? a.employeeId,
+          employeeNumber: byId[a.employeeId]?.number ?? "",
         })),
         leadsToday: allLeads.map((l) => ({
           ...l,
-          employeeName: nameByEmployeeId[l.employeeId] ?? l.employeeId,
+          employeeName: byId[l.employeeId]?.name ?? l.employeeId,
+          employeeNumber: byId[l.employeeId]?.number ?? "",
         })),
         totalClosures: closures.length,
       });

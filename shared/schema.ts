@@ -21,6 +21,7 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 255 }),
   phone: varchar("phone", { length: 50 }),
   avatarUrl: varchar("avatar_url", { length: 512 }),
+  employeeNumber: varchar("employee_number", { length: 10 }), // 4-digit display ID e.g. 1001
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

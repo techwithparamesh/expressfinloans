@@ -21,6 +21,7 @@ type Employee = {
   fullName: string | null;
   email: string | null;
   phone: string | null;
+  employeeNumber: string | null;
 };
 
 function fetchEmployees() {
@@ -109,6 +110,7 @@ export default function StaffEmployees() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
+                  <th className="text-left py-2">Employee ID</th>
                   <th className="text-left py-2">Name</th>
                   <th className="text-left py-2">Username</th>
                   <th className="text-left py-2">Role</th>
@@ -119,6 +121,7 @@ export default function StaffEmployees() {
               <tbody>
                 {list.map((e) => (
                   <tr key={e.id} className="border-b">
+                    <td className="py-2">{e.employeeNumber ?? "—"}</td>
                     <td className="py-2">{e.fullName ?? "—"}</td>
                     <td className="py-2">{e.username}</td>
                     <td className="py-2">{e.role}</td>
