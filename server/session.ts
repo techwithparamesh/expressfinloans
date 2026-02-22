@@ -24,16 +24,18 @@ export async function setupSession(app: Express): Promise<void> {
 }
 
 async function getSessionStore(): Promise<session.Store> {
-  const connectionString = process.env.DATABASE_URL;
+  let connectionString = process.env.DATABASE_URL;
+  // Force TCP so MySQL uses 'user'@'127.0.0.1' (localhost often uses socket → 'user'@'localhost')
+  if (connectionString && connectionString.includes("localhost")) {
+    connectionString = connectionString.replace(/@localhost\b/, "@127.0.0.1");
+  }
   if (connectionString && connectionString.startsWith("mysql")) {
     try {
       const expressMysqlSession = await import("express-mysql-session");
       const MySQLStore = (expressMysqlSession.default || expressMysqlSession)(session);
       const u = new URL(connectionString);
-      // Use 127.0.0.1 instead of localhost so the driver connects via TCP and MySQL uses 'user'@'127.0.0.1'
-      const host = u.hostname === "localhost" ? "127.0.0.1" : u.hostname;
       const store = new MySQLStore({
-        host,
+        host: u.hostname,
         port: u.port ? parseInt(u.port, 10) : 3306,
         user: u.username,
         password: u.password,
@@ -42,9 +44,14 @@ async function getSessionStore(): Promise<session.Store> {
         checkExpirationInterval: 900000,
         expiration: 7 * 24 * 60 * 60 * 1000,
       });
+      // Ensure connection works; fall back to memory if e.g. Access denied
+      if (typeof (store as any).onReady === "function") {
+        await (store as any).onReady();
+      }
       return store;
-    } catch {
-      // fallback to memory if express-mysql-session fails
+    } catch (err) {
+      console.warn("[session] MySQL store failed, using memory store:", err instanceof Error ? err.message : err);
+      // fallback to memory below
     }
   }
   const memorystore = await import("memorystore");
