@@ -231,6 +231,85 @@ If MySQL is on another host, use that host and port instead of `localhost:3306`.
 
 ---
 
+## Troubleshooting: "Access denied for user 'expressfin'@'localhost'"
+
+This error appears on the **staff login page** when the app cannot connect to MySQL. It is **not** about the staff username/password you type in the form — it is about the **database credentials** used by the app.
+
+**Cause:** The app reads `DATABASE_URL` (e.g. `mysql://expressfin:PASSWORD@localhost:3306/expressfinloans`). MySQL is rejecting that user/password or the user does not exist for `localhost`.
+
+**Fix (on the VPS where the app runs):**
+
+1. **Check what password the MySQL user has**  
+   Log in as root and see if the user exists and reset its password to match what you use in `DATABASE_URL`:
+
+   ```bash
+   mysql -u root -p
+   ```
+
+   ```sql
+   -- See if user exists
+   SELECT user, host FROM mysql.user WHERE user = 'expressfin';
+
+   -- Set password to match the one in your DATABASE_URL (replace NEW_PASSWORD with the actual password)
+   ALTER USER 'expressfin'@'localhost' IDENTIFIED BY 'NEW_PASSWORD';
+   FLUSH PRIVILEGES;
+   EXIT;
+   ```
+
+2. **If the user does not exist**, create it (use the same password you will put in `DATABASE_URL`):
+
+   ```sql
+   CREATE USER 'expressfin'@'localhost' IDENTIFIED BY 'YOUR_SECURE_PASSWORD';
+   GRANT ALL PRIVILEGES ON expressfinloans.* TO 'expressfin'@'localhost';
+   FLUSH PRIVILEGES;
+   ```
+
+3. **Make sure `DATABASE_URL` matches**  
+   In the app’s environment (e.g. `.env` or PM2/systemd env), set:
+
+   ```bash
+   DATABASE_URL="mysql://expressfin:YOUR_SECURE_PASSWORD@localhost:3306/expressfinloans"
+   ```
+
+   Use the **exact same** password as in the `IDENTIFIED BY` / `ALTER USER` step. If the password contains special characters (`#`, `@`, `%`, etc.), they must be [URL-encoded](https://developer.mozilla.org/en-US/docs/Glossary/Percent-encoding) in `DATABASE_URL` (e.g. `#` → `%23`).
+
+4. **Restart the app** after changing `.env` or environment variables so it picks up the new `DATABASE_URL`.
+
+---
+
+## Check or reset staff portal login password
+
+If you created an admin user (e.g. `Expressadmin`) with a hashed password and login fails with “Invalid username or password”, the hash in the DB might not match the password you think you set.
+
+**1. Verify whether a password matches the DB**
+
+From the project directory (with `DATABASE_URL` in `.env`):
+
+```bash
+npx tsx script/verify-password.ts Expressadmin YourSuspectPassword
+```
+
+- If it prints **Password MATCHES**, use that password to log in.
+- If it prints **Password does NOT match**, the stored hash was not made from that password (wrong password or hash was generated differently). Set a new password (step 2).
+
+**2. Set a new password for the user**
+
+Generate a hash for the new password:
+
+```bash
+npx tsx script/hash-password.ts MyNewPassword
+```
+
+Copy the full output, then in MySQL:
+
+```sql
+UPDATE users SET password = 'PASTE_THE_HASH_HERE' WHERE username = 'Expressadmin';
+```
+
+Log in with username `Expressadmin` and password `MyNewPassword`.
+
+---
+
 ## Summary checklist
 
 | Step | Action |
