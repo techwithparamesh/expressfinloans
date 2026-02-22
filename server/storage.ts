@@ -135,7 +135,7 @@ export class DrizzleStorage implements IStorage {
     await guardDb();
     const existing = await this.getAttendanceLog(data.employeeId, data.date as unknown as string);
     if (existing) {
-      const [updated] = await db
+      await db
         .update(attendanceLogs)
         .set({
           loginAt: data.loginAt ?? existing.loginAt,
