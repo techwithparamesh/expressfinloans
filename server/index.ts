@@ -62,6 +62,20 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Log DB config at startup (password redacted) so we can verify what the process sees
+  const dbUrl = process.env.DATABASE_URL;
+  if (dbUrl && dbUrl.startsWith("mysql")) {
+    try {
+      const u = new URL(dbUrl);
+      const redacted = `mysql://${u.username}:***@${u.hostname}:${u.port || 3306}${u.pathname}`;
+      log(`DATABASE_URL seen: ${redacted}`);
+    } catch {
+      log("DATABASE_URL set but invalid URL");
+    }
+  } else {
+    log("DATABASE_URL not set or not mysql (cwd=" + process.cwd() + ")");
+  }
+
   const { setupSession } = await import("./session");
   const { configurePassport } = await import("./auth");
   await setupSession(app);

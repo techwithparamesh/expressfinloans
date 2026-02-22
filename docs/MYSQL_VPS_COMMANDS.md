@@ -233,11 +233,28 @@ If MySQL is on another host, use that host and port instead of `localhost:3306`.
 
 ## Troubleshooting: "Access denied for user 'expressfin'@'localhost'"
 
-This error appears on the **staff login page** when the app cannot connect to MySQL. It is **not** about the staff username/password you type in the form — it is about the **database credentials** used by the app.
+This error appears on the **staff login page** (or in PM2 logs) when the app cannot connect to MySQL. It often comes from **express-mysql-session** (the session store), not the main app pool. It is **not** about the staff username/password you type in the form — it is about the **database credentials** used by the app.
 
-**Cause:** The app reads `DATABASE_URL` (e.g. `mysql://expressfin:PASSWORD@localhost:3306/expressfinloans`). MySQL is rejecting that user/password or the user does not exist for `localhost`.
+**Cause:** The app reads `DATABASE_URL` (e.g. `mysql://expressfin:PASSWORD@localhost:3306/expressfinloans`). MySQL is rejecting that user/password, or the user exists only for one host (e.g. `localhost`) while the Node driver connects via another (e.g. `127.0.0.1`).
 
 **Fix (on the VPS where the app runs):**
+
+0. **Create the same user for `127.0.0.1` (do this first)**  
+   The `mysql` CLI often connects via Unix socket (host = `localhost`), but Node’s mysql2 driver often connects via **TCP** to `127.0.0.1`. In MySQL, `'user'@'localhost'` and `'user'@'127.0.0.1'` are different. If you only have `'expressfin'@'localhost'`, the app can get "Access denied" when it connects to `127.0.0.1`. Create the TCP user (use the same password as in `DATABASE_URL`, e.g. `Express#Fin321`):
+
+   ```bash
+   mysql -u root -p
+   ```
+
+   ```sql
+   CREATE USER 'expressfin'@'127.0.0.1' IDENTIFIED BY 'Express#Fin321';
+   GRANT ALL PRIVILEGES ON expressfinloans.* TO 'expressfin'@'127.0.0.1';
+   FLUSH PRIVILEGES;
+   EXIT;
+   ```
+
+   Then restart the app (`pm2 restart expressfinloans-app` or equivalent). If the error persists, also ensure `DATABASE_URL` is set correctly for the process (steps 1–4 below). Optionally, you can force the app to use TCP by setting the host in the URL to `127.0.0.1`:  
+   `DATABASE_URL="mysql://expressfin:Express%23Fin321@127.0.0.1:3306/expressfinloans"`
 
 1. **Check what password the MySQL user has**  
    Log in as root and see if the user exists and reset its password to match what you use in `DATABASE_URL`:
@@ -274,6 +291,29 @@ This error appears on the **staff login page** when the app cannot connect to My
    Use the **exact same** password as in the `IDENTIFIED BY` / `ALTER USER` step. If the password contains special characters (`#`, `@`, `%`, etc.), they must be [URL-encoded](https://developer.mozilla.org/en-US/docs/Glossary/Percent-encoding) in `DATABASE_URL` (e.g. `#` → `%23`).
 
 4. **Restart the app** after changing `.env` or environment variables so it picks up the new `DATABASE_URL`.
+
+**If you still see the error after fixing MySQL:**
+
+5. **Test MySQL from the server** with the exact same credentials as in `.env` (password `Express#Fin321`):
+
+   ```bash
+   mysql -u expressfin -p'Express#Fin321' -h localhost expressfinloans -e "SELECT 1"
+   ```
+
+   If this fails, MySQL is still rejecting the user/password — fix with `ALTER USER` (step 1) and try again. If this **succeeds**, the app is not using the same credentials (see step 6).
+
+6. **Ensure the app sees `DATABASE_URL`.** The app loads `.env` from the **current working directory** when it starts. If you use PM2 or systemd, the process may start from a different directory and never load `.env`.
+
+   - **Option A:** Start the app from the project directory, e.g. `cd /root/expressfinloans` then start your server (or in PM2: use `--cwd /root/expressfinloans` or set `cwd` in ecosystem file).
+   - **Option B:** Set `DATABASE_URL` in the process environment so it doesn’t depend on `.env`. For PM2: in `ecosystem.config.js` add `env: { DATABASE_URL: "mysql://expressfin:Express%23Fin321@localhost:3306/expressfinloans" }`, or run `DATABASE_URL="mysql://..." pm2 start ...`. For systemd: add `Environment=DATABASE_URL=mysql://...` in the service file.
+
+7. **Restart the app** after any change (and reload the browser or try in a private window).
+
+**Why might “my other app” connect to MySQL but this one doesn’t?**
+
+- **Working directory (cwd):** This app loads `.env` via `dotenv/config` from `process.cwd()` when it starts. If PM2 (or systemd) starts the process from a different directory, `.env` is not found and `DATABASE_URL` is missing or wrong. Your other app may be started from its project directory or have `DATABASE_URL` set in the process environment.
+- **Fix:** Start this app from the project directory so `.env` is loaded, or set `DATABASE_URL` in the process env (PM2 `env`, or `Environment=` in systemd). In PM2: use `--cwd /root/expressfinloans` when starting, or in `ecosystem.config.js` set `cwd: "/root/expressfinloans"`.
+- **See what the app sees:** After restarting, run `pm2 logs expressfinloans-app --lines 20`. You should see a line like `DATABASE_URL seen: mysql://expressfin:***@127.0.0.1:3306/expressfinloans`. If you see `DATABASE_URL not set` or a different host/user, the process is not getting the correct env.
 
 ---
 
