@@ -12,13 +12,23 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { staffJson } from "@/lib/api";
+import { staffJson, staffFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 const RECONSIL_OPTIONS = ["Yes Received", "Not Revived", "Not as per Rate"] as const;
@@ -27,6 +37,7 @@ const PAYMENT_STATUS_OPTIONS = ["Received", "Pending", "Not Received"] as const;
 type Lead = {
   id: string;
   employeeId: string;
+  employeeName?: string;
   date: string;
   customerName: string | null;
   customerPhone: string | null;
@@ -49,6 +60,7 @@ export default function StaffLeads() {
   const [to, setTo] = useState(today());
   const [status, setStatus] = useState("");
   const [editLead, setEditLead] = useState<Lead | null>(null);
+  const [deleteLead, setDeleteLead] = useState<Lead | null>(null);
   const [saving, setSaving] = useState(false);
   const [adminForm, setAdminForm] = useState({
     payoutPercent: "",
@@ -77,6 +89,21 @@ export default function StaffLeads() {
       reconsil: l.reconsil ?? "",
       paymentStatus: l.paymentStatus ?? "",
     });
+  }
+
+  async function confirmDelete() {
+    if (!deleteLead) return;
+    setSaving(true);
+    try {
+      await staffFetch("/staff/leads/" + deleteLead.id, { method: "DELETE" });
+      toast({ title: "Lead deleted" });
+      setDeleteLead(null);
+      load();
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Delete failed", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function saveAdminFields() {
@@ -160,7 +187,7 @@ export default function StaffLeads() {
                 {leads.map((l) => (
                   <tr key={l.id} className="border-b">
                     <td className="py-2">{l.date}</td>
-                    <td className="py-2">{l.employeeId.slice(0, 8)}…</td>
+                    <td className="py-2">{l.employeeName ?? l.employeeId}</td>
                     <td className="py-2">{l.customerName ?? "—"}</td>
                     <td className="py-2">{l.customerPhone ?? "—"}</td>
                     <td className="py-2">{l.loanType ?? "—"}</td>
@@ -170,9 +197,12 @@ export default function StaffLeads() {
                     <td className="py-2">{l.payoutAmount ?? "—"}</td>
                     <td className="py-2">{l.reconsil ?? "—"}</td>
                     <td className="py-2">{l.paymentStatus ?? "—"}</td>
-                    <td className="py-2">
+                    <td className="py-2 flex gap-2">
                       <Button variant="outline" size="sm" onClick={() => openEdit(l)}>
                         Edit
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => setDeleteLead(l)}>
+                        Delete
                       </Button>
                     </td>
                   </tr>
@@ -182,6 +212,23 @@ export default function StaffLeads() {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!deleteLead} onOpenChange={(open) => !open && setDeleteLead(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete lead?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this lead. Attendance count for the employee on that date will be updated. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} disabled={saving} className="bg-red-600 hover:bg-red-700">
+              {saving ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={!!editLead} onOpenChange={(open) => !open && setEditLead(null)}>
         <DialogContent>

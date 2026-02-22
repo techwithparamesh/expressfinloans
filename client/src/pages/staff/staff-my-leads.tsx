@@ -461,7 +461,7 @@ export default function StaffMyLeads() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label>Loan disbursed</Label>
+                    <Label>Loan Amount</Label>
                     <Input
                       value={loanForm.loanDisbursed}
                       onChange={(e) => setLoanForm((f) => ({ ...f, loanDisbursed: e.target.value }))}

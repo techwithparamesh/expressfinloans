@@ -20,7 +20,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser & { password: string }): Promise<User>;
-  updateUser(id: string, data: Partial<Pick<User, "fullName" | "email" | "phone" | "password">>): Promise<User | undefined>;
+  updateUser(id: string, data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl">>): Promise<User | undefined>;
 
   getAttendanceLog(employeeId: string, date: string): Promise<AttendanceLog | undefined>;
   getAttendanceLogsByEmployee(employeeId: string, fromDate?: string, toDate?: string): Promise<AttendanceLog[]>;
@@ -35,6 +35,7 @@ export interface IStorage {
   getLeadsByEmployee(employeeId: string, fromDate?: string, toDate?: string): Promise<Lead[]>;
   getAllLeads(filters?: { employeeId?: string; fromDate?: string; toDate?: string; status?: string }): Promise<Lead[]>;
   updateLead(id: string, data: Partial<InsertLead>): Promise<Lead | undefined>;
+  deleteLead(id: string): Promise<void>;
   listEmployees(): Promise<User[]>;
   getLeadsCountForEmployeeOnDate(employeeId: string, dateStr: string): Promise<number>;
 
@@ -43,6 +44,7 @@ export interface IStorage {
   getInsuranceLeadsByEmployee(employeeId: string, fromDate?: string, toDate?: string): Promise<InsuranceLead[]>;
   getAllInsuranceLeads(filters?: { employeeId?: string; fromDate?: string; toDate?: string }): Promise<InsuranceLead[]>;
   updateInsuranceLead(id: string, data: Partial<InsertInsuranceLead>): Promise<InsuranceLead | undefined>;
+  deleteInsuranceLead(id: string): Promise<void>;
 }
 
 async function guardDb() {
@@ -80,7 +82,7 @@ export class DrizzleStorage implements IStorage {
 
   async updateUser(
     id: string,
-    data: Partial<Pick<User, "fullName" | "email" | "phone" | "password">>
+    data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl">>
   ): Promise<User | undefined> {
     await guardDb();
     const payload: Record<string, unknown> = { ...data };
@@ -273,6 +275,17 @@ export class DrizzleStorage implements IStorage {
     return this.getLead(id);
   }
 
+  async deleteLead(id: string): Promise<void> {
+    await guardDb();
+    const lead = await this.getLead(id);
+    if (lead) {
+      await db.delete(leads).where(eq(leads.id, id));
+      const dateStr = (lead.date as unknown as string).slice?.(0, 10) ?? String(lead.date);
+      const count = await this.getLeadsCountForEmployeeOnDate(lead.employeeId, dateStr);
+      await this.updateAttendanceFromLeadsCount(lead.employeeId, dateStr, count);
+    }
+  }
+
   async listEmployees(): Promise<User[]> {
     await guardDb();
     return db.select().from(users).where(eq(users.role, "employee")).orderBy(users.fullName, users.username);
@@ -346,6 +359,11 @@ export class DrizzleStorage implements IStorage {
     await db.update(insuranceLeads).set({ ...data, updatedAt: new Date() }).where(eq(insuranceLeads.id, id));
     return this.getInsuranceLead(id);
   }
+
+  async deleteInsuranceLead(id: string): Promise<void> {
+    await guardDb();
+    await db.delete(insuranceLeads).where(eq(insuranceLeads.id, id));
+  }
 }
 
 // When DB is not configured, use a no-op storage that throws on staff-specific methods
@@ -416,6 +434,9 @@ class NoDbStorage implements IStorage {
     this.guard();
     return undefined;
   }
+  async deleteLead() {
+    this.guard();
+  }
   async listEmployees() {
     this.guard();
     return [];
@@ -443,6 +464,9 @@ class NoDbStorage implements IStorage {
   async updateInsuranceLead() {
     this.guard();
     return undefined;
+  }
+  async deleteInsuranceLead() {
+    this.guard();
   }
 }
 

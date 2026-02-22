@@ -11,7 +11,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { staffJson } from "@/lib/api";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { staffJson, staffFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 type InsuranceLead = {
@@ -46,6 +56,7 @@ export default function StaffInsuranceLeads() {
   const [from, setFrom] = useState(getMonthStart());
   const [to, setTo] = useState(today());
   const [editLead, setEditLead] = useState<InsuranceLead | null>(null);
+  const [deleteLead, setDeleteLead] = useState<InsuranceLead | null>(null);
   const [saving, setSaving] = useState(false);
   const [adminForm, setAdminForm] = useState({
     collectedPremium: "",
@@ -76,6 +87,21 @@ export default function StaffInsuranceLeads() {
   const differenceDisplay = editLead
     ? computeDifference(adminForm.collectedPremium || null, adminForm.actualPremium || null)
     : "—";
+
+  async function confirmDelete() {
+    if (!deleteLead) return;
+    setSaving(true);
+    try {
+      await staffFetch("/staff/insurance-leads/" + deleteLead.id, { method: "DELETE" });
+      toast({ title: "Insurance lead deleted" });
+      setDeleteLead(null);
+      load();
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Delete failed", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function saveAdminFields() {
     if (!editLead) return;
@@ -160,9 +186,14 @@ export default function StaffInsuranceLeads() {
                       {l.finalRemarks ?? "—"}
                     </td>
                     <td className="py-2">
-                      <Button variant="outline" size="sm" onClick={() => openEdit(l)}>
-                        Edit
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => openEdit(l)}>
+                          Edit
+                        </Button>
+                        <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => setDeleteLead(l)}>
+                          Delete
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -171,6 +202,23 @@ export default function StaffInsuranceLeads() {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!deleteLead} onOpenChange={(open) => !open && setDeleteLead(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete insurance lead?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this insurance lead. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} disabled={saving} className="bg-red-600 hover:bg-red-700">
+              {saving ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={!!editLead} onOpenChange={(open) => !open && setEditLead(null)}>
         <DialogContent>

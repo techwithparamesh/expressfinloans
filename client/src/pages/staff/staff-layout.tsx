@@ -12,6 +12,7 @@ import {
   Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import MonthlyTargetPopup from "@/components/staff/MonthlyTargetPopup";
 
@@ -88,9 +89,17 @@ export default function StaffLayout({
       {!isAdmin && <MonthlyTargetPopup />}
       <div className="min-h-screen flex bg-slate-100">
         <aside className="w-56 bg-slate-800 text-white flex flex-col shrink-0">
-          <div className="p-4 border-b border-slate-700">
-            <p className="font-semibold truncate">{user.fullName || user.username}</p>
-            <p className="text-xs text-slate-400">{user.role}</p>
+          <div className="p-4 border-b border-slate-700 flex items-center gap-3">
+            <Avatar className="h-10 w-10 shrink-0 border border-slate-600">
+              <AvatarImage src={user.avatarUrl || undefined} alt="" />
+              <AvatarFallback className="bg-slate-700 text-slate-200 text-sm">
+                {(user.fullName || user.username).slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold truncate">{user.fullName || user.username}</p>
+              <p className="text-xs text-slate-400">{user.role}</p>
+            </div>
           </div>
           <nav className="p-2 flex-1">
             {nav.map(({ href, label, icon: Icon }) => (

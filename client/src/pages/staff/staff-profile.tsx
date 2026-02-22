@@ -3,10 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { staffJson } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
-type Profile = { id: string; username: string; role: string; fullName: string | null; email: string | null; phone: string | null };
+type Profile = { id: string; username: string; role: string; fullName: string | null; email: string | null; phone: string | null; avatarUrl: string | null };
 
 export default function StaffProfile() {
   const { toast } = useToast();
@@ -16,6 +17,7 @@ export default function StaffProfile() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [password, setPassword] = useState("");
 
   useEffect(() => {
@@ -25,6 +27,7 @@ export default function StaffProfile() {
         setFullName(p.fullName ?? "");
         setEmail(p.email ?? "");
         setPhone(p.phone ?? "");
+        setAvatarUrl(p.avatarUrl ?? "");
       })
       .catch(() => toast({ title: "Failed to load profile", variant: "destructive" }))
       .finally(() => setLoading(false));
@@ -36,6 +39,7 @@ export default function StaffProfile() {
     setSaving(true);
     try {
       const body: Record<string, string> = { fullName, email, phone };
+      if (avatarUrl.trim()) body.avatarUrl = avatarUrl.trim(); else body.avatarUrl = "";
       if (password.trim()) body.password = password.trim();
       const updated = await staffJson<Profile>("/staff/profile/me", {
         method: "PATCH",
@@ -63,6 +67,24 @@ export default function StaffProfile() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16">
+                <AvatarImage src={avatarUrl || undefined} alt="" />
+                <AvatarFallback className="text-lg">
+                  {(fullName || profile.username).slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="space-y-2 flex-1">
+                <Label htmlFor="avatarUrl">Profile photo URL</Label>
+                <Input
+                  id="avatarUrl"
+                  type="url"
+                  placeholder="https://…"
+                  value={avatarUrl}
+                  onChange={(e) => setAvatarUrl(e.target.value)}
+                />
+              </div>
+            </div>
             <div className="space-y-2">
               <Label>Username</Label>
               <Input value={profile.username} disabled className="bg-slate-50" />

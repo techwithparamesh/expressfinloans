@@ -7,6 +7,7 @@ export type StaffUser = {
   fullName?: string | null;
   email?: string | null;
   phone?: string | null;
+  avatarUrl?: string | null;
 };
 
 export async function getAuthMe(): Promise<{ user: StaffUser } | null> {

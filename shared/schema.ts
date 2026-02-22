@@ -20,6 +20,7 @@ export const users = mysqlTable("users", {
   fullName: varchar("full_name", { length: 255 }),
   email: varchar("email", { length: 255 }),
   phone: varchar("phone", { length: 50 }),
+  avatarUrl: varchar("avatar_url", { length: 512 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

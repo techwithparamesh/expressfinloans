@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { verifyPassword } from "./lib/password";
 import type { User } from "@shared/schema";
 
-export type StaffUser = Pick<User, "id" | "username" | "role" | "fullName" | "email" | "phone">;
+export type StaffUser = Pick<User, "id" | "username" | "role" | "fullName" | "email" | "phone" | "avatarUrl">;
 
 export function configurePassport() {
   passport.use(
@@ -41,6 +41,7 @@ function toStaffUser(u: User): StaffUser {
     fullName: u.fullName ?? undefined,
     email: u.email ?? undefined,
     phone: u.phone ?? undefined,
+    avatarUrl: (u as any).avatarUrl ?? undefined,
   };
 }
 

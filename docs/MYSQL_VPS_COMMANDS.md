@@ -59,7 +59,8 @@ If you prefer to create tables in MySQL yourself, run the following (after creat
 ```sql
 USE expressfinloans;
 
--- Users (staff + admin)
+-- Users (staff + admin). If the table already exists, add profile photo with:
+-- ALTER TABLE users ADD COLUMN avatar_url VARCHAR(512) NULL;
 CREATE TABLE users (
   id VARCHAR(36) PRIMARY KEY,
   username VARCHAR(255) NOT NULL UNIQUE,
@@ -68,6 +69,7 @@ CREATE TABLE users (
   full_name VARCHAR(255) NULL,
   email VARCHAR(255) NULL,
   phone VARCHAR(50) NULL,
+  avatar_url VARCHAR(512) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

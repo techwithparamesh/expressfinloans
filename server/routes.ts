@@ -152,7 +152,17 @@ export async function registerRoutes(
       const toDate = (req.query.to as string) || undefined;
       const status = (req.query.status as string) || undefined;
       const list = await storage.getAllLeads({ employeeId, fromDate, toDate, status });
-      res.json(list);
+      const employees = await storage.listEmployees();
+      const nameByEmployeeId: Record<string, string> = {};
+      for (const u of employees) {
+        nameByEmployeeId[u.id] = u.fullName?.trim() || u.username || u.id;
+      }
+      res.json(
+        list.map((l) => ({
+          ...l,
+          employeeName: nameByEmployeeId[l.employeeId] ?? l.employeeId,
+        }))
+      );
     } catch (e) {
       next(e);
     }
@@ -210,6 +220,18 @@ export async function registerRoutes(
       const count = await storage.getLeadsCountForEmployeeOnDate(updated.employeeId, dateStr);
       await storage.updateAttendanceFromLeadsCount(updated.employeeId, dateStr, count);
       res.json(updated);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.delete("/api/staff/leads/:id", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const id = req.params.id;
+      const lead = await storage.getLead(id);
+      if (!lead) return res.status(404).json({ message: "Lead not found" });
+      await storage.deleteLead(id);
+      res.status(204).send();
     } catch (e) {
       next(e);
     }
@@ -283,6 +305,18 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/staff/insurance-leads/:id", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const id = req.params.id;
+      const lead = await storage.getInsuranceLead(id);
+      if (!lead) return res.status(404).json({ message: "Insurance lead not found" });
+      await storage.deleteInsuranceLead(id);
+      res.status(204).send();
+    } catch (e) {
+      next(e);
+    }
+  });
+
   // --- Staff: monthly target (for employees, popup on login) ---
   const MONTHLY_TARGET_LEADS = 20;
   app.get("/api/staff/monthly-target", requireAuth, async (req, res, next) => {
@@ -347,6 +381,7 @@ export async function registerRoutes(
         fullName: user.fullName ?? null,
         email: user.email ?? null,
         phone: user.phone ?? null,
+        avatarUrl: (user as any).avatarUrl ?? null,
       });
     } catch (e) {
       next(e);
@@ -362,6 +397,7 @@ export async function registerRoutes(
       if (body.email !== undefined) data.email = body.email;
       if (body.phone !== undefined) data.phone = body.phone;
       if (body.password !== undefined && body.password) data.password = body.password;
+      if (body.avatarUrl !== undefined) data.avatarUrl = body.avatarUrl;
       const updated = await storage.updateUser(userId, data);
       if (!updated) return res.status(500).json({ message: "Update failed" });
       res.json({
@@ -371,6 +407,7 @@ export async function registerRoutes(
         fullName: updated.fullName ?? null,
         email: updated.email ?? null,
         phone: updated.phone ?? null,
+        avatarUrl: (updated as any).avatarUrl ?? null,
       });
     } catch (e) {
       next(e);
@@ -440,11 +477,21 @@ export async function registerRoutes(
       const allAttendance = await storage.getAllAttendanceLogs(today, today);
       const allLeads = await storage.getAllLeads({ fromDate: today, toDate: today });
       const closures = await storage.getAllLeads({ status: "closed_won" });
+      const nameByEmployeeId: Record<string, string> = {};
+      for (const u of employees) {
+        nameByEmployeeId[u.id] = u.fullName?.trim() || u.username || u.id;
+      }
       res.json({
         today,
         employeeCount: employees.length,
-        attendanceToday: allAttendance,
-        leadsToday: allLeads,
+        attendanceToday: allAttendance.map((a) => ({
+          ...a,
+          employeeName: nameByEmployeeId[a.employeeId] ?? a.employeeId,
+        })),
+        leadsToday: allLeads.map((l) => ({
+          ...l,
+          employeeName: nameByEmployeeId[l.employeeId] ?? l.employeeId,
+        })),
         totalClosures: closures.length,
       });
     } catch (e) {
