@@ -54,6 +54,8 @@ Use the same password as in step 2. Tables will be created by Drizzle; the seed 
 
 If you prefer to create tables in MySQL yourself, run the following (after creating the database and user in step 2).
 
+**If `leads` already exists** (e.g. you created it earlier), do **not** run the full `CREATE TABLE leads` below — you will get “Table 'leads' already exists”. Use the **ALTER block** further down in this section instead.
+
 ```sql
 USE expressfinloans;
 
@@ -83,21 +85,56 @@ CREATE TABLE attendance_logs (
   FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Leads
+-- Leads (loan leads with full form fields)
 CREATE TABLE leads (
   id VARCHAR(36) PRIMARY KEY,
   employee_id VARCHAR(36) NOT NULL,
   date DATE NOT NULL,
   customer_name VARCHAR(255) NULL,
   customer_phone VARCHAR(50) NULL,
+  customer_email VARCHAR(255) NULL,
+  location VARCHAR(255) NULL,
   loan_type VARCHAR(100) NULL,
+  income_type VARCHAR(50) NULL,
   amount VARCHAR(50) NULL,
-  status VARCHAR(20) NOT NULL DEFAULT 'open',
+  cibil VARCHAR(20) NULL,
+  docs_collected VARCHAR(255) NULL,
+  company_logged VARCHAR(255) NULL,
+  roi VARCHAR(50) NULL,
+  loan_disbursed VARCHAR(50) NULL,
+  status VARCHAR(50) NOT NULL DEFAULT 'open',
   notes TEXT NULL,
   closed_at TIMESTAMP NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
+  FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE,
+  payout_percent VARCHAR(20) NULL,
+  payout_amount VARCHAR(50) NULL,
+  reconsil VARCHAR(50) NULL,
+  payment_status VARCHAR(50) NULL
+);
+
+-- Insurance leads
+CREATE TABLE insurance_leads (
+  id VARCHAR(36) PRIMARY KEY,
+  employee_id VARCHAR(36) NOT NULL,
+  date DATE NOT NULL,
+  customer_name VARCHAR(255) NULL,
+  contact_num VARCHAR(50) NULL,
+  mail_id VARCHAR(255) NULL,
+  location VARCHAR(255) NULL,
+  insurance_type VARCHAR(100) NULL,
+  income_type VARCHAR(50) NULL,
+  premium_quoted VARCHAR(50) NULL,
+  premium_collected VARCHAR(50) NULL,
+  status VARCHAR(50) NOT NULL DEFAULT 'open',
+  notes TEXT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE,
+  collected_premium VARCHAR(50) NULL,
+  actual_premium VARCHAR(50) NULL,
+  final_remarks VARCHAR(500) NULL
 );
 
 -- Session store (for express-mysql-session)
@@ -107,6 +144,71 @@ CREATE TABLE sessions (
   data MEDIUMTEXT NULL
 );
 ```
+
+**If you already have the old `leads` table**, run this once to add loan-form columns and the insurance_leads table:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE leads
+  ADD COLUMN customer_email VARCHAR(255) NULL AFTER customer_phone,
+  ADD COLUMN location VARCHAR(255) NULL AFTER customer_email,
+  ADD COLUMN income_type VARCHAR(50) NULL AFTER loan_type,
+  ADD COLUMN cibil VARCHAR(20) NULL AFTER amount,
+  ADD COLUMN docs_collected VARCHAR(255) NULL AFTER cibil,
+  ADD COLUMN company_logged VARCHAR(255) NULL AFTER docs_collected,
+  ADD COLUMN roi VARCHAR(50) NULL AFTER company_logged,
+  ADD COLUMN loan_disbursed VARCHAR(50) NULL AFTER roi;
+ALTER TABLE leads MODIFY status VARCHAR(50) NOT NULL DEFAULT 'open';
+
+CREATE TABLE insurance_leads (
+  id VARCHAR(36) PRIMARY KEY,
+  employee_id VARCHAR(36) NOT NULL,
+  date DATE NOT NULL,
+  customer_name VARCHAR(255) NULL,
+  contact_num VARCHAR(50) NULL,
+  mail_id VARCHAR(255) NULL,
+  location VARCHAR(255) NULL,
+  insurance_type VARCHAR(100) NULL,
+  income_type VARCHAR(50) NULL,
+  premium_quoted VARCHAR(50) NULL,
+  premium_collected VARCHAR(50) NULL,
+  status VARCHAR(50) NOT NULL DEFAULT 'open',
+  notes TEXT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
+**Admin-only loan fields (payout, reconsil, payment status):** If you already have the `leads` table and want to add admin-editable columns, run:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE leads
+  ADD COLUMN payout_percent VARCHAR(20) NULL,
+  ADD COLUMN payout_amount VARCHAR(50) NULL,
+  ADD COLUMN reconsil VARCHAR(50) NULL,
+  ADD COLUMN payment_status VARCHAR(50) NULL;
+```
+
+**Admin-only insurance lead fields (collected premium, actual premium, final remarks):** To add admin-editable columns to `insurance_leads`, run:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE insurance_leads
+  ADD COLUMN collected_premium VARCHAR(50) NULL,
+  ADD COLUMN actual_premium VARCHAR(50) NULL,
+  ADD COLUMN final_remarks VARCHAR(500) NULL;
+```
+
+(Skip any column that already exists, or run one `ADD COLUMN` per line if your MySQL reports "Duplicate column".)
+
+If you use **option A** (`npm run db:push`), Drizzle will apply these schema changes automatically.
+
+---
 
 If you use option B, you still need to create the **admin user** by running the app seed from the project directory:
 

@@ -124,8 +124,17 @@ export async function registerRoutes(
         date: dateStr,
         customerName: body.customerName ?? null,
         customerPhone: body.customerPhone ?? null,
+        customerEmail: body.customerEmail ?? null,
+        location: body.location ?? null,
         loanType: body.loanType ?? null,
+        incomeType: body.incomeType ?? null,
         amount: body.amount ?? null,
+        cibil: body.cibil ?? null,
+        docsCollected: body.docsCollected ?? null,
+        companyLogged: body.companyLogged ?? null,
+        roi: body.roi ?? null,
+        loanDisbursed: body.loanDisbursed ?? null,
+        status: body.status ?? "open",
         notes: body.notes ?? null,
       });
       const count = await storage.getLeadsCountForEmployeeOnDate(userId, dateStr);
@@ -175,17 +184,151 @@ export async function registerRoutes(
       const data: Record<string, unknown> = {};
       if (body.customerName !== undefined) data.customerName = body.customerName;
       if (body.customerPhone !== undefined) data.customerPhone = body.customerPhone;
+      if (body.customerEmail !== undefined) data.customerEmail = body.customerEmail;
+      if (body.location !== undefined) data.location = body.location;
       if (body.loanType !== undefined) data.loanType = body.loanType;
+      if (body.incomeType !== undefined) data.incomeType = body.incomeType;
       if (body.amount !== undefined) data.amount = body.amount;
+      if (body.cibil !== undefined) data.cibil = body.cibil;
+      if (body.docsCollected !== undefined) data.docsCollected = body.docsCollected;
+      if (body.companyLogged !== undefined) data.companyLogged = body.companyLogged;
+      if (body.roi !== undefined) data.roi = body.roi;
+      if (body.loanDisbursed !== undefined) data.loanDisbursed = body.loanDisbursed;
       if (body.status !== undefined) data.status = body.status;
       if (body.notes !== undefined) data.notes = body.notes;
       if (body.date !== undefined) data.date = body.date;
+      // Admin-only fields: only admins can set these
+      if (isAdmin) {
+        if (body.payoutPercent !== undefined) data.payoutPercent = body.payoutPercent;
+        if (body.payoutAmount !== undefined) data.payoutAmount = body.payoutAmount;
+        if (body.reconsil !== undefined) data.reconsil = body.reconsil;
+        if (body.paymentStatus !== undefined) data.paymentStatus = body.paymentStatus;
+      }
       const updated = await storage.updateLead(id, data);
       if (!updated) return res.status(500).json({ message: "Update failed" });
       const dateStr = (updated.date as unknown as string).slice?.(0, 10) ?? String(updated.date);
       const count = await storage.getLeadsCountForEmployeeOnDate(updated.employeeId, dateStr);
       await storage.updateAttendanceFromLeadsCount(updated.employeeId, dateStr, count);
       res.json(updated);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // --- Staff: insurance leads ---
+  app.get("/api/staff/insurance-leads/me", requireAuth, async (req, res, next) => {
+    try {
+      const userId = (req.user as any).id;
+      const from = (req.query.from as string) || undefined;
+      const to = (req.query.to as string) || undefined;
+      const list = await storage.getInsuranceLeadsByEmployee(userId, from, to);
+      res.json(list);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.post("/api/staff/insurance-leads", requireAuth, async (req, res, next) => {
+    try {
+      const userId = (req.user as any).id;
+      const body = req.body || {};
+      const dateStr = body.date || todayStr();
+      const lead = await storage.createInsuranceLead({
+        employeeId: userId,
+        date: dateStr,
+        customerName: body.customerName ?? null,
+        contactNum: body.contactNum ?? null,
+        mailId: body.mailId ?? null,
+        location: body.location ?? null,
+        insuranceType: body.insuranceType ?? null,
+        incomeType: body.incomeType ?? null,
+        premiumQuoted: body.premiumQuoted ?? null,
+        premiumCollected: body.premiumCollected ?? null,
+        status: body.status ?? "open",
+        notes: body.notes ?? null,
+      });
+      res.status(201).json(lead);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/insurance-leads", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const employeeId = (req.query.employeeId as string) || undefined;
+      const fromDate = (req.query.from as string) || undefined;
+      const toDate = (req.query.to as string) || undefined;
+      const list = await storage.getAllInsuranceLeads({ employeeId, fromDate, toDate });
+      res.json(list);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.patch("/api/staff/insurance-leads/:id", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const id = req.params.id;
+      const lead = await storage.getInsuranceLead(id);
+      if (!lead) return res.status(404).json({ message: "Insurance lead not found" });
+      const body = req.body || {};
+      const data: Record<string, unknown> = {};
+      if (body.collectedPremium !== undefined) data.collectedPremium = body.collectedPremium;
+      if (body.actualPremium !== undefined) data.actualPremium = body.actualPremium;
+      if (body.finalRemarks !== undefined) data.finalRemarks = body.finalRemarks;
+      const updated = await storage.updateInsuranceLead(id, data);
+      if (!updated) return res.status(500).json({ message: "Update failed" });
+      res.json(updated);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // --- Staff: monthly target (for employees, popup on login) ---
+  const MONTHLY_TARGET_LEADS = 20;
+  app.get("/api/staff/monthly-target", requireAuth, async (req, res, next) => {
+    try {
+      const userId = (req.user as any).id;
+      const role = (req.user as any).role;
+      if (role === "admin") {
+        return res.json({ forStaffOnly: true });
+      }
+      const now = new Date();
+      const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+      const to = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+      const leads = await storage.getLeadsByEmployee(userId, from, to);
+      const overallLeadsGenerated = leads.length;
+      const leadsConverted = leads.filter((l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned").length;
+      const leadsOpen = leads.filter((l) => (l.status || "").toLowerCase() === "open").length;
+      let sanctionAmount = 0;
+      leads.forEach((l) => {
+        if ((l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned") {
+          const amt = l.loanDisbursed || l.amount;
+          if (amt) {
+            const n = parseFloat(String(amt).replace(/,/g, ""));
+            if (!Number.isNaN(n)) sanctionAmount += n;
+          }
+        }
+      });
+      const monthTarget = MONTHLY_TARGET_LEADS;
+      const achievement = overallLeadsGenerated;
+      const achievementPct = monthTarget > 0 ? Math.round((achievement / monthTarget) * 100) : 0;
+      let conveyancePct = 0;
+      if (overallLeadsGenerated >= 20) {
+        if (achievementPct >= 100) conveyancePct = 120;
+        else if (leadsConverted > 2) conveyancePct = 100;
+        else if (leadsConverted >= 2) conveyancePct = 50;
+      }
+      res.json({
+        monthTarget,
+        achievement,
+        achievementPct,
+        overallLeadsGenerated,
+        leadsConverted,
+        leadsOpen,
+        sanctionAmount: Math.round(sanctionAmount),
+        conveyancePct,
+        monthLabel: now.toLocaleString("default", { month: "long", year: "numeric" }),
+      });
     } catch (e) {
       next(e);
     }
@@ -248,6 +391,42 @@ export async function registerRoutes(
           phone: u.phone ?? null,
         }))
       );
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.post("/api/staff/employees", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const body = req.body || {};
+      const username = typeof body.username === "string" ? body.username.trim() : "";
+      const password = typeof body.password === "string" ? body.password : "";
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+      const existing = await storage.getUserByUsername(username);
+      if (existing) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+      const fullName = typeof body.fullName === "string" ? body.fullName.trim() || null : null;
+      const email = typeof body.email === "string" ? body.email.trim() || null : null;
+      const phone = typeof body.phone === "string" ? body.phone.trim() || null : null;
+      const user = await storage.createUser({
+        username,
+        password,
+        role: "employee",
+        fullName,
+        email,
+        phone,
+      });
+      res.status(201).json({
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        fullName: user.fullName ?? null,
+        email: user.email ?? null,
+        phone: user.phone ?? null,
+      });
     } catch (e) {
       next(e);
     }

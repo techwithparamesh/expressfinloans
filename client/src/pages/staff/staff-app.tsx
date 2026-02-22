@@ -10,6 +10,7 @@ import StaffMyAttendance from "./staff-my-attendance";
 import StaffEmployees from "./staff-employees";
 import StaffAttendance from "./staff-attendance";
 import StaffLeads from "./staff-leads";
+import StaffInsuranceLeads from "./staff-insurance-leads";
 
 function StaffRedirect({ to }: { to: string }) {
   const [, setLocation] = useLocation();
@@ -62,6 +63,7 @@ export default function StaffApp({ basePath = "/staff" }: { basePath?: string })
         <Route path={p(basePath, "/employees")} component={StaffEmployees} />
         <Route path={p(basePath, "/attendance")} component={StaffAttendance} />
         <Route path={p(basePath, "/leads")} component={StaffLeads} />
+        <Route path={p(basePath, "/insurance-leads")} component={StaffInsuranceLeads} />
         <Route path={p(basePath, "/my-leads")} component={StaffMyLeads} />
         <Route path={p(basePath, "/my-attendance")} component={StaffMyAttendance} />
         <Route path={p(basePath, "/profile")} component={StaffProfile} />

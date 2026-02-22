@@ -9,9 +9,11 @@ import {
   User,
   LogOut,
   ClipboardList,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import MonthlyTargetPopup from "@/components/staff/MonthlyTargetPopup";
 
 const path = (base: string, p: string) => (base ? `${base}${p}` : p);
 
@@ -75,45 +77,49 @@ export default function StaffLayout({
     ...(isAdmin ? [{ href: path(basePath, "/employees"), label: "Employees", icon: Users }] : []),
     ...(isAdmin ? [{ href: path(basePath, "/attendance"), label: "Attendance", icon: Calendar }] : []),
     ...(isAdmin ? [{ href: path(basePath, "/leads"), label: "All leads", icon: FileText }] : []),
+    ...(isAdmin ? [{ href: path(basePath, "/insurance-leads"), label: "Insurance leads", icon: Shield }] : []),
     ...(!isAdmin ? [{ href: path(basePath, "/my-leads"), label: "My leads", icon: ClipboardList }] : []),
     ...(!isAdmin ? [{ href: path(basePath, "/my-attendance"), label: "My attendance", icon: Calendar }] : []),
     { href: path(basePath, "/profile"), label: "Profile", icon: User },
   ];
 
   return (
-    <div className="min-h-screen flex bg-slate-100">
-      <aside className="w-56 bg-slate-800 text-white flex flex-col shrink-0">
-        <div className="p-4 border-b border-slate-700">
-          <p className="font-semibold truncate">{user.fullName || user.username}</p>
-          <p className="text-xs text-slate-400">{user.role}</p>
-        </div>
-        <nav className="p-2 flex-1">
-          {nav.map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href}>
-              <a
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  location === href ? "bg-primary text-white" : "text-slate-300 hover:bg-slate-700 hover:text-white"
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-              </a>
-            </Link>
-          ))}
-        </nav>
-        <div className="p-2 border-t border-slate-700">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-700"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Log out
-          </Button>
-        </div>
-      </aside>
-      <main className="flex-1 overflow-auto p-6">{children}</main>
-    </div>
+    <>
+      {!isAdmin && <MonthlyTargetPopup />}
+      <div className="min-h-screen flex bg-slate-100">
+        <aside className="w-56 bg-slate-800 text-white flex flex-col shrink-0">
+          <div className="p-4 border-b border-slate-700">
+            <p className="font-semibold truncate">{user.fullName || user.username}</p>
+            <p className="text-xs text-slate-400">{user.role}</p>
+          </div>
+          <nav className="p-2 flex-1">
+            {nav.map(({ href, label, icon: Icon }) => (
+              <Link key={href} href={href}>
+                <a
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                    location === href ? "bg-primary text-white" : "text-slate-300 hover:bg-slate-700 hover:text-white"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </a>
+              </Link>
+            ))}
+          </nav>
+          <div className="p-2 border-t border-slate-700">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-700"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Log out
+            </Button>
+          </div>
+        </aside>
+        <main className="flex-1 overflow-auto p-6">{children}</main>
+      </div>
+    </>
   );
 }

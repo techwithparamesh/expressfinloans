@@ -5,9 +5,12 @@ import {
   type InsertAttendanceLog,
   type Lead,
   type InsertLead,
+  type InsuranceLead,
+  type InsertInsuranceLead,
   users,
   attendanceLogs,
   leads,
+  insuranceLeads,
 } from "@shared/schema";
 import { eq, and, desc, gte, lte } from "drizzle-orm";
 import { db, hasDb } from "./db";
@@ -34,6 +37,12 @@ export interface IStorage {
   updateLead(id: string, data: Partial<InsertLead>): Promise<Lead | undefined>;
   listEmployees(): Promise<User[]>;
   getLeadsCountForEmployeeOnDate(employeeId: string, dateStr: string): Promise<number>;
+
+  createInsuranceLead(data: InsertInsuranceLead): Promise<InsuranceLead>;
+  getInsuranceLead(id: string): Promise<InsuranceLead | undefined>;
+  getInsuranceLeadsByEmployee(employeeId: string, fromDate?: string, toDate?: string): Promise<InsuranceLead[]>;
+  getAllInsuranceLeads(filters?: { employeeId?: string; fromDate?: string; toDate?: string }): Promise<InsuranceLead[]>;
+  updateInsuranceLead(id: string, data: Partial<InsertInsuranceLead>): Promise<InsuranceLead | undefined>;
 }
 
 async function guardDb() {
@@ -280,6 +289,68 @@ export class DrizzleStorage implements IStorage {
       .where(and(eq(leads.employeeId, employeeId), eq(leads.date, dateStr)));
     return rows.length;
   }
+
+  async createInsuranceLead(data: InsertInsuranceLead): Promise<InsuranceLead> {
+    await guardDb();
+    const [row] = await db.insert(insuranceLeads).values(data).returning();
+    if (!row) throw new Error("Failed to create insurance lead");
+    return row;
+  }
+
+  async getInsuranceLead(id: string): Promise<InsuranceLead | undefined> {
+    await guardDb();
+    const [row] = await db.select().from(insuranceLeads).where(eq(insuranceLeads.id, id)).limit(1);
+    return row;
+  }
+
+  async getInsuranceLeadsByEmployee(
+    employeeId: string,
+    fromDate?: string,
+    toDate?: string
+  ): Promise<InsuranceLead[]> {
+    await guardDb();
+    const conditions = [eq(insuranceLeads.employeeId, employeeId)];
+    if (fromDate) conditions.push(gte(insuranceLeads.date, fromDate));
+    if (toDate) conditions.push(lte(insuranceLeads.date, toDate));
+    return db
+      .select()
+      .from(insuranceLeads)
+      .where(and(...conditions))
+      .orderBy(desc(insuranceLeads.date), desc(insuranceLeads.createdAt));
+  }
+
+  async getAllInsuranceLeads(filters?: {
+    employeeId?: string;
+    fromDate?: string;
+    toDate?: string;
+  }): Promise<InsuranceLead[]> {
+    await guardDb();
+    const conditions = [];
+    if (filters?.employeeId) conditions.push(eq(insuranceLeads.employeeId, filters.employeeId));
+    if (filters?.fromDate) conditions.push(gte(insuranceLeads.date, filters.fromDate));
+    if (filters?.toDate) conditions.push(lte(insuranceLeads.date, filters.toDate));
+    if (conditions.length === 0) {
+      return db
+        .select()
+        .from(insuranceLeads)
+        .orderBy(desc(insuranceLeads.date), desc(insuranceLeads.createdAt));
+    }
+    return db
+      .select()
+      .from(insuranceLeads)
+      .where(and(...conditions))
+      .orderBy(desc(insuranceLeads.date), desc(insuranceLeads.createdAt));
+  }
+
+  async updateInsuranceLead(id: string, data: Partial<InsertInsuranceLead>): Promise<InsuranceLead | undefined> {
+    await guardDb();
+    const [updated] = await db
+      .update(insuranceLeads)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(insuranceLeads.id, id))
+      .returning();
+    return updated;
+  }
 }
 
 // When DB is not configured, use a no-op storage that throws on staff-specific methods
@@ -357,6 +428,26 @@ class NoDbStorage implements IStorage {
   async getLeadsCountForEmployeeOnDate() {
     this.guard();
     return 0;
+  }
+  async createInsuranceLead() {
+    this.guard();
+    throw new Error("Not implemented");
+  }
+  async getInsuranceLead() {
+    this.guard();
+    return undefined;
+  }
+  async getInsuranceLeadsByEmployee() {
+    this.guard();
+    return [];
+  }
+  async getAllInsuranceLeads() {
+    this.guard();
+    return [];
+  }
+  async updateInsuranceLead() {
+    this.guard();
+    return undefined;
   }
 }
 
