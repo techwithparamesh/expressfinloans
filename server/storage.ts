@@ -65,17 +65,15 @@ export class DrizzleStorage implements IStorage {
   async createUser(data: InsertUser & { password: string }): Promise<User> {
     await guardDb();
     const hashed = hashPassword(data.password);
-    const [u] = await db
-      .insert(users)
-      .values({
-        username: data.username,
-        password: hashed,
-        role: (data as any).role ?? "employee",
-        fullName: (data as any).fullName ?? null,
-        email: (data as any).email ?? null,
-        phone: (data as any).phone ?? null,
-      })
-      .returning();
+    await db.insert(users).values({
+      username: data.username,
+      password: hashed,
+      role: (data as any).role ?? "employee",
+      fullName: (data as any).fullName ?? null,
+      email: (data as any).email ?? null,
+      phone: (data as any).phone ?? null,
+    });
+    const [u] = await db.select().from(users).where(eq(users.username, data.username)).limit(1);
     if (!u) throw new Error("Failed to create user");
     return u;
   }
@@ -89,8 +87,8 @@ export class DrizzleStorage implements IStorage {
     if (payload.password) {
       payload.password = hashPassword(payload.password as string);
     }
-    const [u] = await db.update(users).set(payload).where(eq(users.id, id)).returning();
-    return u;
+    await db.update(users).set(payload).where(eq(users.id, id));
+    return this.getUser(id);
   }
 
   async getAttendanceLog(employeeId: string, dateStr: string): Promise<AttendanceLog | undefined> {
@@ -146,12 +144,13 @@ export class DrizzleStorage implements IStorage {
           status: data.status ?? existing.status,
           updatedAt: new Date(),
         })
-        .where(eq(attendanceLogs.id, existing.id))
-        .returning();
+        .where(eq(attendanceLogs.id, existing.id));
+      const [updated] = await db.select().from(attendanceLogs).where(eq(attendanceLogs.id, existing.id)).limit(1);
       if (!updated) throw new Error("Failed to update attendance");
       return updated;
     }
-    const [created] = await db.insert(attendanceLogs).values(data).returning();
+    await db.insert(attendanceLogs).values(data);
+    const created = await this.getAttendanceLog(data.employeeId, data.date as string);
     if (!created) throw new Error("Failed to create attendance");
     return created;
   }
@@ -161,11 +160,11 @@ export class DrizzleStorage implements IStorage {
     const existing = await this.getAttendanceLog(employeeId, dateStr);
     const now = new Date();
     if (existing) {
-      const [updated] = await db
+      await db
         .update(attendanceLogs)
         .set({ loginAt: now, updatedAt: now })
-        .where(eq(attendanceLogs.id, existing.id))
-        .returning();
+        .where(eq(attendanceLogs.id, existing.id));
+      const [updated] = await db.select().from(attendanceLogs).where(eq(attendanceLogs.id, existing.id)).limit(1);
       if (!updated) throw new Error("Failed to update login");
       return updated;
     }
@@ -183,11 +182,11 @@ export class DrizzleStorage implements IStorage {
     const existing = await this.getAttendanceLog(employeeId, dateStr);
     const now = new Date();
     if (existing) {
-      const [updated] = await db
+      await db
         .update(attendanceLogs)
         .set({ logoutAt: now, updatedAt: now })
-        .where(eq(attendanceLogs.id, existing.id))
-        .returning();
+        .where(eq(attendanceLogs.id, existing.id));
+      const [updated] = await db.select().from(attendanceLogs).where(eq(attendanceLogs.id, existing.id)).limit(1);
       if (!updated) throw new Error("Failed to update logout");
       return updated;
     }
@@ -221,7 +220,9 @@ export class DrizzleStorage implements IStorage {
 
   async createLead(data: InsertLead): Promise<Lead> {
     await guardDb();
-    const [lead] = await db.insert(leads).values(data).returning();
+    const id = crypto.randomUUID();
+    await db.insert(leads).values({ ...data, id } as any);
+    const lead = await this.getLead(id);
     if (!lead) throw new Error("Failed to create lead");
     return lead;
   }
@@ -268,12 +269,8 @@ export class DrizzleStorage implements IStorage {
 
   async updateLead(id: string, data: Partial<InsertLead>): Promise<Lead | undefined> {
     await guardDb();
-    const [updated] = await db
-      .update(leads)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(leads.id, id))
-      .returning();
-    return updated;
+    await db.update(leads).set({ ...data, updatedAt: new Date() }).where(eq(leads.id, id));
+    return this.getLead(id);
   }
 
   async listEmployees(): Promise<User[]> {
@@ -292,7 +289,9 @@ export class DrizzleStorage implements IStorage {
 
   async createInsuranceLead(data: InsertInsuranceLead): Promise<InsuranceLead> {
     await guardDb();
-    const [row] = await db.insert(insuranceLeads).values(data).returning();
+    const id = crypto.randomUUID();
+    await db.insert(insuranceLeads).values({ ...data, id } as any);
+    const row = await this.getInsuranceLead(id);
     if (!row) throw new Error("Failed to create insurance lead");
     return row;
   }
@@ -344,12 +343,8 @@ export class DrizzleStorage implements IStorage {
 
   async updateInsuranceLead(id: string, data: Partial<InsertInsuranceLead>): Promise<InsuranceLead | undefined> {
     await guardDb();
-    const [updated] = await db
-      .update(insuranceLeads)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(insuranceLeads.id, id))
-      .returning();
-    return updated;
+    await db.update(insuranceLeads).set({ ...data, updatedAt: new Date() }).where(eq(insuranceLeads.id, id));
+    return this.getInsuranceLead(id);
   }
 }
 
