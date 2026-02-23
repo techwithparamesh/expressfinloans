@@ -78,7 +78,7 @@ export default function StaffLayout({
     ...(!isAdmin ? [{ href: path(basePath, "/my-dashboard"), label: "My dashboard", icon: LayoutDashboard }] : []),
     ...(isAdmin ? [{ href: path(basePath, "/employees"), label: "Employees", icon: Users }] : []),
     ...(isAdmin ? [{ href: path(basePath, "/attendance"), label: "Attendance", icon: Calendar }] : []),
-    ...(isAdmin ? [{ href: path(basePath, "/leads"), label: "All leads", icon: FileText }] : []),
+    ...(isAdmin ? [{ href: path(basePath, "/leads"), label: "Loan leads", icon: FileText }] : []),
     ...(isAdmin ? [{ href: path(basePath, "/insurance-leads"), label: "Insurance leads", icon: Shield }] : []),
     ...(!isAdmin ? [{ href: path(basePath, "/my-leads"), label: "My leads", icon: ClipboardList }] : []),
     ...(!isAdmin ? [{ href: path(basePath, "/my-attendance"), label: "My attendance", icon: Calendar }] : []),

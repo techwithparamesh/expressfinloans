@@ -145,7 +145,7 @@ export default function StaffLeads() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">All leads</h1>
+      <h1 className="text-2xl font-bold">Loan leads</h1>
       <Card>
         <CardHeader>
           <CardTitle>Filters</CardTitle>
