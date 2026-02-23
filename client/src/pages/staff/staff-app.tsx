@@ -4,7 +4,6 @@ import { getAuthMe, type StaffUser } from "@/lib/api";
 import StaffLogin from "./staff-login";
 import StaffLayout from "./staff-layout";
 import StaffDashboard from "./staff-dashboard";
-import StaffDashboardPremium from "./staff-dashboard-premium";
 import StaffMyDashboard from "./staff-my-dashboard";
 import StaffProfile from "./staff-profile";
 import StaffMyLeads from "./staff-my-leads";
@@ -57,11 +56,6 @@ export default function StaffApp({ basePath = "/staff" }: { basePath?: string })
 
   if (!user) {
     return <StaffLogin basePath={basePath} />;
-  }
-
-  const isDashboardPath = location === dashboardPath;
-  if (user.role === "admin" && isDashboardPath) {
-    return <StaffDashboardPremium user={user} basePath={basePath} />;
   }
 
   return (
