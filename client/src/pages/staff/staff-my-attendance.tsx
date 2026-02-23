@@ -19,7 +19,8 @@ export default function StaffMyAttendance() {
   const [todayLog, setTodayLog] = useState<Log | null>(null);
   const [logs, setLogs] = useState<Log[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -40,7 +41,7 @@ export default function StaffMyAttendance() {
   useEffect(() => load(), []);
 
   async function doLogin() {
-    setActionLoading(true);
+    setLoginLoading(true);
     try {
       const log = await staffJson<Log>("/staff/attendance/login", {
         method: "POST",
@@ -53,12 +54,12 @@ export default function StaffMyAttendance() {
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : "Failed", variant: "destructive" });
     } finally {
-      setActionLoading(false);
+      setLoginLoading(false);
     }
   }
 
   async function doLogout() {
-    setActionLoading(true);
+    setLogoutLoading(true);
     try {
       const log = await staffJson<Log>("/staff/attendance/logout", {
         method: "POST",
@@ -71,7 +72,7 @@ export default function StaffMyAttendance() {
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : "Failed", variant: "destructive" });
     } finally {
-      setActionLoading(false);
+      setLogoutLoading(false);
     }
   }
 
@@ -87,21 +88,39 @@ export default function StaffMyAttendance() {
           </CardTitle>
           <CardDescription>Mark login and logout. You need 2+ leads to be marked present.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-4">
-          <Button onClick={doLogin} disabled={actionLoading || !!todayLog?.loginAt}>
-            <LogIn className="h-4 w-4 mr-2" />
-            Log in
-          </Button>
-          <Button variant="outline" onClick={doLogout} disabled={actionLoading || !!todayLog?.logoutAt}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Log out
-          </Button>
+        <CardContent className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              onClick={doLogin}
+              disabled={loginLoading || logoutLoading || !!todayLog?.loginAt}
+              className="min-h-[44px] min-w-[120px] touch-manipulation"
+            >
+              <LogIn className="h-4 w-4 mr-2 shrink-0" />
+              {loginLoading ? "Logging in…" : todayLog?.loginAt ? "Logged in" : "Log in"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={doLogout}
+              disabled={loginLoading || logoutLoading || !!todayLog?.logoutAt}
+              className="min-h-[44px] min-w-[120px] touch-manipulation"
+            >
+              <LogOut className="h-4 w-4 mr-2 shrink-0" />
+              {logoutLoading ? "Logging out…" : todayLog?.logoutAt ? "Logged out" : "Log out"}
+            </Button>
+          </div>
           {todayLog && (
-            <div className="text-sm text-slate-600">
-              {todayLog.loginAt && <span>In: {new Date(todayLog.loginAt).toLocaleTimeString()}</span>}
-              {todayLog.logoutAt && <span className="ml-4">Out: {new Date(todayLog.logoutAt).toLocaleTimeString()}</span>}
-              <span className="ml-4">Leads: {todayLog.leadsCount}</span>
-              <span className="ml-4">Status: {todayLog.status}</span>
+            <div className="text-sm text-slate-600 space-y-1">
+              <div>
+                {todayLog.loginAt && <span>In: {new Date(todayLog.loginAt).toLocaleTimeString()}</span>}
+                {todayLog.logoutAt && <span className="ml-4">Out: {new Date(todayLog.logoutAt).toLocaleTimeString()}</span>}
+                <span className="ml-4">Leads: {todayLog.leadsCount}</span>
+                <span className="ml-4">Status: {todayLog.status}</span>
+              </div>
+              {todayLog.loginAt && todayLog.logoutAt && (
+                <p className="text-slate-500">You’ve already logged in and out for today. Buttons will be available again tomorrow.</p>
+              )}
             </div>
           )}
         </CardContent>
