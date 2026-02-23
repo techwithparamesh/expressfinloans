@@ -4,6 +4,7 @@ import { getAuthMe, type StaffUser } from "@/lib/api";
 import StaffLogin from "./staff-login";
 import StaffLayout from "./staff-layout";
 import StaffDashboard from "./staff-dashboard";
+import StaffMyDashboard from "./staff-my-dashboard";
 import StaffProfile from "./staff-profile";
 import StaffMyLeads from "./staff-my-leads";
 import StaffMyAttendance from "./staff-my-attendance";
@@ -26,6 +27,7 @@ export default function StaffApp({ basePath = "/staff" }: { basePath?: string })
 
   const loginPath = p(basePath, "/login");
   const dashboardPath = p(basePath, "/dashboard");
+  const myDashboardPath = p(basePath, "/my-dashboard");
   const myLeadsPath = p(basePath, "/my-leads");
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export default function StaffApp({ basePath = "/staff" }: { basePath?: string })
   }
 
   if (user && location === loginPath) {
-    setLocation(user.role === "admin" ? dashboardPath : myLeadsPath);
+    setLocation(user.role === "admin" ? dashboardPath : myDashboardPath);
     return null;
   }
 
@@ -60,6 +62,7 @@ export default function StaffApp({ basePath = "/staff" }: { basePath?: string })
     <StaffLayout basePath={basePath}>
       <Switch>
         <Route path={p(basePath, "/dashboard")} component={StaffDashboard} />
+        <Route path={p(basePath, "/my-dashboard")} component={StaffMyDashboard} />
         <Route path={p(basePath, "/employees")} component={StaffEmployees} />
         <Route path={p(basePath, "/attendance")} component={StaffAttendance} />
         <Route path={p(basePath, "/leads")} component={StaffLeads} />
@@ -68,7 +71,7 @@ export default function StaffApp({ basePath = "/staff" }: { basePath?: string })
         <Route path={p(basePath, "/my-attendance")} component={StaffMyAttendance} />
         <Route path={p(basePath, "/profile")} component={StaffProfile} />
         <Route path={basePath || "/"}>
-          <StaffRedirect to={user.role === "admin" ? dashboardPath : myLeadsPath} />
+          <StaffRedirect to={user.role === "admin" ? dashboardPath : myDashboardPath} />
         </Route>
       </Switch>
     </StaffLayout>

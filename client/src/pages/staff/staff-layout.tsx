@@ -75,6 +75,7 @@ export default function StaffLayout({
   const isAdmin = user.role === "admin";
   const nav = [
     ...(isAdmin ? [{ href: path(basePath, "/dashboard"), label: "Dashboard", icon: LayoutDashboard }] : []),
+    ...(!isAdmin ? [{ href: path(basePath, "/my-dashboard"), label: "My dashboard", icon: LayoutDashboard }] : []),
     ...(isAdmin ? [{ href: path(basePath, "/employees"), label: "Employees", icon: Users }] : []),
     ...(isAdmin ? [{ href: path(basePath, "/attendance"), label: "Attendance", icon: Calendar }] : []),
     ...(isAdmin ? [{ href: path(basePath, "/leads"), label: "All leads", icon: FileText }] : []),

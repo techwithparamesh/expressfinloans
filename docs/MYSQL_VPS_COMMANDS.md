@@ -70,6 +70,7 @@ CREATE TABLE users (
   phone VARCHAR(50) NULL,
   avatar_url VARCHAR(512) NULL,
   employee_number VARCHAR(10) NULL,
+  monthly_lead_target INT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -216,6 +217,16 @@ ALTER TABLE users ADD COLUMN employee_number VARCHAR(10) NULL;
 
 Then run the app seed so existing employees get numbers assigned: `npm run seed` (from project dir with `DATABASE_URL` set). **If Employee ID still shows "—" in the admin dashboard**, the `employee_number` column was added but backfill was not run—run `npm run seed` once to assign 1001, 1002, … to all existing employees.
 
+**Monthly lead target (admin-allocated):** To let admins set a monthly lead target per employee (shown in the employee popup and on My dashboard), run:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE users ADD COLUMN monthly_lead_target INT NULL;
+```
+
+If omitted, the app uses a default of 20. Admins can set it when creating or editing an employee (Employees → Edit).
+
 (Skip any column that already exists, or run one `ADD COLUMN` per line if your MySQL reports "Duplicate column".)
 
 **Quick reference – what you might be missing**
@@ -225,7 +236,8 @@ Then run the app seed so existing employees get numbers assigned: `npm run seed`
 | Full loan form (email, location, income_type, cibil, docs_collected, company_logged, roi, loan_disbursed) | First **ALTER TABLE leads** block in "If you already have the old leads table" |
 | Admin loan fields (payout_percent, payout_amount, reconsil, payment_status) | **Admin-only loan fields** ALTER block |
 | Profile photo (avatar) on users | In **CREATE TABLE users**: column `avatar_url`; or `ALTER TABLE users ADD COLUMN avatar_url VARCHAR(512) NULL;` |
-| Employee ID (4-digit) on users | **Employee number** ALTER above; then run `npm run seed` to backfill | 
+| Employee ID (4-digit) on users | **Employee number** ALTER above; then run `npm run seed` to backfill |
+| Monthly lead target (admin-allocated) | **Monthly lead target** ALTER above |
 | Insurance leads table | **CREATE TABLE insurance_leads** in "If you already have the old leads table" |
 | Admin insurance fields (collected_premium, actual_premium, final_remarks) | **Admin-only insurance lead fields** ALTER block |
 

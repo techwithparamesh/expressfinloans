@@ -20,7 +20,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser & { password: string }): Promise<User>;
-  updateUser(id: string, data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl">>): Promise<User | undefined>;
+  updateUser(id: string, data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget">>): Promise<User | undefined>;
   getNextEmployeeNumber(): Promise<string>;
   backfillEmployeeNumbers(): Promise<void>;
 
@@ -103,6 +103,8 @@ export class DrizzleStorage implements IStorage {
     };
     if (role === "employee") {
       values.employeeNumber = await this.getNextEmployeeNumber();
+      const target = (data as any).monthlyLeadTarget;
+      if (target !== undefined && target !== null) values.monthlyLeadTarget = Number(target);
     }
     await db.insert(users).values(values as any);
     const [u] = await db.select().from(users).where(eq(users.username, data.username)).limit(1);
@@ -112,7 +114,7 @@ export class DrizzleStorage implements IStorage {
 
   async updateUser(
     id: string,
-    data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl">>
+    data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget">>
   ): Promise<User | undefined> {
     await guardDb();
     const payload: Record<string, unknown> = { ...data };

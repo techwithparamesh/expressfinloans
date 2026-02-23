@@ -22,6 +22,7 @@ export const users = mysqlTable("users", {
   phone: varchar("phone", { length: 50 }),
   avatarUrl: varchar("avatar_url", { length: 512 }),
   employeeNumber: varchar("employee_number", { length: 10 }), // 4-digit display ID e.g. 1001
+  monthlyLeadTarget: int("monthly_lead_target"), // admin-allocated target; null = use default (20)
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -7,7 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { login } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
-export default function StaffLogin({ basePath: _basePath }: { basePath?: string }) {
+const p = (base: string, path: string) => (base ? `${base}${path}` : path || "/");
+
+export default function StaffLogin({ basePath = "/staff" }: { basePath?: string }) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [username, setUsername] = useState("");
@@ -37,7 +39,7 @@ export default function StaffLogin({ basePath: _basePath }: { basePath?: string 
     try {
       const { user } = await login(username.trim(), password);
       toast({ title: `Welcome, ${user.fullName || user.username}` });
-      setLocation(user.role === "admin" ? "/staff/dashboard" : "/staff/my-leads");
+      setLocation(user.role === "admin" ? p(basePath, "/dashboard") : p(basePath, "/my-dashboard"));
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : "Login failed", variant: "destructive" });
     } finally {

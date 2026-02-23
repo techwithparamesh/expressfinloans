@@ -22,6 +22,7 @@ type Employee = {
   email: string | null;
   phone: string | null;
   employeeNumber: string | null;
+  monthlyLeadTarget: number | null;
 };
 
 function fetchEmployees() {
@@ -39,6 +40,10 @@ export default function StaffEmployees() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [monthlyLeadTarget, setMonthlyLeadTarget] = useState("");
+  const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
+  const [editForm, setEditForm] = useState({ fullName: "", email: "", phone: "", monthlyLeadTarget: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const loadList = () => {
     setLoading(true);
@@ -57,7 +62,43 @@ export default function StaffEmployees() {
     setFullName("");
     setEmail("");
     setPhone("");
+    setMonthlyLeadTarget("");
     setDialogOpen(true);
+  }
+
+  function openEdit(e: Employee) {
+    setEditEmployee(e);
+    setEditForm({
+      fullName: e.fullName ?? "",
+      email: e.email ?? "",
+      phone: e.phone ?? "",
+      monthlyLeadTarget: e.monthlyLeadTarget != null ? String(e.monthlyLeadTarget) : "",
+    });
+  }
+
+  async function handleUpdateEmployee(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editEmployee) return;
+    setSavingEdit(true);
+    try {
+      await staffJson<Employee>(`/staff/employees/${editEmployee.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: editForm.fullName.trim() || null,
+          email: editForm.email.trim() || null,
+          phone: editForm.phone.trim() || null,
+          monthlyLeadTarget: editForm.monthlyLeadTarget.trim() ? Number(editForm.monthlyLeadTarget) : null,
+        }),
+      });
+      toast({ title: "Employee updated" });
+      setEditEmployee(null);
+      loadList();
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Update failed", variant: "destructive" });
+    } finally {
+      setSavingEdit(false);
+    }
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -77,6 +118,7 @@ export default function StaffEmployees() {
           fullName: fullName.trim() || undefined,
           email: email.trim() || undefined,
           phone: phone.trim() || undefined,
+          monthlyLeadTarget: monthlyLeadTarget.trim() ? Number(monthlyLeadTarget) : undefined,
         }),
       });
       toast({ title: "Staff created successfully" });
@@ -114,14 +156,16 @@ export default function StaffEmployees() {
                   <th className="text-left py-2 px-2 min-w-[120px]">Name</th>
                   <th className="text-left py-2 px-2 min-w-[100px]">Username</th>
                   <th className="text-left py-2 px-2 min-w-[80px]">Role</th>
+                  <th className="text-left py-2 px-2 min-w-[72px]">Month target</th>
                   <th className="text-left py-2 px-2 min-w-[140px]">Email</th>
                   <th className="text-left py-2 px-2 min-w-[100px]">Phone</th>
+                  <th className="text-left py-2 px-2 min-w-[80px]">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {list.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-500">
+                    <td colSpan={8} className="py-8 text-center text-slate-500">
                       No employees yet. Add staff to get started.
                     </td>
                   </tr>
@@ -132,8 +176,14 @@ export default function StaffEmployees() {
                       <td className="py-2 px-2">{e.fullName ?? "—"}</td>
                       <td className="py-2 px-2">{e.username}</td>
                       <td className="py-2 px-2">{e.role}</td>
+                      <td className="py-2 px-2">{e.monthlyLeadTarget ?? "—"}</td>
                       <td className="py-2 px-2">{e.email ?? "—"}</td>
                       <td className="py-2 px-2">{e.phone ?? "—"}</td>
+                      <td className="py-2 px-2">
+                        <Button variant="outline" size="sm" onClick={() => openEdit(e)}>
+                          Edit
+                        </Button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -201,6 +251,17 @@ export default function StaffEmployees() {
                 placeholder="Optional"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-monthlyTarget">Monthly lead target</Label>
+              <Input
+                id="new-monthlyTarget"
+                type="number"
+                min={1}
+                value={monthlyLeadTarget}
+                onChange={(e) => setMonthlyLeadTarget(e.target.value)}
+                placeholder="e.g. 20 (default if blank)"
+              />
+            </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
@@ -210,6 +271,70 @@ export default function StaffEmployees() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editEmployee} onOpenChange={(open) => !open && setEditEmployee(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit employee</DialogTitle>
+            <DialogDescription>Update name, contact, and monthly lead target. Target is shown in the employee popup and on My dashboard.</DialogDescription>
+          </DialogHeader>
+          {editEmployee && (
+            <form onSubmit={handleUpdateEmployee} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Username</Label>
+                <Input value={editEmployee.username} disabled className="bg-slate-50" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-fullName">Full name</Label>
+                <Input
+                  id="edit-fullName"
+                  value={editForm.fullName}
+                  onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))}
+                  placeholder="Optional"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                  placeholder="Optional"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-phone">Phone</Label>
+                <Input
+                  id="edit-phone"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                  placeholder="Optional"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-monthlyTarget">Monthly lead target</Label>
+                <Input
+                  id="edit-monthlyTarget"
+                  type="number"
+                  min={1}
+                  value={editForm.monthlyLeadTarget}
+                  onChange={(e) => setEditForm((f) => ({ ...f, monthlyLeadTarget: e.target.value }))}
+                  placeholder="e.g. 20 (blank = default)"
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditEmployee(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={savingEdit}>
+                  {savingEdit ? "Saving…" : "Save"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -361,7 +361,7 @@ export async function registerRoutes(
   });
 
   // --- Staff: monthly target (for employees, popup on login) ---
-  const MONTHLY_TARGET_LEADS = 20;
+  const DEFAULT_MONTHLY_TARGET_LEADS = 20;
   app.get("/api/staff/monthly-target", requireAuth, async (req, res, next) => {
     try {
       const userId = (req.user as any).id;
@@ -369,6 +369,9 @@ export async function registerRoutes(
       if (role === "admin") {
         return res.json({ forStaffOnly: true });
       }
+      const user = await storage.getUser(userId);
+      const monthTargetFromDb = user && (user as any).monthlyLeadTarget != null ? Number((user as any).monthlyLeadTarget) : null;
+      const monthTarget = (monthTargetFromDb != null && !Number.isNaN(monthTargetFromDb)) ? monthTargetFromDb : DEFAULT_MONTHLY_TARGET_LEADS;
       const now = new Date();
       const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
       const to = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
@@ -386,7 +389,6 @@ export async function registerRoutes(
           }
         }
       });
-      const monthTarget = MONTHLY_TARGET_LEADS;
       const achievement = overallLeadsGenerated;
       const achievementPct = monthTarget > 0 ? Math.round((achievement / monthTarget) * 100) : 0;
       let conveyancePct = 0;
@@ -405,6 +407,90 @@ export async function registerRoutes(
         sanctionAmount: Math.round(sanctionAmount),
         conveyancePct,
         monthLabel: now.toLocaleString("default", { month: "long", year: "numeric" }),
+      });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // --- Staff: my dashboard (employee-only, for self monitoring) ---
+  app.get("/api/staff/my-dashboard", requireAuth, async (req, res, next) => {
+    try {
+      const userId = (req.user as any).id;
+      const role = (req.user as any).role;
+      if (role === "admin") {
+        return res.status(404).json({ message: "Not for admin" });
+      }
+      const user = await storage.getUser(userId);
+      const monthTargetFromDb = user && (user as any).monthlyLeadTarget != null ? Number((user as any).monthlyLeadTarget) : null;
+      const monthTarget = (monthTargetFromDb != null && !Number.isNaN(monthTargetFromDb)) ? monthTargetFromDb : DEFAULT_MONTHLY_TARGET_LEADS;
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+      const leadsThisMonth = await storage.getLeadsByEmployee(userId, monthStart, monthEnd);
+      const achievement = leadsThisMonth.length;
+      const achievementPct = monthTarget > 0 ? Math.round((achievement / monthTarget) * 100) : 0;
+      const attendanceLogs = await storage.getAttendanceLogsByEmployee(userId, monthStart, monthEnd);
+      const daysPresent = attendanceLogs.filter((a) => (a.status || "").toLowerCase() === "present").length;
+      const daysLogged = attendanceLogs.length;
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+      const from7 = sevenDaysAgo.toISOString().slice(0, 10);
+      const today = todayStr();
+      const leadsLast7 = await storage.getLeadsByEmployee(userId, from7, today);
+      const byDate: Record<string, number> = {};
+      for (let i = 0; i < 7; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        byDate[d.toISOString().slice(0, 10)] = 0;
+      }
+      for (const l of leadsLast7) {
+        const dateStr = String(l.date).slice(0, 10);
+        if (byDate[dateStr] !== undefined) byDate[dateStr]++;
+      }
+      const leadsLast7Days = Object.entries(byDate)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, count]) => ({ date, count }));
+      res.json({
+        monthLabel: now.toLocaleString("default", { month: "long", year: "numeric" }),
+        leadsThisMonth: achievement,
+        monthTarget,
+        achievementPct,
+        daysPresent,
+        daysLogged,
+        leadsLast7Days,
+      });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.patch("/api/staff/employees/:id", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const id = req.params.id;
+      const target = await storage.getUser(id);
+      if (!target) return res.status(404).json({ message: "User not found" });
+      const body = req.body || {};
+      const data: Record<string, unknown> = {};
+      if (body.fullName !== undefined) data.fullName = typeof body.fullName === "string" ? body.fullName.trim() || null : null;
+      if (body.email !== undefined) data.email = typeof body.email === "string" ? body.email.trim() || null : null;
+      if (body.phone !== undefined) data.phone = typeof body.phone === "string" ? body.phone.trim() || null : null;
+      if (body.monthlyLeadTarget !== undefined) {
+        const v = body.monthlyLeadTarget;
+        data.monthlyLeadTarget = v === null || v === "" ? null : Number(v);
+        if (data.monthlyLeadTarget !== null && Number.isNaN(data.monthlyLeadTarget as number)) data.monthlyLeadTarget = null;
+      }
+      const updated = await storage.updateUser(id, data as any);
+      if (!updated) return res.status(500).json({ message: "Update failed" });
+      res.json({
+        id: updated.id,
+        username: updated.username,
+        role: updated.role,
+        fullName: updated.fullName ?? null,
+        email: updated.email ?? null,
+        phone: updated.phone ?? null,
+        employeeNumber: (updated as any).employeeNumber ?? null,
+        monthlyLeadTarget: (updated as any).monthlyLeadTarget ?? null,
       });
     } catch (e) {
       next(e);
@@ -494,6 +580,7 @@ export async function registerRoutes(
           email: u.email ?? null,
           phone: u.phone ?? null,
           employeeNumber: (u as any).employeeNumber ?? null,
+          monthlyLeadTarget: (u as any).monthlyLeadTarget ?? null,
         }))
       );
     } catch (e) {
@@ -516,6 +603,7 @@ export async function registerRoutes(
       const fullName = typeof body.fullName === "string" ? body.fullName.trim() || null : null;
       const email = typeof body.email === "string" ? body.email.trim() || null : null;
       const phone = typeof body.phone === "string" ? body.phone.trim() || null : null;
+      const monthlyLeadTarget = body.monthlyLeadTarget != null ? Number(body.monthlyLeadTarget) : undefined;
       const user = await storage.createUser({
         username,
         password,
@@ -523,7 +611,8 @@ export async function registerRoutes(
         fullName,
         email,
         phone,
-      });
+        ...(monthlyLeadTarget != null && !Number.isNaN(monthlyLeadTarget) ? { monthlyLeadTarget } : {}),
+      } as any);
       res.status(201).json({
         id: user.id,
         username: user.username,
@@ -531,6 +620,7 @@ export async function registerRoutes(
         fullName: user.fullName ?? null,
         email: user.email ?? null,
         phone: user.phone ?? null,
+        monthlyLeadTarget: (user as any).monthlyLeadTarget ?? null,
       });
     } catch (e) {
       next(e);
