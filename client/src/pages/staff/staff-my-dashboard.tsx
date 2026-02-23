@@ -77,13 +77,13 @@ export default function StaffMyDashboard() {
         </Card>
       </div>
 
-      {data.leadsLast7Days && data.leadsLast7Days.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Leads trend (last 7 days)</CardTitle>
-            <CardDescription>Your daily lead count.</CardDescription>
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle>My leads – last 7 days</CardTitle>
+          <CardDescription>Your daily lead count.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {data.leadsLast7Days && data.leadsLast7Days.length > 0 ? (
             <ChartContainer config={{ count: { label: "Leads" }, date: { label: "Date" } }} className="h-[200px] w-full">
               <BarChart data={data.leadsLast7Days} margin={{ left: 12, right: 12 }}>
                 <XAxis dataKey="date" tickFormatter={(v) => String(v).slice(5)} />
@@ -92,9 +92,11 @@ export default function StaffMyDashboard() {
                 <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ChartContainer>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <p className="text-sm text-slate-500 py-8 text-center">No leads in the last 7 days.</p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
