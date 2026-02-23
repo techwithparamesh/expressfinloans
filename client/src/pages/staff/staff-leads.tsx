@@ -53,13 +53,17 @@ type Lead = {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+type Employee = { id: string; username: string; fullName: string | null; employeeNumber: string | null };
+
 export default function StaffLeads() {
   const { toast } = useToast();
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState(getMonthStart());
   const [to, setTo] = useState(today());
   const [status, setStatus] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
   const [editLead, setEditLead] = useState<Lead | null>(null);
   const [deleteLead, setDeleteLead] = useState<Lead | null>(null);
   const [saving, setSaving] = useState(false);
@@ -71,17 +75,22 @@ export default function StaffLeads() {
     paymentStatus: "",
   });
 
+  useEffect(() => {
+    staffJson<Employee[]>("/staff/employees").then(setEmployees).catch(() => setEmployees([]));
+  }, []);
+
   function load() {
     setLoading(true);
     let url = "/staff/leads?from=" + from + "&to=" + to;
     if (status) url += "&status=" + encodeURIComponent(status);
+    if (employeeId) url += "&employeeId=" + encodeURIComponent(employeeId);
     staffJson<Lead[]>(url)
       .then(setLeads)
       .catch(() => setLeads([]))
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => load(), [from, to, status]);
+  useEffect(() => load(), [from, to, status, employeeId]);
 
   function openEdit(l: Lead) {
     setEditLead(l);
@@ -140,9 +149,25 @@ export default function StaffLeads() {
       <Card>
         <CardHeader>
           <CardTitle>Filters</CardTitle>
-          <CardDescription>Filter by date and status.</CardDescription>
+          <CardDescription>Filter by staff member, date range, and status.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-4">
+          <div className="space-y-2">
+            <Label>Staff member</Label>
+            <Select value={employeeId || "all"} onValueChange={(v) => setEmployeeId(v === "all" ? "" : v)}>
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="All staff" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All staff</SelectItem>
+                {employees.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.employeeNumber ?? "—"} – {e.fullName || e.username}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-2">
             <Label>From</Label>
             <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -166,7 +191,11 @@ export default function StaffLeads() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <CardTitle>Leads</CardTitle>
-              <CardDescription>All leads across employees. Edit admin fields (payout, reconsil, payment status) via Edit.</CardDescription>
+              <CardDescription>
+                {employeeId
+                  ? `Total: ${leads.length} lead${leads.length !== 1 ? "s" : ""} (for ${employees.find((e) => e.id === employeeId)?.fullName || employees.find((e) => e.id === employeeId)?.username || "selected staff"})`
+                  : `Total: ${leads.length} lead${leads.length !== 1 ? "s" : ""}. Edit admin fields (payout, reconsil, payment status) via Edit.`}
+              </CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={() => setShowAdminFields((v) => !v)}>
               {showAdminFields ? "Hide payout & payment columns" : "Show payout & payment columns"}

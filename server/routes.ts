@@ -542,9 +542,6 @@ export async function registerRoutes(
     try {
       const today = todayStr();
       const employees = await storage.listEmployees();
-      const allAttendance = await storage.getAllAttendanceLogs(today, today);
-      const allLeads = await storage.getAllLeads({ fromDate: today, toDate: today });
-      const closures = await storage.getAllLeads({ status: "closed_won" });
       const byId: Record<string, { name: string; number: string }> = {};
       for (const u of employees) {
         byId[u.id] = {
@@ -552,6 +549,41 @@ export async function registerRoutes(
           number: (u as any).employeeNumber ?? "",
         };
       }
+      const allAttendance = await storage.getAllAttendanceLogs(today, today);
+      const allLeads = await storage.getAllLeads({ fromDate: today, toDate: today });
+      const closures = await storage.getAllLeads({ status: "closed_won" });
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 13);
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+      const from14 = fourteenDaysAgo.toISOString().slice(0, 10);
+      const from30 = thirtyDaysAgo.toISOString().slice(0, 10);
+      const leadsLast30 = await storage.getAllLeads({ fromDate: from30, toDate: today });
+      const byDate: Record<string, number> = {};
+      for (let i = 0; i < 14; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - (13 - i));
+        byDate[d.toISOString().slice(0, 10)] = 0;
+      }
+      const byStatus: Record<string, number> = {};
+      const byEmployee: Record<string, number> = {};
+      for (const l of leadsLast30) {
+        const dateStr = String(l.date).slice(0, 10);
+        if (dateStr >= from14) byDate[dateStr] = (byDate[dateStr] ?? 0) + 1;
+        const st = (l.status || "open").toLowerCase();
+        byStatus[st] = (byStatus[st] ?? 0) + 1;
+        byEmployee[l.employeeId] = (byEmployee[l.employeeId] ?? 0) + 1;
+      }
+      const leadsLast14Days = Object.entries(byDate)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, count]) => ({ date, count }));
+      const leadsByStatus = Object.entries(byStatus).map(([status, count]) => ({ status, count }));
+      const leadsByEmployee = Object.entries(byEmployee).map(([id, count]) => ({
+        employeeId: id,
+        employeeName: byId[id]?.name ?? id,
+        employeeNumber: byId[id]?.number ?? "",
+        count,
+      }));
       res.json({
         today,
         employeeCount: employees.length,
@@ -566,6 +598,9 @@ export async function registerRoutes(
           employeeNumber: byId[l.employeeId]?.number ?? "",
         })),
         totalClosures: closures.length,
+        leadsLast14Days,
+        leadsByStatus,
+        leadsByEmployee,
       });
     } catch (e) {
       next(e);

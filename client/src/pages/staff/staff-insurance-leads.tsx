@@ -21,6 +21,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { staffJson, staffFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -51,12 +58,16 @@ function computeDifference(collected: string | null, actual: string | null): str
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+type Employee = { id: string; username: string; fullName: string | null; employeeNumber: string | null };
+
 export default function StaffInsuranceLeads() {
   const { toast } = useToast();
   const [leads, setLeads] = useState<InsuranceLead[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState(getMonthStart());
   const [to, setTo] = useState(today());
+  const [employeeId, setEmployeeId] = useState("");
   const [editLead, setEditLead] = useState<InsuranceLead | null>(null);
   const [deleteLead, setDeleteLead] = useState<InsuranceLead | null>(null);
   const [saving, setSaving] = useState(false);
@@ -67,16 +78,21 @@ export default function StaffInsuranceLeads() {
     finalRemarks: "",
   });
 
+  useEffect(() => {
+    staffJson<Employee[]>("/staff/employees").then(setEmployees).catch(() => setEmployees([]));
+  }, []);
+
   function load() {
     setLoading(true);
-    const url = "/staff/insurance-leads?from=" + from + "&to=" + to;
+    let url = "/staff/insurance-leads?from=" + from + "&to=" + to;
+    if (employeeId) url += "&employeeId=" + encodeURIComponent(employeeId);
     staffJson<InsuranceLead[]>(url)
       .then(setLeads)
       .catch(() => setLeads([]))
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => load(), [from, to]);
+  useEffect(() => load(), [from, to, employeeId]);
 
   function openEdit(l: InsuranceLead) {
     setEditLead(l);
@@ -137,9 +153,25 @@ export default function StaffInsuranceLeads() {
       <Card>
         <CardHeader>
           <CardTitle>Filters</CardTitle>
-          <CardDescription>Filter by date range.</CardDescription>
+          <CardDescription>Filter by staff member and date range.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-4">
+          <div className="space-y-2">
+            <Label>Staff member</Label>
+            <Select value={employeeId || "all"} onValueChange={(v) => setEmployeeId(v === "all" ? "" : v)}>
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="All staff" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All staff</SelectItem>
+                {employees.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.employeeNumber ?? "—"} – {e.fullName || e.username}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-2">
             <Label>From</Label>
             <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -155,7 +187,11 @@ export default function StaffInsuranceLeads() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <CardTitle>Insurance leads</CardTitle>
-              <CardDescription>Admin: update Collected Premium, Actual Premium, and Final Remarks via Edit.</CardDescription>
+              <CardDescription>
+                {employeeId
+                  ? `Total: ${leads.length} lead${leads.length !== 1 ? "s" : ""} (for ${employees.find((e) => e.id === employeeId)?.fullName || employees.find((e) => e.id === employeeId)?.username || "selected staff"})`
+                  : `Total: ${leads.length} lead${leads.length !== 1 ? "s" : ""}. Admin: update Collected Premium, Actual Premium, and Final Remarks via Edit.`}
+              </CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={() => setShowAdminFields((v) => !v)}>
               {showAdminFields ? "Hide premium & remarks columns" : "Show premium & remarks columns"}
