@@ -218,7 +218,7 @@ export default function StaffMyLeads() {
       <Card>
         <CardHeader>
           <CardTitle>Leads this month</CardTitle>
-          <CardDescription>Add 2+ loan leads per day to be marked present.</CardDescription>
+          <CardDescription>Add 2 or more loan leads per day to be marked present.</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="loan">

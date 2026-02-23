@@ -58,7 +58,7 @@ export default function StaffAttendance() {
       <Card>
         <CardHeader>
           <CardTitle>Logs</CardTitle>
-          <CardDescription>Login, logout, leads count, status (present = 2+ leads).</CardDescription>
+          <CardDescription>Login, logout, leads count, status (present = 2 or more leads).</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">

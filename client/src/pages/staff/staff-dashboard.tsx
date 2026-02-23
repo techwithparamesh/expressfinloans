@@ -94,7 +94,7 @@ export default function StaffDashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{present}</p>
-            <p className="text-xs text-slate-500">2+ leads = present</p>
+            <p className="text-xs text-slate-500">2 or more leads = present</p>
           </CardContent>
         </Card>
         <Card>
@@ -185,7 +185,7 @@ export default function StaffDashboard() {
       <Card>
         <CardHeader>
           <CardTitle>Attendance today ({data.today})</CardTitle>
-          <CardDescription>Login/logout and status (present = 2+ leads).</CardDescription>
+          <CardDescription>Login/logout and status (present = 2 or more leads).</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">

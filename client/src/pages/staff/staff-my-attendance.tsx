@@ -86,7 +86,7 @@ export default function StaffMyAttendance() {
             <Calendar className="h-5 w-5" />
             Today ({today})
           </CardTitle>
-          <CardDescription>Mark login and logout. You need 2+ leads to be marked present.</CardDescription>
+          <CardDescription>Mark login and logout. You need 2 or more leads to be marked present.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">

@@ -72,7 +72,7 @@ export default function StaffMyDashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{data.daysPresent} days present</p>
-            <p className="text-xs text-slate-500">{data.daysLogged} days logged (2+ leads = present)</p>
+            <p className="text-xs text-slate-500">{data.daysLogged} days logged (2 or more leads = present)</p>
           </CardContent>
         </Card>
       </div>
@@ -106,7 +106,7 @@ export default function StaffMyDashboard() {
         <CardContent className="text-sm text-slate-600">
           <p>• <strong>My leads</strong> – Add loan and insurance leads, view your list.</p>
           <p>• <strong>My attendance</strong> – Login/logout and see your attendance history.</p>
-          <p>• Add 2+ loan leads per day to be marked <strong>present</strong>.</p>
+          <p>• Add 2 or more loan leads per day to be marked <strong>present</strong>.</p>
         </CardContent>
       </Card>
     </div>
