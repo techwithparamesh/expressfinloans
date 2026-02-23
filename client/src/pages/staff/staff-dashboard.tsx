@@ -1,8 +1,16 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { staffJson } from "@/lib/api";
-import { Users, Calendar, FileText, CheckCircle } from "lucide-react";
+import { Users, Calendar, FileText, CheckCircle, Filter } from "lucide-react";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
 type Dashboard = {
@@ -14,21 +22,57 @@ type Dashboard = {
   leadsByEmployee?: { employeeId: string; employeeName: string; employeeNumber: string; count: number }[];
 };
 
+type EmployeeOption = {
+  id: string;
+  fullName: string | null;
+  employeeNumber: string | null;
+  username: string;
+};
+
 export default function StaffDashboard() {
   const [data, setData] = useState<Dashboard | null>(null);
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
+  const [staffChartFilter, setStaffChartFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    staffJson<Dashboard>("/staff/dashboard")
-      .then(setData)
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
+    Promise.all([
+      staffJson<Dashboard>("/staff/dashboard").catch(() => null),
+      staffJson<EmployeeOption[]>("/staff/employees").catch(() => []),
+    ]).then(([dashboard, empList]) => {
+      setData(dashboard ?? null);
+      setEmployees(Array.isArray(empList) ? empList : []);
+    }).finally(() => setLoading(false));
   }, []);
 
   if (loading) return <p className="text-slate-500">Loading…</p>;
   if (!data) return <p className="text-slate-500">Failed to load dashboard.</p>;
 
   const present = data.attendanceToday.filter((a) => a.status === "present").length;
+
+  // Merge all employees with lead counts (include 0 for those with no leads); fallback to dashboard data if employees list empty
+  const countByEmployee = new Map(
+    (data.leadsByEmployee ?? []).map((e) => [e.employeeId, e.count])
+  );
+  const chartDataAll =
+    employees.length > 0
+      ? employees.map((e) => ({
+          employeeId: e.id,
+          label: `${e.employeeNumber ?? "—"} · ${e.fullName || e.username}`,
+          count: countByEmployee.get(e.id) ?? 0,
+        }))
+      : (data.leadsByEmployee ?? []).map((e) => ({
+          employeeId: e.employeeId,
+          label: `${e.employeeNumber || "—"} · ${e.employeeName || e.employeeId}`,
+          count: e.count,
+        }));
+  const chartDataFiltered =
+    staffChartFilter === "all"
+      ? chartDataAll
+      : chartDataAll.filter((r) => r.employeeId === staffChartFilter);
+  const hasChartData = chartDataAll.length > 0;
+  const chartHeight =
+    chartDataFiltered.length <= 2 ? 160 : Math.min(400, Math.max(240, chartDataFiltered.length * 48));
 
   return (
     <div className="space-y-6">
@@ -73,38 +117,70 @@ export default function StaffDashboard() {
         </Card>
       </div>
 
-      {data.leadsByEmployee && data.leadsByEmployee.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Leads by staff</CardTitle>
-            <CardDescription>Lead count per employee. Last 30 days.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={{ count: { label: "Leads" } }} className="h-[240px] w-full">
+      <Card>
+        <CardHeader className="space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Leads by staff</CardTitle>
+              <CardDescription>Lead count per employee. Last 30 days.</CardDescription>
+            </div>
+            {employees.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-slate-500 shrink-0" />
+                <Label htmlFor="staff-chart-filter" className="text-sm text-slate-600">
+                  View:
+                </Label>
+                <Select
+                  value={staffChartFilter}
+                  onValueChange={setStaffChartFilter}
+                >
+                  <SelectTrigger id="staff-chart-filter" className="w-[220px]">
+                    <SelectValue placeholder="All staff" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All staff</SelectItem>
+                    {employees.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.employeeNumber ?? "—"} · {e.fullName || e.username}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {hasChartData ? (
+            <ChartContainer
+              config={{ count: { label: "Leads" }, label: { label: "Employee" } }}
+              className="w-full"
+              style={{ height: chartHeight }}
+            >
               <BarChart
-                data={data.leadsByEmployee.map((e) => ({ name: e.employeeNumber || e.employeeName || e.employeeId, count: e.count }))}
+                data={chartDataFiltered.map((r) => ({ name: r.label, count: r.count }))}
                 layout="vertical"
-                margin={{ left: 12, right: 12 }}
+                margin={{ left: 8, right: 24, top: 8, bottom: 8 }}
               >
-                <XAxis type="number" allowDecimals={false} />
-                <YAxis type="category" dataKey="name" width={48} tick={{ fontSize: 11 }} />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={200}
+                  tick={{ fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={false}
+                  interval={0}
+                />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="count" fill="#22c55e" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="count" fill="#16a34a" radius={[0, 4, 4, 0]} name="Leads" />
               </BarChart>
             </ChartContainer>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Leads by staff</CardTitle>
-            <CardDescription>Lead count per employee. Last 30 days.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-slate-500 py-8 text-center">No leads in the last 30 days.</p>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <p className="text-sm text-slate-500 py-8 text-center">No employees or no leads in the last 30 days.</p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
