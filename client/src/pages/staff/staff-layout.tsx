@@ -20,8 +20,25 @@ import MonthlyTargetPopup from "@/components/staff/MonthlyTargetPopup";
 
 const path = (base: string, p: string) => (base ? `${base}${p}` : p);
 
-const COMPANY_NAME = "Express Fin Loans";
-const COMPANY_LOGO_URL = import.meta.env.VITE_APP_LOGO_URL as string | undefined;
+function CompanyLogo({ variant = "dark" }: { variant?: "dark" | "light" }) {
+  const isDark = variant === "dark";
+  return (
+    <div className="flex flex-col leading-tight tracking-tight">
+      <span
+        className="font-bold text-[#1A4EC9]"
+        style={{ fontSize: isDark ? "0.95rem" : "1rem" }}
+      >
+        EXPRESS
+      </span>
+      <span
+        className="font-bold text-[#E12428]"
+        style={{ fontSize: isDark ? "0.6rem" : "0.65rem" }}
+      >
+        FINANCIAL SERVICES
+      </span>
+    </div>
+  );
+}
 
 export default function StaffLayout({
   children,
@@ -127,23 +144,8 @@ export default function StaffLayout({
           `}
         >
           <div className="p-3 border-b border-slate-700 shrink-0">
-            <div className="flex items-center gap-3 min-h-10">
-              {COMPANY_LOGO_URL ? (
-                <img
-                  src={COMPANY_LOGO_URL}
-                  alt=""
-                  className="h-8 w-auto max-w-[120px] object-contain object-left"
-                />
-              ) : (
-                <span className="font-semibold text-white text-sm tracking-tight truncate">
-                  {COMPANY_NAME}
-                </span>
-              )}
-              {COMPANY_LOGO_URL && (
-                <span className="font-semibold text-white text-sm tracking-tight truncate">
-                  {COMPANY_NAME}
-                </span>
-              )}
+            <div className="flex items-center min-h-10">
+              <CompanyLogo variant="dark" />
             </div>
           </div>
           <div className="p-4 border-b border-slate-700 flex items-center gap-3 min-h-[3.5rem]">
@@ -205,7 +207,7 @@ export default function StaffLayout({
             >
               <Menu className="h-6 w-6 text-slate-700" />
             </Button>
-            <span className="font-semibold text-slate-800 truncate">ExpressFin</span>
+            <CompanyLogo variant="light" />
           </header>
           <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
         </div>
