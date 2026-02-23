@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { staffJson } from "@/lib/api";
 import { Users, Calendar, FileText, CheckCircle } from "lucide-react";
-import { Bar, BarChart, XAxis, YAxis, Pie, PieChart, Cell } from "recharts";
+import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
 type Dashboard = {
   today: string;
@@ -11,21 +11,8 @@ type Dashboard = {
   attendanceToday: { employeeId: string; employeeName: string; employeeNumber: string; date: string; loginAt: string | null; logoutAt: string | null; leadsCount: number; status: string }[];
   leadsToday: { id: string; employeeId: string; employeeName: string; employeeNumber: string; date: string; customerName: string | null; status: string }[];
   totalClosures: number;
-  leadsLast14Days?: { date: string; count: number }[];
-  leadsByStatus?: { status: string; count: number }[];
   leadsByEmployee?: { employeeId: string; employeeName: string; employeeNumber: string; count: number }[];
 };
-
-const STATUS_COLORS: Record<string, string> = {
-  open: "#3b82f6",
-  disbursed: "#22c55e",
-  rejected: "#ef4444",
-  sanctioned: "#8b5cf6",
-  closed_won: "#0ea5e9",
-};
-function getStatusColor(status: string): string {
-  return STATUS_COLORS[status.toLowerCase()] ?? "#64748b";
-}
 
 export default function StaffDashboard() {
   const [data, setData] = useState<Dashboard | null>(null);
@@ -86,87 +73,38 @@ export default function StaffDashboard() {
         </Card>
       </div>
 
-      {data.leadsLast14Days && data.leadsLast14Days.length > 0 && (
+      {data.leadsByEmployee && data.leadsByEmployee.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>Leads trend (last 14 days)</CardTitle>
-            <CardDescription>Daily lead count for the past two weeks.</CardDescription>
+            <CardTitle>Leads by staff</CardTitle>
+            <CardDescription>Lead count per employee. Last 30 days.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={{ count: { label: "Leads" }, date: { label: "Date" } }} className="h-[240px] w-full">
-              <BarChart data={data.leadsLast14Days} margin={{ left: 12, right: 12 }}>
-                <XAxis dataKey="date" tickFormatter={(v) => String(v).slice(5)} />
-                <YAxis allowDecimals={false} />
+            <ChartContainer config={{ count: { label: "Leads" } }} className="h-[240px] w-full">
+              <BarChart
+                data={data.leadsByEmployee.map((e) => ({ name: e.employeeNumber || e.employeeName || e.employeeId, count: e.count }))}
+                layout="vertical"
+                margin={{ left: 12, right: 12 }}
+              >
+                <XAxis type="number" allowDecimals={false} />
+                <YAxis type="category" dataKey="name" width={48} tick={{ fontSize: 11 }} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" fill="#22c55e" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ChartContainer>
           </CardContent>
         </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Leads by staff</CardTitle>
+            <CardDescription>Lead count per employee. Last 30 days.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-500 py-8 text-center">No leads in the last 30 days.</p>
+          </CardContent>
+        </Card>
       )}
-
-      <div className="grid gap-4 md:grid-cols-2">
-        {data.leadsByStatus && data.leadsByStatus.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Leads by status (last 30 days)</CardTitle>
-              <CardDescription>Distribution by status.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={Object.fromEntries(data.leadsByStatus.map((s) => [s.status, { label: s.status }]))} className="h-[240px] w-full">
-                <PieChart>
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Pie
-                    data={data.leadsByStatus}
-                    dataKey="count"
-                    nameKey="status"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    label={({ status, count }) => `${status}: ${count}`}
-                  >
-                    {data.leadsByStatus.map((entry) => (
-                      <Cell key={entry.status} fill={getStatusColor(entry.status)} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-        )}
-        {data.leadsByEmployee && data.leadsByEmployee.length > 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Leads by staff (last 30 days)</CardTitle>
-              <CardDescription>Lead count per employee.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={{ count: { label: "Leads" } }} className="h-[240px] w-full">
-                <BarChart
-                  data={data.leadsByEmployee.map((e) => ({ name: e.employeeNumber || e.employeeName || e.employeeId, count: e.count }))}
-                  layout="vertical"
-                  margin={{ left: 12, right: 12 }}
-                >
-                  <XAxis type="number" allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" width={48} tick={{ fontSize: 11 }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="count" fill="#22c55e" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Leads by staff (last 30 days)</CardTitle>
-              <CardDescription>Lead count per employee.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-slate-500 py-8 text-center">No leads in the last 30 days.</p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
 
       <Card>
         <CardHeader>
