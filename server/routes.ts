@@ -465,6 +465,25 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/staff/employees/:id", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const id = req.params.id;
+      const currentUserId = (req.user as any).id;
+      if (id === currentUserId) {
+        return res.status(400).json({ message: "Cannot delete your own account" });
+      }
+      const target = await storage.getUser(id);
+      if (!target) return res.status(404).json({ message: "User not found" });
+      if ((target as any).role === "admin") {
+        return res.status(400).json({ message: "Cannot delete an admin user" });
+      }
+      await storage.deleteUser(id);
+      res.status(204).send();
+    } catch (e) {
+      next(e);
+    }
+  });
+
   app.patch("/api/staff/employees/:id", requireAuth, requireAdmin, async (req, res, next) => {
     try {
       const id = req.params.id;

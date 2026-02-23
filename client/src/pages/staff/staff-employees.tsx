@@ -11,7 +11,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { staffJson } from "@/lib/api";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { staffJson, staffFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 type Employee = {
@@ -44,6 +54,8 @@ export default function StaffEmployees() {
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
   const [editForm, setEditForm] = useState({ fullName: "", email: "", phone: "", monthlyLeadTarget: "" });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
+  const [savingDelete, setSavingDelete] = useState(false);
 
   const loadList = () => {
     setLoading(true);
@@ -98,6 +110,21 @@ export default function StaffEmployees() {
       toast({ title: err instanceof Error ? err.message : "Update failed", variant: "destructive" });
     } finally {
       setSavingEdit(false);
+    }
+  }
+
+  async function confirmDeleteEmployee() {
+    if (!deleteEmployee) return;
+    setSavingDelete(true);
+    try {
+      await staffFetch("/staff/employees/" + deleteEmployee.id, { method: "DELETE" });
+      toast({ title: "Employee removed" });
+      setDeleteEmployee(null);
+      loadList();
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Delete failed", variant: "destructive" });
+    } finally {
+      setSavingDelete(false);
     }
   }
 
@@ -179,9 +206,17 @@ export default function StaffEmployees() {
                       <td className="py-2 px-2">{e.monthlyLeadTarget ?? "—"}</td>
                       <td className="py-2 px-2">{e.email ?? "—"}</td>
                       <td className="py-2 px-2">{e.phone ?? "—"}</td>
-                      <td className="py-2 px-2">
+                      <td className="py-2 px-2 flex items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => openEdit(e)}>
                           Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => setDeleteEmployee(e)}
+                        >
+                          Delete
                         </Button>
                       </td>
                     </tr>
@@ -273,6 +308,23 @@ export default function StaffEmployees() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteEmployee} onOpenChange={(open) => !open && setDeleteEmployee(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove employee?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove {deleteEmployee?.fullName || deleteEmployee?.username} and all their leads, insurance leads, and attendance records. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteEmployee} disabled={savingDelete} className="bg-red-600 hover:bg-red-700">
+              {savingDelete ? "Removing…" : "Remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={!!editEmployee} onOpenChange={(open) => !open && setEditEmployee(null)}>
         <DialogContent>

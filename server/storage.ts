@@ -21,6 +21,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser & { password: string }): Promise<User>;
   updateUser(id: string, data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget">>): Promise<User | undefined>;
+  deleteUser(id: string): Promise<void>;
   getNextEmployeeNumber(): Promise<string>;
   backfillEmployeeNumbers(): Promise<void>;
 
@@ -318,6 +319,14 @@ export class DrizzleStorage implements IStorage {
     }
   }
 
+  async deleteUser(id: string): Promise<void> {
+    await guardDb();
+    await db.delete(leads).where(eq(leads.employeeId, id));
+    await db.delete(insuranceLeads).where(eq(insuranceLeads.employeeId, id));
+    await db.delete(attendanceLogs).where(eq(attendanceLogs.employeeId, id));
+    await db.delete(users).where(eq(users.id, id));
+  }
+
   async listEmployees(): Promise<User[]> {
     await guardDb();
     return db.select().from(users).where(eq(users.role, "employee")).orderBy(users.fullName, users.username);
@@ -418,6 +427,9 @@ class NoDbStorage implements IStorage {
   async updateUser() {
     this.guard();
     return undefined;
+  }
+  async deleteUser() {
+    this.guard();
   }
   async getNextEmployeeNumber() {
     this.guard();
