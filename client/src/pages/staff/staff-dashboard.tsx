@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { staffJson } from "@/lib/api";
 import { Users, Calendar, FileText, CheckCircle } from "lucide-react";
-import { Bar, BarChart, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, XAxis, YAxis, Pie, PieChart, Cell } from "recharts";
 
 type Dashboard = {
   today: string;
@@ -11,8 +11,21 @@ type Dashboard = {
   attendanceToday: { employeeId: string; employeeName: string; employeeNumber: string; date: string; loginAt: string | null; logoutAt: string | null; leadsCount: number; status: string }[];
   leadsToday: { id: string; employeeId: string; employeeName: string; employeeNumber: string; date: string; customerName: string | null; status: string }[];
   totalClosures: number;
+  leadsLast14Days?: { date: string; count: number }[];
+  leadsByStatus?: { status: string; count: number }[];
   leadsByEmployee?: { employeeId: string; employeeName: string; employeeNumber: string; count: number }[];
 };
+
+const STATUS_COLORS: Record<string, string> = {
+  open: "#3b82f6",
+  disbursed: "#22c55e",
+  rejected: "#ef4444",
+  sanctioned: "#8b5cf6",
+  closed_won: "#0ea5e9",
+};
+function getStatusColor(status: string): string {
+  return STATUS_COLORS[status.toLowerCase()] ?? "#64748b";
+}
 
 export default function StaffDashboard() {
   const [data, setData] = useState<Dashboard | null>(null);
