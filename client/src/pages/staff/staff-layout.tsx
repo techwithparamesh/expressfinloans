@@ -10,6 +10,8 @@ import {
   LogOut,
   ClipboardList,
   Shield,
+  Menu,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,6 +19,9 @@ import { useToast } from "@/hooks/use-toast";
 import MonthlyTargetPopup from "@/components/staff/MonthlyTargetPopup";
 
 const path = (base: string, p: string) => (base ? `${base}${p}` : p);
+
+const COMPANY_NAME = "Express Fin Loans";
+const COMPANY_LOGO_URL = import.meta.env.VITE_APP_LOGO_URL as string | undefined;
 
 export default function StaffLayout({
   children,
@@ -27,8 +32,22 @@ export default function StaffLayout({
 }) {
   const [user, setUser] = useState<StaffUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [location] = useLocation();
   const { toast } = useToast();
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location]);
+
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [sidebarOpen]);
 
   useEffect(() => {
     let meta = document.querySelector('meta[name="robots"]');
@@ -85,12 +104,58 @@ export default function StaffLayout({
     { href: path(basePath, "/profile"), label: "Profile", icon: User },
   ];
 
+  const closeSidebar = () => setSidebarOpen(false);
+
   return (
     <>
       {!isAdmin && <MonthlyTargetPopup />}
       <div className="min-h-screen flex bg-slate-100">
-        <aside className="w-56 bg-slate-800 text-white flex flex-col shrink-0">
-          <div className="p-4 border-b border-slate-700 flex items-center gap-3">
+        {sidebarOpen && (
+          <button
+            type="button"
+            aria-label="Close menu"
+            className="fixed inset-0 z-30 bg-black/50 md:hidden"
+            onClick={closeSidebar}
+          />
+        )}
+        <aside
+          className={`
+            fixed md:relative inset-y-0 left-0 z-40 w-72 max-w-[85vw] md:w-56
+            bg-slate-800 text-white flex flex-col shrink-0
+            transform transition-transform duration-200 ease-out
+            ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+          `}
+        >
+          <div className="p-3 border-b border-slate-700 shrink-0">
+            <div className="flex items-center gap-3 min-h-10">
+              {COMPANY_LOGO_URL ? (
+                <img
+                  src={COMPANY_LOGO_URL}
+                  alt=""
+                  className="h-8 w-auto max-w-[120px] object-contain object-left"
+                />
+              ) : (
+                <span className="font-semibold text-white text-sm tracking-tight truncate">
+                  {COMPANY_NAME}
+                </span>
+              )}
+              {COMPANY_LOGO_URL && (
+                <span className="font-semibold text-white text-sm tracking-tight truncate">
+                  {COMPANY_NAME}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="p-4 border-b border-slate-700 flex items-center gap-3 min-h-[3.5rem]">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden shrink-0 min-h-11 min-w-11 text-slate-300 hover:text-white hover:bg-slate-700"
+              onClick={closeSidebar}
+              aria-label="Close menu"
+            >
+              <X className="h-5 w-5" />
+            </Button>
             <Avatar className="h-10 w-10 shrink-0 border border-slate-600">
               <AvatarImage src={user.avatarUrl || undefined} alt="" />
               <AvatarFallback className="bg-slate-700 text-slate-200 text-sm">
@@ -102,15 +167,16 @@ export default function StaffLayout({
               <p className="text-xs text-slate-400">{user.role}</p>
             </div>
           </div>
-          <nav className="p-2 flex-1">
+          <nav className="p-2 flex-1 overflow-y-auto">
             {nav.map(({ href, label, icon: Icon }) => (
               <Link key={href} href={href}>
                 <a
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  onClick={closeSidebar}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                     location === href ? "bg-primary text-white" : "text-slate-300 hover:bg-slate-700 hover:text-white"
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-4 w-4 shrink-0" />
                   {label}
                 </a>
               </Link>
@@ -128,7 +194,21 @@ export default function StaffLayout({
             </Button>
           </div>
         </aside>
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="sticky top-0 z-20 flex items-center gap-3 px-2 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] bg-slate-100 border-b border-slate-200 md:hidden">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0 min-h-11 min-w-11"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open menu"
+            >
+              <Menu className="h-6 w-6 text-slate-700" />
+            </Button>
+            <span className="font-semibold text-slate-800 truncate">ExpressFin</span>
+          </header>
+          <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
+        </div>
       </div>
     </>
   );

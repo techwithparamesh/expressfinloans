@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { staffJson } from "@/lib/api";
+import { getAuthMe, staffJson } from "@/lib/api";
+import type { StaffUser } from "@/lib/api";
 import { FileText, Target, Calendar, TrendingUp } from "lucide-react";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
@@ -16,8 +17,13 @@ type MyDashboard = {
 };
 
 export default function StaffMyDashboard() {
+  const [user, setUser] = useState<StaffUser | null>(null);
   const [data, setData] = useState<MyDashboard | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getAuthMe().then((res) => setUser(res?.user ?? null));
+  }, []);
 
   useEffect(() => {
     staffJson<MyDashboard>("/staff/my-dashboard")
@@ -29,10 +35,14 @@ export default function StaffMyDashboard() {
   if (loading) return <p className="text-slate-500">Loading…</p>;
   if (!data) return <p className="text-slate-500">Failed to load dashboard.</p>;
 
+  const displayName = user?.fullName || user?.username || "Employee";
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">My dashboard</h1>
-      <p className="text-slate-600">Monitor your leads and attendance for {data.monthLabel}.</p>
+      <div>
+        <h1 className="text-2xl font-bold">Welcome, {displayName}</h1>
+        <p className="text-slate-600 mt-0.5">Employee · Monitor your leads and attendance for {data.monthLabel}</p>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>

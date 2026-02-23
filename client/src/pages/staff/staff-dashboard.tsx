@@ -9,7 +9,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { staffJson } from "@/lib/api";
+import { getAuthMe, staffJson } from "@/lib/api";
+import type { StaffUser } from "@/lib/api";
 import { Users, Calendar, FileText, CheckCircle, Filter } from "lucide-react";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
@@ -30,10 +31,15 @@ type EmployeeOption = {
 };
 
 export default function StaffDashboard() {
+  const [user, setUser] = useState<StaffUser | null>(null);
   const [data, setData] = useState<Dashboard | null>(null);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [staffChartFilter, setStaffChartFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getAuthMe().then((res) => setUser(res?.user ?? null));
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -74,9 +80,14 @@ export default function StaffDashboard() {
   const chartHeight =
     chartDataFiltered.length <= 2 ? 160 : Math.min(400, Math.max(240, chartDataFiltered.length * 48));
 
+  const displayName = user?.fullName || user?.username || "Admin";
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+      <div>
+        <h1 className="text-2xl font-bold">Welcome, {displayName}</h1>
+        <p className="text-slate-600 mt-0.5">Admin · Dashboard</p>
+      </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
