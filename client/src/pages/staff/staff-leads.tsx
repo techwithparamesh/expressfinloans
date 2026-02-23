@@ -63,6 +63,7 @@ export default function StaffLeads() {
   const [editLead, setEditLead] = useState<Lead | null>(null);
   const [deleteLead, setDeleteLead] = useState<Lead | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showAdminFields, setShowAdminFields] = useState(false);
   const [adminForm, setAdminForm] = useState({
     payoutPercent: "",
     payoutAmount: "",
@@ -162,51 +163,68 @@ export default function StaffLeads() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Leads</CardTitle>
-          <CardDescription>All leads across employees. Edit admin fields (payout, reconsil, payment status) per row.</CardDescription>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle>Leads</CardTitle>
+              <CardDescription>All leads across employees. Edit admin fields (payout, reconsil, payment status) via Edit.</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setShowAdminFields((v) => !v)}>
+              {showAdminFields ? "Hide payout & payment columns" : "Show payout & payment columns"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[600px]">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-2">Date</th>
-                  <th className="text-left py-2">Employee name</th>
-                  <th className="text-left py-2">Employee ID</th>
-                  <th className="text-left py-2">Customer</th>
-                  <th className="text-left py-2">Phone</th>
-                  <th className="text-left py-2">Loan type</th>
-                  <th className="text-left py-2">Amount</th>
-                  <th className="text-left py-2">Status</th>
-                  <th className="text-left py-2">Payout %</th>
-                  <th className="text-left py-2">Payout Amount</th>
-                  <th className="text-left py-2">Reconsil</th>
-                  <th className="text-left py-2">Payment Status</th>
-                  <th className="text-left py-2">Actions</th>
+                  <th className="text-left py-2 px-2 sticky left-0 z-10 bg-white min-w-[72px]">Employee ID</th>
+                  <th className="text-left py-2 px-2 sticky left-[72px] z-10 bg-white min-w-[120px]">Employee name</th>
+                  <th className="text-left py-2 px-2 min-w-[96px]">Date</th>
+                  <th className="text-left py-2 px-2 min-w-[80px]">Status</th>
+                  <th className="text-left py-2 px-2 min-w-[80px]">Amount</th>
+                  <th className="text-left py-2 px-2 min-w-[100px]">Customer</th>
+                  <th className="text-left py-2 px-2 min-w-[90px]">Phone</th>
+                  <th className="text-left py-2 px-2 min-w-[90px]">Loan type</th>
+                  {showAdminFields && (
+                    <>
+                      <th className="text-left py-2 px-2 min-w-[70px]">Payout %</th>
+                      <th className="text-left py-2 px-2 min-w-[90px]">Payout Amt</th>
+                      <th className="text-left py-2 px-2 min-w-[100px]">Reconsil</th>
+                      <th className="text-left py-2 px-2 min-w-[100px]">Payment Status</th>
+                    </>
+                  )}
+                  <th className="text-left py-2 px-2 min-w-[120px]">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {leads.map((l) => (
                   <tr key={l.id} className="border-b">
-                    <td className="py-2">{l.date}</td>
-                    <td className="py-2">{l.employeeName ?? l.employeeId}</td>
-                    <td className="py-2">{l.employeeNumber ?? "—"}</td>
-                    <td className="py-2">{l.customerName ?? "—"}</td>
-                    <td className="py-2">{l.customerPhone ?? "—"}</td>
-                    <td className="py-2">{l.loanType ?? "—"}</td>
-                    <td className="py-2">{l.amount ?? "—"}</td>
-                    <td className="py-2">{l.status}</td>
-                    <td className="py-2">{l.payoutPercent ?? "—"}</td>
-                    <td className="py-2">{l.payoutAmount ?? "—"}</td>
-                    <td className="py-2">{l.reconsil ?? "—"}</td>
-                    <td className="py-2">{l.paymentStatus ?? "—"}</td>
-                    <td className="py-2 flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openEdit(l)}>
-                        Edit
-                      </Button>
-                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => setDeleteLead(l)}>
-                        Delete
-                      </Button>
+                    <td className="py-2 px-2 sticky left-0 z-10 bg-white font-medium">{l.employeeNumber ?? "—"}</td>
+                    <td className="py-2 px-2 sticky left-[72px] z-10 bg-white">{l.employeeName ?? l.employeeId}</td>
+                    <td className="py-2 px-2 whitespace-nowrap">{formatDate(l.date)}</td>
+                    <td className="py-2 px-2">{l.status}</td>
+                    <td className="py-2 px-2">{l.amount ?? "—"}</td>
+                    <td className="py-2 px-2 max-w-[120px] truncate" title={l.customerName ?? undefined}>{l.customerName ?? "—"}</td>
+                    <td className="py-2 px-2">{l.customerPhone ?? "—"}</td>
+                    <td className="py-2 px-2">{l.loanType ?? "—"}</td>
+                    {showAdminFields && (
+                      <>
+                        <td className="py-2 px-2">{l.payoutPercent ?? "—"}</td>
+                        <td className="py-2 px-2">{l.payoutAmount ?? "—"}</td>
+                        <td className="py-2 px-2">{l.reconsil ?? "—"}</td>
+                        <td className="py-2 px-2">{l.paymentStatus ?? "—"}</td>
+                      </>
+                    )}
+                    <td className="py-2 px-2">
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => openEdit(l)}>
+                          Edit
+                        </Button>
+                        <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => setDeleteLead(l)}>
+                          Delete
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -307,6 +325,15 @@ export default function StaffLeads() {
       </Dialog>
     </div>
   );
+}
+
+function formatDate(dateStr: string): string {
+  try {
+    const s = String(dateStr).slice(0, 10);
+    return s || "—";
+  } catch {
+    return "—";
+  }
 }
 
 function getMonthStart(): string {

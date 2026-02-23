@@ -77,28 +77,36 @@ export default function StaffDashboard() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[480px]">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-2">Employee name</th>
-                  <th className="text-left py-2">Employee ID</th>
-                  <th className="text-left py-2">Login</th>
-                  <th className="text-left py-2">Logout</th>
-                  <th className="text-left py-2">Leads</th>
-                  <th className="text-left py-2">Status</th>
+                  <th className="text-left py-2 px-2 sticky left-0 z-10 bg-white min-w-[72px]">Employee ID</th>
+                  <th className="text-left py-2 px-2 sticky left-[72px] z-10 bg-white min-w-[120px]">Employee name</th>
+                  <th className="text-left py-2 px-2 min-w-[70px]">Login</th>
+                  <th className="text-left py-2 px-2 min-w-[70px]">Logout</th>
+                  <th className="text-left py-2 px-2 min-w-[56px]">Leads</th>
+                  <th className="text-left py-2 px-2 min-w-[88px]">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {data.attendanceToday.map((a) => (
-                  <tr key={a.employeeId + a.date} className="border-b">
-                    <td className="py-2">{a.employeeName || a.employeeId}</td>
-                    <td className="py-2">{a.employeeNumber || "—"}</td>
-                    <td className="py-2">{a.loginAt ? new Date(a.loginAt).toLocaleTimeString() : "—"}</td>
-                    <td className="py-2">{a.logoutAt ? new Date(a.logoutAt).toLocaleTimeString() : "—"}</td>
-                    <td className="py-2">{a.leadsCount}</td>
-                    <td className="py-2">{a.status}</td>
+                {data.attendanceToday.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-500">
+                      No attendance recorded for today yet.
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  data.attendanceToday.map((a) => (
+                    <tr key={a.employeeId + a.date} className="border-b">
+                      <td className="py-2 px-2 sticky left-0 z-10 bg-white font-medium">{a.employeeNumber || "—"}</td>
+                      <td className="py-2 px-2 sticky left-[72px] z-10 bg-white">{a.employeeName || a.employeeId}</td>
+                      <td className="py-2 px-2">{a.loginAt ? new Date(a.loginAt).toLocaleTimeString() : "—"}</td>
+                      <td className="py-2 px-2">{a.logoutAt ? new Date(a.logoutAt).toLocaleTimeString() : "—"}</td>
+                      <td className="py-2 px-2">{a.leadsCount}</td>
+                      <td className="py-2 px-2">{a.status}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

@@ -214,7 +214,7 @@ USE expressfinloans;
 ALTER TABLE users ADD COLUMN employee_number VARCHAR(10) NULL;
 ```
 
-Then run the app seed so existing employees get numbers assigned: `npm run seed` (from project dir with `DATABASE_URL` set).
+Then run the app seed so existing employees get numbers assigned: `npm run seed` (from project dir with `DATABASE_URL` set). **If Employee ID still shows "—" in the admin dashboard**, the `employee_number` column was added but backfill was not run—run `npm run seed` once to assign 1001, 1002, … to all existing employees.
 
 (Skip any column that already exists, or run one `ADD COLUMN` per line if your MySQL reports "Duplicate column".)
 

@@ -62,30 +62,38 @@ export default function StaffAttendance() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[520px]">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-2">Employee name</th>
-                  <th className="text-left py-2">Employee ID</th>
-                  <th className="text-left py-2">Date</th>
-                  <th className="text-left py-2">Login</th>
-                  <th className="text-left py-2">Logout</th>
-                  <th className="text-left py-2">Leads</th>
-                  <th className="text-left py-2">Status</th>
+                  <th className="text-left py-2 px-2 sticky left-0 z-10 bg-white min-w-[72px]">Employee ID</th>
+                  <th className="text-left py-2 px-2 sticky left-[72px] z-10 bg-white min-w-[120px]">Employee name</th>
+                  <th className="text-left py-2 px-2 min-w-[96px]">Date</th>
+                  <th className="text-left py-2 px-2 min-w-[70px]">Login</th>
+                  <th className="text-left py-2 px-2 min-w-[70px]">Logout</th>
+                  <th className="text-left py-2 px-2 min-w-[56px]">Leads</th>
+                  <th className="text-left py-2 px-2 min-w-[88px]">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {logs.map((l) => (
-                  <tr key={l.id} className="border-b">
-                    <td className="py-2">{l.employeeName || l.employeeId}</td>
-                    <td className="py-2">{l.employeeNumber || "—"}</td>
-                    <td className="py-2">{l.date}</td>
-                    <td className="py-2">{l.loginAt ? new Date(l.loginAt).toLocaleTimeString() : "—"}</td>
-                    <td className="py-2">{l.logoutAt ? new Date(l.logoutAt).toLocaleTimeString() : "—"}</td>
-                    <td className="py-2">{l.leadsCount}</td>
-                    <td className="py-2">{l.status}</td>
+                {logs.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-slate-500">
+                      No attendance recorded for this date range.
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  logs.map((l) => (
+                    <tr key={l.id} className="border-b">
+                      <td className="py-2 px-2 sticky left-0 z-10 bg-white font-medium">{l.employeeNumber || "—"}</td>
+                      <td className="py-2 px-2 sticky left-[72px] z-10 bg-white">{l.employeeName || l.employeeId}</td>
+                      <td className="py-2 px-2 whitespace-nowrap">{l.date}</td>
+                      <td className="py-2 px-2">{l.loginAt ? new Date(l.loginAt).toLocaleTimeString() : "—"}</td>
+                      <td className="py-2 px-2">{l.logoutAt ? new Date(l.logoutAt).toLocaleTimeString() : "—"}</td>
+                      <td className="py-2 px-2">{l.leadsCount}</td>
+                      <td className="py-2 px-2">{l.status}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

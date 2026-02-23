@@ -60,6 +60,7 @@ export default function StaffInsuranceLeads() {
   const [editLead, setEditLead] = useState<InsuranceLead | null>(null);
   const [deleteLead, setDeleteLead] = useState<InsuranceLead | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showAdminFields, setShowAdminFields] = useState(false);
   const [adminForm, setAdminForm] = useState({
     collectedPremium: "",
     actualPremium: "",
@@ -151,45 +152,62 @@ export default function StaffInsuranceLeads() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Insurance leads</CardTitle>
-          <CardDescription>Admin: update Collected Premium, Actual Premium, and Final Remarks. Difference is calculated automatically.</CardDescription>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle>Insurance leads</CardTitle>
+              <CardDescription>Admin: update Collected Premium, Actual Premium, and Final Remarks via Edit.</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setShowAdminFields((v) => !v)}>
+              {showAdminFields ? "Hide premium & remarks columns" : "Show premium & remarks columns"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[560px]">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-2">Date</th>
-                  <th className="text-left py-2">Employee name</th>
-                  <th className="text-left py-2">Employee ID</th>
-                  <th className="text-left py-2">Customer</th>
-                  <th className="text-left py-2">Contact</th>
-                  <th className="text-left py-2">Insurance type</th>
-                  <th className="text-left py-2">Premium quoted</th>
-                  <th className="text-left py-2">Collected prem.</th>
-                  <th className="text-left py-2">Actual prem.</th>
-                  <th className="text-left py-2">Difference</th>
-                  <th className="text-left py-2">Final remarks</th>
-                  <th className="text-left py-2">Actions</th>
+                  <th className="text-left py-2 px-2 sticky left-0 z-10 bg-white min-w-[72px]">Employee ID</th>
+                  <th className="text-left py-2 px-2 sticky left-[72px] z-10 bg-white min-w-[120px]">Employee name</th>
+                  <th className="text-left py-2 px-2 min-w-[96px]">Date</th>
+                  <th className="text-left py-2 px-2 min-w-[80px]">Status</th>
+                  <th className="text-left py-2 px-2 min-w-[100px]">Customer</th>
+                  <th className="text-left py-2 px-2 min-w-[90px]">Contact</th>
+                  <th className="text-left py-2 px-2 min-w-[90px]">Insurance type</th>
+                  <th className="text-left py-2 px-2 min-w-[80px]">Premium quoted</th>
+                  {showAdminFields && (
+                    <>
+                      <th className="text-left py-2 px-2 min-w-[90px]">Collected</th>
+                      <th className="text-left py-2 px-2 min-w-[80px]">Actual</th>
+                      <th className="text-left py-2 px-2 min-w-[80px]">Difference</th>
+                      <th className="text-left py-2 px-2 min-w-[100px]">Final remarks</th>
+                    </>
+                  )}
+                  <th className="text-left py-2 px-2 min-w-[120px]">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {leads.map((l) => (
                   <tr key={l.id} className="border-b">
-                    <td className="py-2">{l.date}</td>
-                    <td className="py-2">{l.employeeName ?? l.employeeId}</td>
-                    <td className="py-2">{l.employeeNumber ?? "—"}</td>
-                    <td className="py-2">{l.customerName ?? "—"}</td>
-                    <td className="py-2">{l.contactNum ?? "—"}</td>
-                    <td className="py-2">{l.insuranceType ?? "—"}</td>
-                    <td className="py-2">{l.premiumQuoted ?? "—"}</td>
-                    <td className="py-2">{l.collectedPremium ?? "—"}</td>
-                    <td className="py-2">{l.actualPremium ?? "—"}</td>
-                    <td className="py-2">{computeDifference(l.collectedPremium, l.actualPremium)}</td>
-                    <td className="py-2 max-w-[120px] truncate" title={l.finalRemarks ?? ""}>
-                      {l.finalRemarks ?? "—"}
-                    </td>
-                    <td className="py-2">
+                    <td className="py-2 px-2 sticky left-0 z-10 bg-white font-medium">{l.employeeNumber ?? "—"}</td>
+                    <td className="py-2 px-2 sticky left-[72px] z-10 bg-white">{l.employeeName ?? l.employeeId}</td>
+                    <td className="py-2 px-2 whitespace-nowrap">{formatDate(l.date)}</td>
+                    <td className="py-2 px-2">{l.status}</td>
+                    <td className="py-2 px-2 max-w-[120px] truncate" title={l.customerName ?? undefined}>{l.customerName ?? "—"}</td>
+                    <td className="py-2 px-2">{l.contactNum ?? "—"}</td>
+                    <td className="py-2 px-2">{l.insuranceType ?? "—"}</td>
+                    <td className="py-2 px-2">{l.premiumQuoted ?? "—"}</td>
+                    {showAdminFields && (
+                      <>
+                        <td className="py-2 px-2">{l.collectedPremium ?? "—"}</td>
+                        <td className="py-2 px-2">{l.actualPremium ?? "—"}</td>
+                        <td className="py-2 px-2">{computeDifference(l.collectedPremium, l.actualPremium)}</td>
+                        <td className="py-2 px-2 max-w-[120px] truncate" title={l.finalRemarks ?? ""}>
+                          {l.finalRemarks ?? "—"}
+                        </td>
+                      </>
+                    )}
+                    <td className="py-2 px-2">
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" onClick={() => openEdit(l)}>
                           Edit
@@ -276,6 +294,14 @@ export default function StaffInsuranceLeads() {
       </Dialog>
     </div>
   );
+}
+
+function formatDate(dateStr: string): string {
+  try {
+    return String(dateStr).slice(0, 10) || "—";
+  } catch {
+    return "—";
+  }
 }
 
 function getMonthStart(): string {

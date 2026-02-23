@@ -107,28 +107,36 @@ export default function StaffEmployees() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[480px]">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-2">Employee ID</th>
-                  <th className="text-left py-2">Name</th>
-                  <th className="text-left py-2">Username</th>
-                  <th className="text-left py-2">Role</th>
-                  <th className="text-left py-2">Email</th>
-                  <th className="text-left py-2">Phone</th>
+                  <th className="text-left py-2 px-2 min-w-[72px]">Employee ID</th>
+                  <th className="text-left py-2 px-2 min-w-[120px]">Name</th>
+                  <th className="text-left py-2 px-2 min-w-[100px]">Username</th>
+                  <th className="text-left py-2 px-2 min-w-[80px]">Role</th>
+                  <th className="text-left py-2 px-2 min-w-[140px]">Email</th>
+                  <th className="text-left py-2 px-2 min-w-[100px]">Phone</th>
                 </tr>
               </thead>
               <tbody>
-                {list.map((e) => (
-                  <tr key={e.id} className="border-b">
-                    <td className="py-2">{e.employeeNumber ?? "—"}</td>
-                    <td className="py-2">{e.fullName ?? "—"}</td>
-                    <td className="py-2">{e.username}</td>
-                    <td className="py-2">{e.role}</td>
-                    <td className="py-2">{e.email ?? "—"}</td>
-                    <td className="py-2">{e.phone ?? "—"}</td>
+                {list.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-500">
+                      No employees yet. Add staff to get started.
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  list.map((e) => (
+                    <tr key={e.id} className="border-b">
+                      <td className="py-2 px-2 font-medium">{e.employeeNumber ?? "—"}</td>
+                      <td className="py-2 px-2">{e.fullName ?? "—"}</td>
+                      <td className="py-2 px-2">{e.username}</td>
+                      <td className="py-2 px-2">{e.role}</td>
+                      <td className="py-2 px-2">{e.email ?? "—"}</td>
+                      <td className="py-2 px-2">{e.phone ?? "—"}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
