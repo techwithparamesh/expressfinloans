@@ -37,7 +37,7 @@ function toStaffUser(u: User): StaffUser {
   return {
     id: u.id,
     username: u.username,
-    role: u.role as "admin" | "employee",
+    role: u.role as "admin" | "team_lead" | "employee",
     fullName: u.fullName ?? undefined,
     email: u.email ?? undefined,
     phone: u.phone ?? undefined,
@@ -51,6 +51,24 @@ export function isAuthenticated(req: Request): boolean {
 
 export function isAdmin(req: Request): boolean {
   return !!req.user && (req.user as StaffUser).role === "admin";
+}
+
+export function isTeamLead(req: Request): boolean {
+  return !!req.user && (req.user as StaffUser).role === "team_lead";
+}
+
+/** Admin sees all; Team Lead sees only their team (employees where teamLeadId = current user). */
+export function requireAdminOrTeamLead(req: Request, res: import("express").Response, next: import("express").NextFunction) {
+  if (!req.user) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+  const role = (req.user as StaffUser).role;
+  if (role !== "admin" && role !== "team_lead") {
+    res.status(403).json({ message: "Forbidden" });
+    return;
+  }
+  next();
 }
 
 export function requireAuth(req: Request, res: import("express").Response, next: import("express").NextFunction) {

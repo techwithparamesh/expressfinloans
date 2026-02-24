@@ -9,7 +9,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const USER_ROLES = ["admin", "employee"] as const;
+export const USER_ROLES = ["admin", "team_lead", "employee"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
 export const users = mysqlTable("users", {
@@ -23,6 +23,7 @@ export const users = mysqlTable("users", {
   avatarUrl: varchar("avatar_url", { length: 512 }),
   employeeNumber: varchar("employee_number", { length: 10 }), // 4-digit display ID e.g. 1001
   monthlyLeadTarget: int("monthly_lead_target"), // admin-allocated target; null = use default (20)
+  teamLeadId: varchar("team_lead_id", { length: 36 }).references(() => users.id, { onDelete: "set null" }), // employee's Team Lead (null = unassigned)
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -166,3 +167,35 @@ export const insertInsuranceLeadSchema = createInsertSchema(insuranceLeads).pick
 
 export type InsuranceLead = typeof insuranceLeads.$inferSelect;
 export type InsertInsuranceLead = z.infer<typeof insertInsuranceLeadSchema>;
+
+// Leave types for dropdown (personal, sick, casual, emergency, other)
+export const LEAVE_TYPES = ["personal", "sick", "casual", "emergency", "other"] as const;
+export type LeaveType = (typeof LEAVE_TYPES)[number];
+
+export const leaveRequests = mysqlTable("leave_requests", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  employeeId: varchar("employee_id", { length: 36 })
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  leaveType: varchar("leave_type", { length: 50 }).notNull(),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  reason: text("reason"),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending | approved | rejected
+  approvedById: varchar("approved_by_id", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export const insertLeaveRequestSchema = createInsertSchema(leaveRequests).pick({
+  employeeId: true,
+  leaveType: true,
+  startDate: true,
+  endDate: true,
+  reason: true,
+  status: true,
+});
+
+export type LeaveRequest = typeof leaveRequests.$inferSelect;
+export type InsertLeaveRequest = z.infer<typeof insertLeaveRequestSchema>;

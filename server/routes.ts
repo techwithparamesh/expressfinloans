@@ -3,8 +3,10 @@ import { createServer, type Server } from "http";
 import path from "path";
 import fs from "fs";
 import passport from "passport";
+import ExcelJS from "exceljs";
+import PDFDocument from "pdfkit";
 import { storage } from "./storage";
-import { requireAuth, requireAdmin } from "./auth";
+import { requireAuth, requireAdmin, requireAdminOrTeamLead } from "./auth";
 
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 const AVATARS_DIR = path.join(UPLOADS_DIR, "avatars");
@@ -13,6 +15,17 @@ const LEAD_MIN_FOR_PRESENT = 2;
 
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/** Returns employee IDs the current user can see. Admin: null (all). Team Lead: their team member IDs. */
+async function getVisibleEmployeeIds(req: express.Request): Promise<string[] | null> {
+  const role = (req.user as { role?: string })?.role;
+  if (role === "admin") return null;
+  if (role === "team_lead") {
+    const team = await storage.listEmployees({ teamLeadId: (req.user as { id: string }).id });
+    return team.map((u) => u.id);
+  }
+  return [];
 }
 
 export async function registerRoutes(
@@ -101,12 +114,15 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/staff/attendance", requireAuth, requireAdmin, async (req, res, next) => {
+  app.get("/api/staff/attendance", requireAuth, requireAdminOrTeamLead, async (req, res, next) => {
     try {
       const from = (req.query.from as string) || undefined;
       const to = (req.query.to as string) || undefined;
       const logs = await storage.getAllAttendanceLogs(from, to);
-      const employees = await storage.listEmployees();
+      const visibleIds = await getVisibleEmployeeIds(req);
+      const employees = visibleIds === null
+        ? await storage.listEmployees()
+        : await storage.listEmployees({ teamLeadId: (req.user as any).id });
       const byId: Record<string, { name: string; number: string }> = {};
       for (const u of employees) {
         byId[u.id] = {
@@ -114,8 +130,9 @@ export async function registerRoutes(
           number: (u as any).employeeNumber ?? "",
         };
       }
+      const filteredLogs = visibleIds === null ? logs : logs.filter((l) => visibleIds.includes(l.employeeId));
       res.json(
-        logs.map((l) => ({
+        filteredLogs.map((l) => ({
           ...l,
           employeeName: byId[l.employeeId]?.name ?? l.employeeId,
           employeeNumber: byId[l.employeeId]?.number ?? "",
@@ -170,14 +187,17 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/staff/leads", requireAuth, requireAdmin, async (req, res, next) => {
+  app.get("/api/staff/leads", requireAuth, requireAdminOrTeamLead, async (req, res, next) => {
     try {
       const employeeId = (req.query.employeeId as string) || undefined;
       const fromDate = (req.query.from as string) || undefined;
       const toDate = (req.query.to as string) || undefined;
       const status = (req.query.status as string) || undefined;
       const list = await storage.getAllLeads({ employeeId, fromDate, toDate, status });
-      const employees = await storage.listEmployees();
+      const visibleIds = await getVisibleEmployeeIds(req);
+      const employees = visibleIds === null
+        ? await storage.listEmployees()
+        : await storage.listEmployees({ teamLeadId: (req.user as any).id });
       const byId: Record<string, { name: string; number: string }> = {};
       for (const u of employees) {
         byId[u.id] = {
@@ -185,8 +205,9 @@ export async function registerRoutes(
           number: (u as any).employeeNumber ?? "",
         };
       }
+      const filtered = visibleIds === null ? list : list.filter((l) => visibleIds.includes(l.employeeId));
       res.json(
-        list.map((l) => ({
+        filtered.map((l) => ({
           ...l,
           employeeName: byId[l.employeeId]?.name ?? l.employeeId,
           employeeNumber: byId[l.employeeId]?.number ?? "",
@@ -203,8 +224,16 @@ export async function registerRoutes(
       const lead = await storage.getLead(id);
       if (!lead) return res.status(404).json({ message: "Lead not found" });
       const userId = (req.user as any).id;
-      const isAdmin = (req.user as any).role === "admin";
-      if (!isAdmin && lead.employeeId !== userId) return res.status(404).json({ message: "Lead not found" });
+      const role = (req.user as any).role;
+      const isAdminOrLead = role === "admin" || role === "team_lead";
+      if (isAdminOrLead) {
+        const visibleIds = await getVisibleEmployeeIds(req);
+        if (visibleIds !== null && !visibleIds.includes(lead.employeeId) && lead.employeeId !== userId) {
+          return res.status(404).json({ message: "Lead not found" });
+        }
+      } else if (lead.employeeId !== userId) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
       res.json(lead);
     } catch (e) {
       next(e);
@@ -217,8 +246,15 @@ export async function registerRoutes(
       const lead = await storage.getLead(id);
       if (!lead) return res.status(404).json({ message: "Lead not found" });
       const userId = (req.user as any).id;
-      const isAdmin = (req.user as any).role === "admin";
-      if (!isAdmin && lead.employeeId !== userId) return res.status(403).json({ message: "Forbidden" });
+      const role = (req.user as any).role;
+      const isAdmin = role === "admin";
+      const isTeamLead = role === "team_lead";
+      if (isTeamLead) {
+        const visibleIds = await getVisibleEmployeeIds(req);
+        if (visibleIds === null || (!visibleIds.includes(lead.employeeId) && lead.employeeId !== userId)) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+      } else if (!isAdmin && lead.employeeId !== userId) return res.status(403).json({ message: "Forbidden" });
       const body = req.body || {};
       const data: Record<string, unknown> = {};
       if (body.customerName !== undefined) data.customerName = body.customerName;
@@ -304,13 +340,16 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/staff/insurance-leads", requireAuth, requireAdmin, async (req, res, next) => {
+  app.get("/api/staff/insurance-leads", requireAuth, requireAdminOrTeamLead, async (req, res, next) => {
     try {
       const employeeId = (req.query.employeeId as string) || undefined;
       const fromDate = (req.query.from as string) || undefined;
       const toDate = (req.query.to as string) || undefined;
       const list = await storage.getAllInsuranceLeads({ employeeId, fromDate, toDate });
-      const employees = await storage.listEmployees();
+      const visibleIds = await getVisibleEmployeeIds(req);
+      const employees = visibleIds === null
+        ? await storage.listEmployees()
+        : await storage.listEmployees({ teamLeadId: (req.user as any).id });
       const byId: Record<string, { name: string; number: string }> = {};
       for (const u of employees) {
         byId[u.id] = {
@@ -318,8 +357,9 @@ export async function registerRoutes(
           number: (u as any).employeeNumber ?? "",
         };
       }
+      const filtered = visibleIds === null ? list : list.filter((l) => visibleIds.includes(l.employeeId));
       res.json(
-        list.map((l) => ({
+        filtered.map((l) => ({
           ...l,
           employeeName: byId[l.employeeId]?.name ?? l.employeeId,
           employeeNumber: byId[l.employeeId]?.number ?? "",
@@ -355,6 +395,131 @@ export async function registerRoutes(
       if (!lead) return res.status(404).json({ message: "Insurance lead not found" });
       await storage.deleteInsuranceLead(id);
       res.status(204).send();
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // --- Staff: leave requests ---
+  app.post("/api/staff/leave", requireAuth, async (req, res, next) => {
+    try {
+      const userId = (req.user as any).id;
+      const body = req.body || {};
+      const leaveType = (body.leaveType as string)?.trim() || "personal";
+      const startDate = (body.startDate as string)?.trim();
+      const endDate = (body.endDate as string)?.trim();
+      const reason = (body.reason as string)?.trim() || null;
+      if (!startDate || !endDate) {
+        return res.status(400).json({ message: "Start date and end date are required" });
+      }
+      if (startDate > endDate) {
+        return res.status(400).json({ message: "Start date must be before or equal to end date" });
+      }
+      const validTypes = ["personal", "sick", "casual", "emergency", "other"];
+      if (!validTypes.includes(leaveType)) {
+        return res.status(400).json({ message: "Invalid leave type" });
+      }
+      const leave = await storage.createLeaveRequest({
+        employeeId: userId,
+        leaveType,
+        startDate,
+        endDate,
+        reason,
+        status: "pending",
+      } as any);
+      res.status(201).json(leave);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/leave/me", requireAuth, async (req, res, next) => {
+    try {
+      const userId = (req.user as any).id;
+      const from = (req.query.from as string) || undefined;
+      const to = (req.query.to as string) || undefined;
+      const list = await storage.getLeaveRequestsByEmployee(userId, from, to);
+      res.json(list);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/leave", requireAuth, requireAdminOrTeamLead, async (req, res, next) => {
+    try {
+      const visibleIds = await getVisibleEmployeeIds(req);
+      if (visibleIds !== null && visibleIds.length === 0) {
+        return res.json([]);
+      }
+      const status = (req.query.status as string) || undefined;
+      const from = (req.query.from as string) || undefined;
+      const to = (req.query.to as string) || undefined;
+      const employeeIds = visibleIds === null ? (await storage.listEmployees()).map((u) => u.id) : visibleIds;
+      const list = await storage.getLeaveRequestsForApproval(employeeIds, { status, fromDate: from, toDate: to });
+      const employees = visibleIds === null ? await storage.listEmployees() : await storage.listEmployees({ teamLeadId: (req.user as any).id });
+      const byId: Record<string, { name: string; number: string }> = {};
+      for (const u of employees) {
+        byId[u.id] = {
+          name: (u as any).fullName?.trim() || u.username || u.id,
+          number: (u as any).employeeNumber ?? "",
+        };
+      }
+      res.json(
+        list.map((l) => ({
+          ...l,
+          employeeName: byId[l.employeeId]?.name ?? l.employeeId,
+          employeeNumber: byId[l.employeeId]?.number ?? "",
+        }))
+      );
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/leave/:id", requireAuth, async (req, res, next) => {
+    try {
+      const id = req.params.id;
+      const leave = await storage.getLeaveRequest(id);
+      if (!leave) return res.status(404).json({ message: "Leave request not found" });
+      const userId = (req.user as any).id;
+      const role = (req.user as any).role;
+      if (leave.employeeId !== userId) {
+        if (role === "admin" || role === "team_lead") {
+          const visibleIds = await getVisibleEmployeeIds(req);
+          if (visibleIds !== null && !visibleIds.includes(leave.employeeId)) {
+            return res.status(404).json({ message: "Leave request not found" });
+          }
+        } else {
+          return res.status(404).json({ message: "Leave request not found" });
+        }
+      }
+      res.json(leave);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.patch("/api/staff/leave/:id", requireAuth, requireAdminOrTeamLead, async (req, res, next) => {
+    try {
+      const id = req.params.id;
+      const leave = await storage.getLeaveRequest(id);
+      if (!leave) return res.status(404).json({ message: "Leave request not found" });
+      if (leave.status !== "pending") {
+        return res.status(400).json({ message: "Leave request already processed" });
+      }
+      const userId = (req.user as any).id;
+      const visibleIds = await getVisibleEmployeeIds(req);
+      if (visibleIds !== null && !visibleIds.includes(leave.employeeId)) {
+        return res.status(403).json({ message: "You can only approve/reject leave for your team members" });
+      }
+      const status = (req.body?.status as string) === "rejected" ? "rejected" : "approved";
+      const updated = await storage.updateLeaveRequest(id, {
+        status,
+        approvedById: userId,
+        approvedAt: new Date(),
+      });
+      if (!updated) return res.status(500).json({ message: "Update failed" });
+      res.json(updated);
     } catch (e) {
       next(e);
     }
@@ -413,13 +578,13 @@ export async function registerRoutes(
     }
   });
 
-  // --- Staff: my dashboard (employee-only, for self monitoring) ---
+  // --- Staff: my dashboard (employee-only; admin/team_lead use /dashboard) ---
   app.get("/api/staff/my-dashboard", requireAuth, async (req, res, next) => {
     try {
       const userId = (req.user as any).id;
       const role = (req.user as any).role;
-      if (role === "admin") {
-        return res.status(404).json({ message: "Not for admin" });
+      if (role === "admin" || role === "team_lead") {
+        return res.status(404).json({ message: "Not for admin or team lead" });
       }
       const user = await storage.getUser(userId);
       const monthTargetFromDb = user && (user as any).monthlyLeadTarget != null ? Number((user as any).monthlyLeadTarget) : null;
@@ -484,21 +649,48 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/staff/employees/:id", requireAuth, requireAdmin, async (req, res, next) => {
+  app.patch("/api/staff/employees/:id", requireAuth, requireAdminOrTeamLead, async (req, res, next) => {
     try {
       const id = req.params.id;
       const target = await storage.getUser(id);
       if (!target) return res.status(404).json({ message: "User not found" });
+      const currentUserId = (req.user as any).id;
+      const role = (req.user as any).role;
       const body = req.body || {};
       const data: Record<string, unknown> = {};
-      if (body.fullName !== undefined) data.fullName = typeof body.fullName === "string" ? body.fullName.trim() || null : null;
-      if (body.email !== undefined) data.email = typeof body.email === "string" ? body.email.trim() || null : null;
-      if (body.phone !== undefined) data.phone = typeof body.phone === "string" ? body.phone.trim() || null : null;
-      if (body.monthlyLeadTarget !== undefined) {
-        const v = body.monthlyLeadTarget;
-        data.monthlyLeadTarget = v === null || v === "" ? null : Number(v);
-        if (data.monthlyLeadTarget !== null && Number.isNaN(data.monthlyLeadTarget as number)) data.monthlyLeadTarget = null;
+      if (role === "admin") {
+        if (body.fullName !== undefined) data.fullName = typeof body.fullName === "string" ? body.fullName.trim() || null : null;
+        if (body.email !== undefined) data.email = typeof body.email === "string" ? body.email.trim() || null : null;
+        if (body.phone !== undefined) data.phone = typeof body.phone === "string" ? body.phone.trim() || null : null;
+        if (body.monthlyLeadTarget !== undefined) {
+          const v = body.monthlyLeadTarget;
+          data.monthlyLeadTarget = v === null || v === "" ? null : Number(v);
+          if (data.monthlyLeadTarget !== null && Number.isNaN(data.monthlyLeadTarget as number)) data.monthlyLeadTarget = null;
+        }
+        if (body.teamLeadId !== undefined) data.teamLeadId = body.teamLeadId === null || body.teamLeadId === "" ? null : body.teamLeadId;
+      } else if (role === "team_lead") {
+        if ((target as any).role !== "employee") return res.status(403).json({ message: "Can only assign employees to your team" });
+        if (body.teamLeadId !== undefined) {
+          const v = body.teamLeadId;
+          if (v === currentUserId || v === null || v === "") {
+            const newVal = v === currentUserId ? currentUserId : null;
+            const team = await storage.listEmployees({ teamLeadId: currentUserId });
+            const unassigned = await storage.listEmployees({ unassignedOnly: true });
+            const inMyTeam = team.some((u) => u.id === id);
+            const isUnassigned = unassigned.some((u) => u.id === id);
+            if (newVal === currentUserId && !isUnassigned) {
+              return res.status(403).json({ message: "Can only add unassigned employees to your team" });
+            }
+            if (newVal === null && !inMyTeam) {
+              return res.status(403).json({ message: "Can only remove employees from your own team" });
+            }
+            data.teamLeadId = newVal;
+          } else {
+            return res.status(403).json({ message: "You can only add or remove employees to/from your own team" });
+          }
+        }
       }
+      if (Object.keys(data).length === 0) return res.status(400).json({ message: "No valid fields to update" });
       const updated = await storage.updateUser(id, data as any);
       if (!updated) return res.status(500).json({ message: "Update failed" });
       res.json({
@@ -510,6 +702,7 @@ export async function registerRoutes(
         phone: updated.phone ?? null,
         employeeNumber: (updated as any).employeeNumber ?? null,
         monthlyLeadTarget: (updated as any).monthlyLeadTarget ?? null,
+        teamLeadId: (updated as any).teamLeadId ?? null,
       });
     } catch (e) {
       next(e);
@@ -586,10 +779,21 @@ export async function registerRoutes(
     }
   });
 
-  // --- Staff: employees (admin only) ---
-  app.get("/api/staff/employees", requireAuth, requireAdmin, async (req, res, next) => {
+  // --- Staff: employees (admin: all; team_lead: their team or unassigned list) ---
+  app.get("/api/staff/employees", requireAuth, requireAdminOrTeamLead, async (req, res, next) => {
     try {
-      const list = await storage.listEmployees();
+      const role = (req.user as any).role;
+      const unassignedOnly = (req.query.unassigned as string) === "1";
+      let list;
+      if (role === "admin") {
+        list = await storage.listEmployees();
+      } else if (role === "team_lead") {
+        list = unassignedOnly
+          ? await storage.listEmployees({ unassignedOnly: true })
+          : await storage.listEmployees({ teamLeadId: (req.user as any).id });
+      } else {
+        list = [];
+      }
       res.json(
         list.map((u) => ({
           id: u.id,
@@ -600,6 +804,22 @@ export async function registerRoutes(
           phone: u.phone ?? null,
           employeeNumber: (u as any).employeeNumber ?? null,
           monthlyLeadTarget: (u as any).monthlyLeadTarget ?? null,
+          teamLeadId: (u as any).teamLeadId ?? null,
+        }))
+      );
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/team-leads", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const list = await storage.listTeamLeads();
+      res.json(
+        list.map((u) => ({
+          id: u.id,
+          username: u.username,
+          fullName: u.fullName ?? null,
         }))
       );
     } catch (e) {
@@ -623,14 +843,17 @@ export async function registerRoutes(
       const email = typeof body.email === "string" ? body.email.trim() || null : null;
       const phone = typeof body.phone === "string" ? body.phone.trim() || null : null;
       const monthlyLeadTarget = body.monthlyLeadTarget != null ? Number(body.monthlyLeadTarget) : undefined;
+      const role = body.role === "team_lead" ? "team_lead" : "employee";
+      const teamLeadId = body.teamLeadId != null && body.teamLeadId !== "" ? String(body.teamLeadId) : undefined;
       const user = await storage.createUser({
         username,
         password,
-        role: "employee",
+        role,
         fullName,
         email,
         phone,
         ...(monthlyLeadTarget != null && !Number.isNaN(monthlyLeadTarget) ? { monthlyLeadTarget } : {}),
+        ...(teamLeadId && role === "employee" ? { teamLeadId } : {}),
       } as any);
       res.status(201).json({
         id: user.id,
@@ -640,17 +863,21 @@ export async function registerRoutes(
         email: user.email ?? null,
         phone: user.phone ?? null,
         monthlyLeadTarget: (user as any).monthlyLeadTarget ?? null,
+        teamLeadId: (user as any).teamLeadId ?? null,
       });
     } catch (e) {
       next(e);
     }
   });
 
-  // --- Staff: dashboard summary (admin only) ---
-  app.get("/api/staff/dashboard", requireAuth, requireAdmin, async (req, res, next) => {
+  // --- Staff: dashboard summary (admin or team_lead; team_lead sees only their team) ---
+  app.get("/api/staff/dashboard", requireAuth, requireAdminOrTeamLead, async (req, res, next) => {
     try {
       const today = todayStr();
-      const employees = await storage.listEmployees();
+      const visibleIds = await getVisibleEmployeeIds(req);
+      const employees = visibleIds === null
+        ? await storage.listEmployees()
+        : await storage.listEmployees({ teamLeadId: (req.user as any).id });
       const byId: Record<string, { name: string; number: string }> = {};
       for (const u of employees) {
         byId[u.id] = {
@@ -661,6 +888,8 @@ export async function registerRoutes(
       const allAttendance = await storage.getAllAttendanceLogs(today, today);
       const allLeads = await storage.getAllLeads({ fromDate: today, toDate: today });
       const closures = await storage.getAllLeads({ status: "closed_won" });
+      const filterByVisible = <T extends { employeeId: string }>(arr: T[]): T[] =>
+        visibleIds === null ? arr : arr.filter((x) => visibleIds.includes(x.employeeId));
       const fourteenDaysAgo = new Date();
       fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 13);
       const thirtyDaysAgo = new Date();
@@ -668,6 +897,7 @@ export async function registerRoutes(
       const from14 = fourteenDaysAgo.toISOString().slice(0, 10);
       const from30 = thirtyDaysAgo.toISOString().slice(0, 10);
       const leadsLast30 = await storage.getAllLeads({ fromDate: from30, toDate: today });
+      const leadsLast30Filtered = filterByVisible(leadsLast30);
       const byDate: Record<string, number> = {};
       for (let i = 0; i < 14; i++) {
         const d = new Date();
@@ -676,7 +906,7 @@ export async function registerRoutes(
       }
       const byStatus: Record<string, number> = {};
       const byEmployee: Record<string, number> = {};
-      for (const l of leadsLast30) {
+      for (const l of leadsLast30Filtered) {
         const dateStr = String(l.date).slice(0, 10);
         if (dateStr >= from14) byDate[dateStr] = (byDate[dateStr] ?? 0) + 1;
         const st = (l.status || "open").toLowerCase();
@@ -693,24 +923,137 @@ export async function registerRoutes(
         employeeNumber: byId[id]?.number ?? "",
         count,
       }));
+      const attendanceTodayFiltered = filterByVisible(allAttendance);
+      const leadsTodayFiltered = filterByVisible(allLeads);
+      const closuresFiltered = filterByVisible(closures);
       res.json({
         today,
         employeeCount: employees.length,
-        attendanceToday: allAttendance.map((a) => ({
+        attendanceToday: attendanceTodayFiltered.map((a) => ({
           ...a,
           employeeName: byId[a.employeeId]?.name ?? a.employeeId,
           employeeNumber: byId[a.employeeId]?.number ?? "",
         })),
-        leadsToday: allLeads.map((l) => ({
+        leadsToday: leadsTodayFiltered.map((l) => ({
           ...l,
           employeeName: byId[l.employeeId]?.name ?? l.employeeId,
           employeeNumber: byId[l.employeeId]?.number ?? "",
         })),
-        totalClosures: closures.length,
+        totalClosures: closuresFiltered.length,
         leadsLast14Days,
         leadsByStatus,
         leadsByEmployee,
       });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // --- Staff: export monthly data (Excel / PDF) ---
+  app.get("/api/staff/export/monthly", requireAuth, requireAdminOrTeamLead, async (req, res, next) => {
+    try {
+      const format = (req.query.format as string)?.toLowerCase();
+      const monthParam = (req.query.month as string)?.trim();
+      const employeeId = (req.query.employeeId as string) || undefined;
+      if (!format || !["xlsx", "pdf"].includes(format)) {
+        return res.status(400).json({ message: "Query param format must be xlsx or pdf" });
+      }
+      let year: number; let month: number;
+      if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
+        const [y, m] = monthParam.split("-").map(Number);
+        year = y; month = m - 1;
+      } else {
+        const now = new Date();
+        year = now.getFullYear(); month = now.getMonth();
+      }
+      const monthStart = new Date(year, month, 1).toISOString().slice(0, 10);
+      const monthEnd = new Date(year, month + 1, 0).toISOString().slice(0, 10);
+      const visibleIds = await getVisibleEmployeeIds(req);
+      const employees = visibleIds === null
+        ? await storage.listEmployees()
+        : await storage.listEmployees({ teamLeadId: (req.user as any).id });
+      const filtered = employeeId && (visibleIds === null || visibleIds.includes(employeeId))
+        ? employees.filter((u) => u.id === employeeId)
+        : employees;
+      const monthLabel = new Date(year, month, 1).toLocaleString("default", { month: "long", year: "numeric" });
+      const rows: { employeeId: string; employeeNumber: string; name: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number }[] = [];
+      for (const u of filtered) {
+        const uid = u.id;
+        const att = await storage.getAttendanceLogsByEmployee(uid, monthStart, monthEnd);
+        const daysPresent = att.filter((a) => (a.status || "").toLowerCase() === "present").length;
+        const leadsList = await storage.getLeadsByEmployee(uid, monthStart, monthEnd);
+        const insList = await storage.getInsuranceLeadsByEmployee(uid, monthStart, monthEnd);
+        const leaveList = await storage.getLeaveRequestsByEmployee(uid, monthStart, monthEnd);
+        const approvedLeave = leaveList.filter((l) => (l.status || "").toLowerCase() === "approved");
+        let leaveDays = 0;
+        for (const lv of approvedLeave) {
+          const start = new Date(String(lv.startDate));
+          const end = new Date(String(lv.endDate));
+          const msStart = new Date(year, month, 1).getTime();
+          const msEnd = new Date(year, month + 1, 0).getTime();
+          for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const t = d.getTime();
+            if (t >= msStart && t <= msEnd) leaveDays++;
+          }
+        }
+        rows.push({
+          employeeId: uid,
+          employeeNumber: (u as any).employeeNumber ?? "",
+          name: (u as any).fullName?.trim() || u.username || "",
+          daysPresent,
+          leadsCount: leadsList.length,
+          insuranceLeadsCount: insList.length,
+          leaveDays,
+        });
+      }
+      if (format === "xlsx") {
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet("Monthly Report");
+        sheet.columns = [
+          { header: "Employee ID", key: "employeeNumber", width: 14 },
+          { header: "Name", key: "name", width: 24 },
+          { header: "Days Present", key: "daysPresent", width: 14 },
+          { header: "Loan Leads", key: "leadsCount", width: 12 },
+          { header: "Insurance Leads", key: "insuranceLeadsCount", width: 16 },
+          { header: "Leave Days", key: "leaveDays", width: 12 },
+        ];
+        sheet.addRows(rows);
+        sheet.getRow(1).font = { bold: true };
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", `attachment; filename="monthly-report-${monthParam || `${year}-${String(month + 1).padStart(2, "0")}`}.xlsx"`);
+        const buffer = await workbook.xlsx.writeBuffer();
+        res.send(Buffer.from(buffer));
+        return;
+      }
+      if (format === "pdf") {
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="monthly-report-${monthParam || `${year}-${String(month + 1).padStart(2, "0")}`}.pdf"`);
+        const doc = new PDFDocument({ margin: 50 });
+        doc.pipe(res);
+        doc.fontSize(16).text(`Monthly Report – ${monthLabel}`, { align: "center" });
+        doc.moveDown();
+        doc.fontSize(10);
+        const tableTop = doc.y;
+        doc.text("Employee ID", 50, tableTop);
+        doc.text("Name", 120, tableTop);
+        doc.text("Present", 260, tableTop);
+        doc.text("Leads", 320, tableTop);
+        doc.text("Ins. Leads", 380, tableTop);
+        doc.text("Leave", 450, tableTop);
+        doc.moveDown(0.5);
+        let y = doc.y;
+        for (const r of rows) {
+          doc.text(r.employeeNumber, 50, y);
+          doc.text(r.name.slice(0, 22), 120, y);
+          doc.text(String(r.daysPresent), 260, y);
+          doc.text(String(r.leadsCount), 320, y);
+          doc.text(String(r.insuranceLeadsCount), 380, y);
+          doc.text(String(r.leaveDays), 450, y);
+          y += 20;
+        }
+        doc.end();
+        return;
+      }
     } catch (e) {
       next(e);
     }

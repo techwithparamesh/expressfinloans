@@ -7,12 +7,15 @@ import {
   type InsertLead,
   type InsuranceLead,
   type InsertInsuranceLead,
+  type LeaveRequest,
+  type InsertLeaveRequest,
   users,
   attendanceLogs,
   leads,
   insuranceLeads,
+  leaveRequests,
 } from "@shared/schema";
-import { eq, and, desc, gte, lte } from "drizzle-orm";
+import { eq, and, desc, gte, lte, isNull, inArray } from "drizzle-orm";
 import { db, hasDb } from "./db";
 import { hashPassword } from "./lib/password";
 
@@ -20,10 +23,11 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser & { password: string }): Promise<User>;
-  updateUser(id: string, data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget">>): Promise<User | undefined>;
+  updateUser(id: string, data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget" | "teamLeadId">>): Promise<User | undefined>;
   deleteUser(id: string): Promise<void>;
   getNextEmployeeNumber(): Promise<string>;
   backfillEmployeeNumbers(): Promise<void>;
+  listEmployees(filters?: { teamLeadId?: string; unassignedOnly?: boolean }): Promise<User[]>;
 
   getAttendanceLog(employeeId: string, date: string): Promise<AttendanceLog | undefined>;
   getAttendanceLogsByEmployee(employeeId: string, fromDate?: string, toDate?: string): Promise<AttendanceLog[]>;
@@ -39,7 +43,8 @@ export interface IStorage {
   getAllLeads(filters?: { employeeId?: string; fromDate?: string; toDate?: string; status?: string }): Promise<Lead[]>;
   updateLead(id: string, data: Partial<InsertLead>): Promise<Lead | undefined>;
   deleteLead(id: string): Promise<void>;
-  listEmployees(): Promise<User[]>;
+  listEmployees(filters?: { teamLeadId?: string; unassignedOnly?: boolean }): Promise<User[]>;
+  listTeamLeads(): Promise<User[]>;
   getLeadsCountForEmployeeOnDate(employeeId: string, dateStr: string): Promise<number>;
 
   createInsuranceLead(data: InsertInsuranceLead): Promise<InsuranceLead>;
@@ -48,6 +53,12 @@ export interface IStorage {
   getAllInsuranceLeads(filters?: { employeeId?: string; fromDate?: string; toDate?: string }): Promise<InsuranceLead[]>;
   updateInsuranceLead(id: string, data: Partial<InsertInsuranceLead>): Promise<InsuranceLead | undefined>;
   deleteInsuranceLead(id: string): Promise<void>;
+
+  createLeaveRequest(data: InsertLeaveRequest): Promise<LeaveRequest>;
+  getLeaveRequest(id: string): Promise<LeaveRequest | undefined>;
+  getLeaveRequestsByEmployee(employeeId: string, fromDate?: string, toDate?: string): Promise<LeaveRequest[]>;
+  getLeaveRequestsForApproval(employeeIds: string[], filters?: { status?: string; fromDate?: string; toDate?: string }): Promise<LeaveRequest[]>;
+  updateLeaveRequest(id: string, data: Partial<Pick<LeaveRequest, "status" | "approvedById" | "approvedAt">>): Promise<LeaveRequest | undefined>;
 }
 
 async function guardDb() {
@@ -106,6 +117,8 @@ export class DrizzleStorage implements IStorage {
       values.employeeNumber = await this.getNextEmployeeNumber();
       const target = (data as any).monthlyLeadTarget;
       if (target !== undefined && target !== null) values.monthlyLeadTarget = Number(target);
+      const tlId = (data as any).teamLeadId;
+      if (tlId !== undefined && tlId !== null) values.teamLeadId = tlId;
     }
     await db.insert(users).values(values as any);
     const [u] = await db.select().from(users).where(eq(users.username, data.username)).limit(1);
@@ -115,7 +128,7 @@ export class DrizzleStorage implements IStorage {
 
   async updateUser(
     id: string,
-    data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget">>
+    data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget" | "teamLeadId">>
   ): Promise<User | undefined> {
     await guardDb();
     const payload: Record<string, unknown> = { ...data };
@@ -321,15 +334,28 @@ export class DrizzleStorage implements IStorage {
 
   async deleteUser(id: string): Promise<void> {
     await guardDb();
+    await db.delete(leaveRequests).where(eq(leaveRequests.employeeId, id));
     await db.delete(leads).where(eq(leads.employeeId, id));
     await db.delete(insuranceLeads).where(eq(insuranceLeads.employeeId, id));
     await db.delete(attendanceLogs).where(eq(attendanceLogs.employeeId, id));
     await db.delete(users).where(eq(users.id, id));
   }
 
-  async listEmployees(): Promise<User[]> {
+  async listEmployees(filters?: { teamLeadId?: string; unassignedOnly?: boolean }): Promise<User[]> {
     await guardDb();
-    return db.select().from(users).where(eq(users.role, "employee")).orderBy(users.fullName, users.username);
+    const baseCondition = eq(users.role, "employee");
+    if (filters?.unassignedOnly) {
+      return db.select().from(users).where(and(baseCondition, isNull(users.teamLeadId))).orderBy(users.fullName, users.username);
+    }
+    if (filters?.teamLeadId) {
+      return db.select().from(users).where(and(baseCondition, eq(users.teamLeadId, filters.teamLeadId))).orderBy(users.fullName, users.username);
+    }
+    return db.select().from(users).where(baseCondition).orderBy(users.fullName, users.username);
+  }
+
+  async listTeamLeads(): Promise<User[]> {
+    await guardDb();
+    return db.select().from(users).where(eq(users.role, "team_lead")).orderBy(users.fullName, users.username);
   }
 
   async getLeadsCountForEmployeeOnDate(employeeId: string, dateStr: string): Promise<number> {
@@ -404,6 +430,59 @@ export class DrizzleStorage implements IStorage {
   async deleteInsuranceLead(id: string): Promise<void> {
     await guardDb();
     await db.delete(insuranceLeads).where(eq(insuranceLeads.id, id));
+  }
+
+  async createLeaveRequest(data: InsertLeaveRequest): Promise<LeaveRequest> {
+    await guardDb();
+    const id = crypto.randomUUID();
+    await db.insert(leaveRequests).values({ ...data, id } as any);
+    const row = await this.getLeaveRequest(id);
+    if (!row) throw new Error("Failed to create leave request");
+    return row;
+  }
+
+  async getLeaveRequest(id: string): Promise<LeaveRequest | undefined> {
+    await guardDb();
+    const [r] = await db.select().from(leaveRequests).where(eq(leaveRequests.id, id)).limit(1);
+    return r;
+  }
+
+  async getLeaveRequestsByEmployee(employeeId: string, fromDate?: string, toDate?: string): Promise<LeaveRequest[]> {
+    await guardDb();
+    const conditions = [eq(leaveRequests.employeeId, employeeId)];
+    if (fromDate) conditions.push(gte(leaveRequests.startDate, fromDate));
+    if (toDate) conditions.push(lte(leaveRequests.endDate, toDate));
+    return db
+      .select()
+      .from(leaveRequests)
+      .where(and(...conditions))
+      .orderBy(desc(leaveRequests.startDate), desc(leaveRequests.createdAt));
+  }
+
+  async getLeaveRequestsForApproval(
+    employeeIds: string[],
+    filters?: { status?: string; fromDate?: string; toDate?: string }
+  ): Promise<LeaveRequest[]> {
+    await guardDb();
+    if (employeeIds.length === 0) return [];
+    const conditions = [inArray(leaveRequests.employeeId, employeeIds)];
+    if (filters?.status) conditions.push(eq(leaveRequests.status, filters.status as any));
+    if (filters?.fromDate) conditions.push(gte(leaveRequests.endDate, filters.fromDate));
+    if (filters?.toDate) conditions.push(lte(leaveRequests.startDate, filters.toDate));
+    return db
+      .select()
+      .from(leaveRequests)
+      .where(and(...conditions))
+      .orderBy(desc(leaveRequests.createdAt));
+  }
+
+  async updateLeaveRequest(
+    id: string,
+    data: Partial<Pick<LeaveRequest, "status" | "approvedById" | "approvedAt">>
+  ): Promise<LeaveRequest | undefined> {
+    await guardDb();
+    await db.update(leaveRequests).set({ ...data, updatedAt: new Date() }).where(eq(leaveRequests.id, id));
+    return this.getLeaveRequest(id);
   }
 }
 
@@ -491,6 +570,30 @@ class NoDbStorage implements IStorage {
   async listEmployees() {
     this.guard();
     return [];
+  }
+  async listTeamLeads() {
+    this.guard();
+    return [];
+  }
+  async createLeaveRequest() {
+    this.guard();
+    throw new Error("Not implemented");
+  }
+  async getLeaveRequest() {
+    this.guard();
+    return undefined;
+  }
+  async getLeaveRequestsByEmployee() {
+    this.guard();
+    return [];
+  }
+  async getLeaveRequestsForApproval() {
+    this.guard();
+    return [];
+  }
+  async updateLeaveRequest() {
+    this.guard();
+    return undefined;
   }
   async getLeadsCountForEmployeeOnDate() {
     this.guard();

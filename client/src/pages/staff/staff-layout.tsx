@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Users,
   Calendar,
+  CalendarCheck,
   FileText,
   User,
   LogOut,
@@ -109,15 +110,20 @@ export default function StaffLayout({
   }
 
   const isAdmin = user.role === "admin";
+  const isTeamLead = user.role === "team_lead";
+  const isEmployee = user.role === "employee";
   const nav = [
-    ...(isAdmin ? [{ href: path(basePath, "/dashboard"), label: "Dashboard", icon: LayoutDashboard }] : []),
-    ...(!isAdmin ? [{ href: path(basePath, "/my-dashboard"), label: "My dashboard", icon: LayoutDashboard }] : []),
+    ...(isAdmin || isTeamLead ? [{ href: path(basePath, "/dashboard"), label: "Dashboard", icon: LayoutDashboard }] : []),
+    ...(isEmployee ? [{ href: path(basePath, "/my-dashboard"), label: "My dashboard", icon: LayoutDashboard }] : []),
     ...(isAdmin ? [{ href: path(basePath, "/employees"), label: "Employees", icon: Users }] : []),
-    ...(isAdmin ? [{ href: path(basePath, "/attendance"), label: "Attendance", icon: Calendar }] : []),
-    ...(isAdmin ? [{ href: path(basePath, "/leads"), label: "Loan leads", icon: FileText }] : []),
-    ...(isAdmin ? [{ href: path(basePath, "/insurance-leads"), label: "Insurance leads", icon: Shield }] : []),
-    ...(!isAdmin ? [{ href: path(basePath, "/my-leads"), label: "My leads", icon: ClipboardList }] : []),
-    ...(!isAdmin ? [{ href: path(basePath, "/my-attendance"), label: "My attendance", icon: Calendar }] : []),
+    ...(isTeamLead ? [{ href: path(basePath, "/my-team"), label: "My team", icon: Users }] : []),
+    ...(isAdmin || isTeamLead ? [{ href: path(basePath, "/attendance"), label: "Attendance", icon: Calendar }] : []),
+    ...(isAdmin || isTeamLead ? [{ href: path(basePath, "/leads"), label: "Loan leads", icon: FileText }] : []),
+    ...(isAdmin || isTeamLead ? [{ href: path(basePath, "/insurance-leads"), label: "Insurance leads", icon: Shield }] : []),
+    ...(isAdmin || isTeamLead ? [{ href: path(basePath, "/leave-requests"), label: "Leave requests", icon: CalendarCheck }] : []),
+    ...(isEmployee ? [{ href: path(basePath, "/my-leads"), label: "My leads", icon: ClipboardList }] : []),
+    ...(isEmployee ? [{ href: path(basePath, "/my-attendance"), label: "My attendance", icon: Calendar }] : []),
+    ...(isEmployee ? [{ href: path(basePath, "/my-leave"), label: "My leave", icon: CalendarCheck }] : []),
     { href: path(basePath, "/profile"), label: "Profile", icon: User },
   ];
 
@@ -125,7 +131,7 @@ export default function StaffLayout({
 
   return (
     <>
-      {!isAdmin && <MonthlyTargetPopup />}
+      {isEmployee && <MonthlyTargetPopup />}
       <div className="min-h-screen flex bg-slate-100">
         {sidebarOpen && (
           <button

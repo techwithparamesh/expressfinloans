@@ -12,6 +12,9 @@ import StaffEmployees from "./staff-employees";
 import StaffAttendance from "./staff-attendance";
 import StaffLeads from "./staff-leads";
 import StaffInsuranceLeads from "./staff-insurance-leads";
+import StaffMyTeam from "./staff-my-team";
+import StaffMyLeave from "./staff-my-leave";
+import StaffLeaveRequests from "./staff-leave-requests";
 
 function StaffRedirect({ to }: { to: string }) {
   const [, setLocation] = useLocation();
@@ -50,7 +53,8 @@ export default function StaffApp({ basePath = "/staff" }: { basePath?: string })
   }
 
   if (user && location === loginPath) {
-    setLocation(user.role === "admin" ? dashboardPath : myDashboardPath);
+    const dest = user.role === "admin" || user.role === "team_lead" ? dashboardPath : myDashboardPath;
+    setLocation(dest);
     return null;
   }
 
@@ -64,14 +68,17 @@ export default function StaffApp({ basePath = "/staff" }: { basePath?: string })
         <Route path={p(basePath, "/dashboard")} component={StaffDashboard} />
         <Route path={p(basePath, "/my-dashboard")} component={StaffMyDashboard} />
         <Route path={p(basePath, "/employees")} component={StaffEmployees} />
+        <Route path={p(basePath, "/my-team")} component={StaffMyTeam} />
         <Route path={p(basePath, "/attendance")} component={StaffAttendance} />
         <Route path={p(basePath, "/leads")} component={StaffLeads} />
         <Route path={p(basePath, "/insurance-leads")} component={StaffInsuranceLeads} />
+        <Route path={p(basePath, "/leave-requests")} component={StaffLeaveRequests} />
         <Route path={p(basePath, "/my-leads")} component={StaffMyLeads} />
         <Route path={p(basePath, "/my-attendance")} component={StaffMyAttendance} />
+        <Route path={p(basePath, "/my-leave")} component={StaffMyLeave} />
         <Route path={p(basePath, "/profile")} component={StaffProfile} />
         <Route path={basePath || "/"}>
-          <StaffRedirect to={user.role === "admin" ? dashboardPath : myDashboardPath} />
+          <StaffRedirect to={user.role === "admin" || user.role === "team_lead" ? dashboardPath : myDashboardPath} />
         </Route>
       </Switch>
     </StaffLayout>

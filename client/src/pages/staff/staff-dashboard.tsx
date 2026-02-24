@@ -9,9 +9,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { getAuthMe, staffJson } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
-import { Users, Calendar, FileText, CheckCircle, Filter } from "lucide-react";
+import { Users, Calendar, FileText, CheckCircle, Filter, Download } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
 type Dashboard = {
@@ -36,6 +38,11 @@ export default function StaffDashboard() {
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [staffChartFilter, setStaffChartFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
+  const [exportMonth, setExportMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [exporting, setExporting] = useState<string | null>(null);
 
   useEffect(() => {
     getAuthMe().then((res) => setUser(res?.user ?? null));
@@ -81,12 +88,33 @@ export default function StaffDashboard() {
     chartDataFiltered.length <= 2 ? 160 : Math.min(400, Math.max(240, chartDataFiltered.length * 48));
 
   const displayName = user?.fullName || user?.username || "Admin";
+  const roleLabel = user?.role === "team_lead" ? "Team Lead" : "Admin";
+
+  async function handleExport(format: "xlsx" | "pdf") {
+    setExporting(format);
+    try {
+      const url = `/api/staff/export/monthly?format=${format}&month=${exportMonth}`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const ext = format === "xlsx" ? "xlsx" : "pdf";
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `monthly-report-${exportMonth}.${ext}`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      // ignore
+    } finally {
+      setExporting(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Welcome, {displayName}</h1>
-        <p className="text-slate-600 mt-0.5">Admin · Dashboard</p>
+        <p className="text-slate-600 mt-0.5">{roleLabel} · Dashboard</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -127,6 +155,33 @@ export default function StaffDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="h-5 w-5" />
+            Export monthly data
+          </CardTitle>
+          <CardDescription>Download employee monthly data (attendance, leads, leave) in Excel or PDF.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-end gap-4">
+          <div className="space-y-2">
+            <Label>Month</Label>
+            <Input
+              type="month"
+              value={exportMonth}
+              onChange={(e) => setExportMonth(e.target.value)}
+              className="w-[160px]"
+            />
+          </div>
+          <Button onClick={() => handleExport("xlsx")} disabled={!!exporting} variant="outline">
+            {exporting === "xlsx" ? "Exporting…" : "Download Excel"}
+          </Button>
+          <Button onClick={() => handleExport("pdf")} disabled={!!exporting}>
+            {exporting === "pdf" ? "Exporting…" : "Download PDF"}
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="space-y-4">

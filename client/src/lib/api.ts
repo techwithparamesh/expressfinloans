@@ -3,7 +3,7 @@ const API = "/api";
 export type StaffUser = {
   id: string;
   username: string;
-  role: "admin" | "employee";
+  role: "admin" | "team_lead" | "employee";
   fullName?: string | null;
   email?: string | null;
   phone?: string | null;

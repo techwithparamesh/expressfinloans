@@ -227,6 +227,41 @@ ALTER TABLE users ADD COLUMN monthly_lead_target INT NULL;
 
 If omitted, the app uses a default of 20. Admins can set it when creating or editing an employee (Employees → Edit).
 
+**Team Lead role and team assignment:** To add the Team Lead role and assign employees to a team lead, run:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE users ADD COLUMN team_lead_id VARCHAR(36) NULL;
+ALTER TABLE users ADD CONSTRAINT fk_users_team_lead FOREIGN KEY (team_lead_id) REFERENCES users(id) ON DELETE SET NULL;
+```
+
+(If you use `npm run db:push`, Drizzle will add the column. You can skip the constraint if Drizzle manages it.)
+
+**Leave requests table:** For leave request and approval (employee applies, team lead approves), create the table:
+
+```sql
+USE expressfinloans;
+
+CREATE TABLE IF NOT EXISTS leave_requests (
+  id VARCHAR(36) PRIMARY KEY,
+  employee_id VARCHAR(36) NOT NULL,
+  leave_type VARCHAR(50) NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  reason TEXT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  approved_by_id VARCHAR(36) NULL,
+  approved_at TIMESTAMP NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_leave_employee FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_leave_approved_by FOREIGN KEY (approved_by_id) REFERENCES users(id) ON DELETE SET NULL
+);
+```
+
+(Skip if you use `npm run db:push`; Drizzle will create the table from the schema.)
+
 (Skip any column that already exists, or run one `ADD COLUMN` per line if your MySQL reports "Duplicate column".)
 
 **Quick reference – what you might be missing**

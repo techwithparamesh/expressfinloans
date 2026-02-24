@@ -21,6 +21,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { staffJson, staffFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -33,10 +40,16 @@ type Employee = {
   phone: string | null;
   employeeNumber: string | null;
   monthlyLeadTarget: number | null;
+  teamLeadId: string | null;
 };
+
+type TeamLead = { id: string; username: string; fullName: string | null };
 
 function fetchEmployees() {
   return staffJson<Employee[]>("/staff/employees").catch(() => []);
+}
+function fetchTeamLeads() {
+  return staffJson<TeamLead[]>("/staff/team-leads").catch(() => []);
 }
 
 export default function StaffEmployees() {
@@ -51,8 +64,11 @@ export default function StaffEmployees() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [monthlyLeadTarget, setMonthlyLeadTarget] = useState("");
+  const [createRole, setCreateRole] = useState<"employee" | "team_lead">("employee");
+  const [createTeamLeadId, setCreateTeamLeadId] = useState("");
+  const [teamLeads, setTeamLeads] = useState<TeamLead[]>([]);
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
-  const [editForm, setEditForm] = useState({ fullName: "", email: "", phone: "", monthlyLeadTarget: "" });
+  const [editForm, setEditForm] = useState({ fullName: "", email: "", phone: "", monthlyLeadTarget: "", teamLeadId: "" });
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
   const [savingDelete, setSavingDelete] = useState(false);
@@ -66,6 +82,7 @@ export default function StaffEmployees() {
 
   useEffect(() => {
     loadList();
+    fetchTeamLeads().then(setTeamLeads);
   }, []);
 
   function openDialog() {
@@ -75,6 +92,8 @@ export default function StaffEmployees() {
     setEmail("");
     setPhone("");
     setMonthlyLeadTarget("");
+    setCreateRole("employee");
+    setCreateTeamLeadId("");
     setDialogOpen(true);
   }
 
@@ -85,6 +104,7 @@ export default function StaffEmployees() {
       email: e.email ?? "",
       phone: e.phone ?? "",
       monthlyLeadTarget: e.monthlyLeadTarget != null ? String(e.monthlyLeadTarget) : "",
+      teamLeadId: e.teamLeadId ?? "",
     });
   }
 
@@ -93,15 +113,19 @@ export default function StaffEmployees() {
     if (!editEmployee) return;
     setSavingEdit(true);
     try {
+      const payload: Record<string, unknown> = {
+        fullName: editForm.fullName.trim() || null,
+        email: editForm.email.trim() || null,
+        phone: editForm.phone.trim() || null,
+        monthlyLeadTarget: editForm.monthlyLeadTarget.trim() ? Number(editForm.monthlyLeadTarget) : null,
+      };
+      if (editEmployee.role === "employee") {
+        payload.teamLeadId = editForm.teamLeadId.trim() || null;
+      }
       await staffJson<Employee>(`/staff/employees/${editEmployee.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fullName: editForm.fullName.trim() || null,
-          email: editForm.email.trim() || null,
-          phone: editForm.phone.trim() || null,
-          monthlyLeadTarget: editForm.monthlyLeadTarget.trim() ? Number(editForm.monthlyLeadTarget) : null,
-        }),
+        body: JSON.stringify(payload),
       });
       toast({ title: "Employee updated" });
       setEditEmployee(null);
@@ -136,17 +160,22 @@ export default function StaffEmployees() {
     }
     setSaving(true);
     try {
+      const body: Record<string, unknown> = {
+        username: username.trim(),
+        password,
+        role: createRole,
+        fullName: fullName.trim() || undefined,
+        email: email.trim() || undefined,
+        phone: phone.trim() || undefined,
+      };
+      if (createRole === "employee") {
+        if (monthlyLeadTarget.trim()) body.monthlyLeadTarget = Number(monthlyLeadTarget);
+        if (createTeamLeadId.trim()) body.teamLeadId = createTeamLeadId.trim();
+      }
       await staffJson<Employee>("/staff/employees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: username.trim(),
-          password,
-          fullName: fullName.trim() || undefined,
-          email: email.trim() || undefined,
-          phone: phone.trim() || undefined,
-          monthlyLeadTarget: monthlyLeadTarget.trim() ? Number(monthlyLeadTarget) : undefined,
-        }),
+        body: JSON.stringify(body),
       });
       toast({ title: "Staff created successfully" });
       setDialogOpen(false);
@@ -169,10 +198,27 @@ export default function StaffEmployees() {
         <h1 className="text-2xl font-bold">Employees</h1>
         <Button onClick={openDialog}>Add staff</Button>
       </div>
+      {teamLeads.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Team leads</CardTitle>
+            <CardDescription>{teamLeads.length} team lead(s). Assign employees to a team lead from the Edit action.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {teamLeads.map((t) => (
+                <span key={t.id} className="px-3 py-1.5 rounded-md bg-slate-100 text-sm">
+                  {t.fullName || t.username}
+                </span>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>All employees</CardTitle>
-          <CardDescription>Staff members. Only admin can create new staff. Staff can update their profile (name, email, phone) from Profile; updates are visible here.</CardDescription>
+          <CardDescription>Staff members. Create employees or team leads with Add staff. Assign employees to a team lead via Edit.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -183,6 +229,7 @@ export default function StaffEmployees() {
                   <th className="text-left py-2 px-2 min-w-[120px]">Name</th>
                   <th className="text-left py-2 px-2 min-w-[100px]">Username</th>
                   <th className="text-left py-2 px-2 min-w-[80px]">Role</th>
+                  <th className="text-left py-2 px-2 min-w-[100px]">Team lead</th>
                   <th className="text-left py-2 px-2 min-w-[72px]">Month target</th>
                   <th className="text-left py-2 px-2 min-w-[140px]">Email</th>
                   <th className="text-left py-2 px-2 min-w-[100px]">Phone</th>
@@ -192,7 +239,7 @@ export default function StaffEmployees() {
               <tbody>
                 {list.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-500">
+                    <td colSpan={9} className="py-8 text-center text-slate-500">
                       No employees yet. Add staff to get started.
                     </td>
                   </tr>
@@ -203,6 +250,7 @@ export default function StaffEmployees() {
                       <td className="py-2 px-2">{e.fullName ?? "—"}</td>
                       <td className="py-2 px-2">{e.username}</td>
                       <td className="py-2 px-2">{e.role}</td>
+                      <td className="py-2 px-2">{e.teamLeadId ? (teamLeads.find((t) => t.id === e.teamLeadId)?.fullName || teamLeads.find((t) => t.id === e.teamLeadId)?.username || "—") : "—"}</td>
                       <td className="py-2 px-2">{e.monthlyLeadTarget ?? "—"}</td>
                       <td className="py-2 px-2">{e.email ?? "—"}</td>
                       <td className="py-2 px-2">{e.phone ?? "—"}</td>
@@ -287,16 +335,48 @@ export default function StaffEmployees() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="new-monthlyTarget">Monthly lead target</Label>
-              <Input
-                id="new-monthlyTarget"
-                type="number"
-                min={1}
-                value={monthlyLeadTarget}
-                onChange={(e) => setMonthlyLeadTarget(e.target.value)}
-                placeholder="e.g. 20 (default if blank)"
-              />
+              <Label>Role</Label>
+              <Select value={createRole} onValueChange={(v: "employee" | "team_lead") => setCreateRole(v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="employee">Employee</SelectItem>
+                  <SelectItem value="team_lead">Team Lead</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+            {createRole === "employee" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="new-monthlyTarget">Monthly lead target</Label>
+                  <Input
+                    id="new-monthlyTarget"
+                    type="number"
+                    min={1}
+                    value={monthlyLeadTarget}
+                    onChange={(e) => setMonthlyLeadTarget(e.target.value)}
+                    placeholder="e.g. 20 (default if blank)"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Team lead</Label>
+                  <Select value={createTeamLeadId || "none"} onValueChange={(v) => setCreateTeamLeadId(v === "none" ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Unassigned" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Unassigned</SelectItem>
+                      {teamLeads.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.fullName || t.username}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
@@ -366,6 +446,27 @@ export default function StaffEmployees() {
                   placeholder="Optional"
                 />
               </div>
+              {editEmployee.role === "employee" && (
+                <div className="space-y-2">
+                  <Label>Team lead</Label>
+                  <Select
+                    value={editForm.teamLeadId || "none"}
+                    onValueChange={(v) => setEditForm((f) => ({ ...f, teamLeadId: v === "none" ? "" : v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Unassigned" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Unassigned</SelectItem>
+                      {teamLeads.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.fullName || t.username}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="edit-monthlyTarget">Monthly lead target</Label>
                 <Input
