@@ -173,7 +173,10 @@ export default function StaffDashboard() {
       </div>
 
       {user?.role === "team_lead" && data.overallTarget != null && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <>
+          <h2 className="text-lg font-semibold text-slate-800">Team targets &amp; achievement</h2>
+          <p className="text-sm text-slate-600 -mt-2 mb-1">Individual target, overall target, achievement and conveyance for your team this month. Add members in My team to set targets.</p>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Overall target</CardTitle>
@@ -205,41 +208,46 @@ export default function StaffDashboard() {
             </CardContent>
           </Card>
         </div>
+        </>
       )}
 
-      {user?.role === "team_lead" && (data.teamMembersSummary?.length ?? 0) > 0 && (
+      {user?.role === "team_lead" && data.teamMembersSummary && (
         <Card>
           <CardHeader>
             <CardTitle>Individual target</CardTitle>
             <CardDescription>Per-member target, leads this month, achievement and converted count for {data.monthLabel ?? "this month"}.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-slate-50">
-                    <th className="text-left p-3 font-medium min-w-[100px]">Employee ID</th>
-                    <th className="text-left p-3 font-medium min-w-[140px]">Name</th>
-                    <th className="text-left p-3 font-medium min-w-[90px]">Target</th>
-                    <th className="text-left p-3 font-medium min-w-[100px]">Leads this month</th>
-                    <th className="text-left p-3 font-medium min-w-[90px]">Achievement %</th>
-                    <th className="text-left p-3 font-medium min-w-[80px]">Converted</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(data.teamMembersSummary ?? []).map((m) => (
-                    <tr key={m.employeeId} className="border-b last:border-0">
-                      <td className="p-3">{m.employeeNumber || "—"}</td>
-                      <td className="p-3">{m.employeeName}</td>
-                      <td className="p-3">{m.monthlyTarget}</td>
-                      <td className="p-3">{m.leadsThisMonth}</td>
-                      <td className="p-3">{m.achievementPct}%</td>
-                      <td className="p-3">{m.leadsConverted}</td>
+            {data.teamMembersSummary.length === 0 ? (
+              <p className="text-slate-500 py-4">No team members yet. Add employees in My team to see individual targets here.</p>
+            ) : (
+              <div className="rounded-md border overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-slate-50">
+                      <th className="text-left p-3 font-medium min-w-[100px]">Employee ID</th>
+                      <th className="text-left p-3 font-medium min-w-[140px]">Name</th>
+                      <th className="text-left p-3 font-medium min-w-[90px]">Target</th>
+                      <th className="text-left p-3 font-medium min-w-[100px]">Leads this month</th>
+                      <th className="text-left p-3 font-medium min-w-[90px]">Achievement %</th>
+                      <th className="text-left p-3 font-medium min-w-[80px]">Converted</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {data.teamMembersSummary.map((m) => (
+                      <tr key={m.employeeId} className="border-b last:border-0">
+                        <td className="p-3">{m.employeeNumber || "—"}</td>
+                        <td className="p-3">{m.employeeName}</td>
+                        <td className="p-3">{m.monthlyTarget}</td>
+                        <td className="p-3">{m.leadsThisMonth}</td>
+                        <td className="p-3">{m.achievementPct}%</td>
+                        <td className="p-3">{m.leadsConverted}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -254,13 +262,18 @@ export default function StaffDashboard() {
         </CardHeader>
         <CardContent className="flex flex-wrap items-end gap-4">
           <div className="space-y-2">
-            <Label>Month</Label>
-            <Input
-              type="month"
-              value={exportMonth}
-              onChange={(e) => setExportMonth(e.target.value)}
-              className="w-[160px]"
-            />
+            <Label htmlFor="export-month">Month</Label>
+            <div className="relative flex items-center">
+              <Calendar className="absolute left-3 h-4 w-4 text-slate-500 pointer-events-none" aria-hidden />
+              <Input
+                id="export-month"
+                type="month"
+                value={exportMonth}
+                onChange={(e) => setExportMonth(e.target.value)}
+                className="w-full min-w-[200px] pl-10 pr-10 py-2.5 text-base"
+                style={{ colorScheme: "light" }}
+              />
+            </div>
           </div>
           <Button onClick={() => handleExport("xlsx")} disabled={!!exporting} variant="outline">
             {exporting === "xlsx" ? "Exporting…" : "Download Excel"}
@@ -276,13 +289,16 @@ export default function StaffDashboard() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle>Leads by staff</CardTitle>
-              <CardDescription>Lead count per employee. Last 30 days.</CardDescription>
+              <CardDescription>
+                Lead count per employee. Last 30 days.
+                {(user?.role === "admin" || user?.role === "team_lead") && " Filter by employee to track individual performance."}
+              </CardDescription>
             </div>
-            {employees.length > 0 && (
+            {(user?.role === "admin" || user?.role === "team_lead") && (
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-slate-500 shrink-0" />
                 <Label htmlFor="staff-chart-filter" className="text-sm text-slate-600">
-                  View:
+                  Track by employee:
                 </Label>
                 <Select
                   value={staffChartFilter}

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { staffJson } from "@/lib/api";
 
 type MonthlyTargetData = {
+  forTeamLead?: boolean;
   monthTarget: number;
   achievement: number;
   achievementPct: number;
@@ -60,20 +61,25 @@ export default function MonthlyTargetPopup() {
       .finally(() => setLoading(false));
   }, []);
 
+  const isTeamLead = data?.forTeamLead ?? false;
+  const title = isTeamLead ? "Team monthly target" : "Monthly Target";
+  const subtitle = isTeamLead
+    ? `Your team's performance for ${data?.monthLabel ?? "this month"}. Shown once per day.`
+    : `Your performance for ${data?.monthLabel ?? "this month"}. Shown once per day.`;
+  const conveyanceLabel = isTeamLead ? "Team conveyance" : "Your conveyance";
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Monthly Target</DialogTitle>
-          <DialogDescription>
-            Your performance for {data?.monthLabel ?? "this month"}. Shown once per day.
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{subtitle}</DialogDescription>
         </DialogHeader>
         {data && (
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-md border bg-muted/50 p-3">
-                <p className="text-muted-foreground">Month Target</p>
+                <p className="text-muted-foreground">{isTeamLead ? "Overall target" : "Month Target"}</p>
                 <p className="text-lg font-semibold">{data.monthTarget}</p>
               </div>
               <div className="rounded-md border bg-muted/50 p-3">
@@ -85,7 +91,7 @@ export default function MonthlyTargetPopup() {
                 <p className="text-lg font-semibold">{data.achievementPct}%</p>
               </div>
               <div className="rounded-md border bg-muted/50 p-3">
-                <p className="text-muted-foreground">Overall Leads Generated</p>
+                <p className="text-muted-foreground">{isTeamLead ? "Team leads generated" : "Overall Leads Generated"}</p>
                 <p className="text-lg font-semibold">{data.overallLeadsGenerated}</p>
               </div>
               <div className="rounded-md border bg-muted/50 p-3">
@@ -97,7 +103,7 @@ export default function MonthlyTargetPopup() {
                 <p className="text-lg font-semibold">{data.leadsOpen}</p>
               </div>
               <div className="col-span-2 rounded-md border bg-muted/50 p-3">
-                <p className="text-muted-foreground">Leads Sanction Amount</p>
+                <p className="text-muted-foreground">{isTeamLead ? "Team sanction amount" : "Leads Sanction Amount"}</p>
                 <p className="text-lg font-semibold">
                   ₹{data.sanctionAmount.toLocaleString("en-IN")}
                 </p>
@@ -112,7 +118,7 @@ export default function MonthlyTargetPopup() {
                 <li>• If you achieve 100% (irrespective of conversion) → 120% conveyance</li>
               </ul>
               <p className="mt-3 text-base font-semibold">
-                Your conveyance: <span className="text-primary">{data.conveyancePct}%</span>
+                {conveyanceLabel}: <span className="text-primary">{data.conveyancePct}%</span>
               </p>
             </div>
             <div className="flex justify-end">

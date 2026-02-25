@@ -28,8 +28,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { staffJson, staffFetch } from "@/lib/api";
+import { staffJson, staffFetch, getAuthMe } from "@/lib/api";
+import type { StaffUser } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
+import { Target } from "lucide-react";
 
 const RECONSIL_OPTIONS = ["Yes Received", "Not Revived", "Not as per Rate"] as const;
 const PAYMENT_STATUS_OPTIONS = ["Received", "Pending", "Not Received"] as const;
@@ -57,6 +60,7 @@ type Employee = { id: string; username: string; fullName: string | null; employe
 
 export default function StaffLeads() {
   const { toast } = useToast();
+  const [user, setUser] = useState<StaffUser | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +79,9 @@ export default function StaffLeads() {
     paymentStatus: "",
   });
 
+  useEffect(() => {
+    getAuthMe().then(setUser).catch(() => setUser(null));
+  }, []);
   useEffect(() => {
     staffJson<Employee[]>("/staff/employees").then(setEmployees).catch(() => setEmployees([]));
   }, []);
@@ -146,6 +153,17 @@ export default function StaffLeads() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Loan leads</h1>
+      {user?.role === "team_lead" && (
+        <Card className="border-blue-200 bg-blue-50/80">
+          <CardContent className="py-3 flex items-center gap-2 text-sm text-slate-700">
+            <Target className="h-4 w-4 text-blue-600 shrink-0" />
+            <span>
+              For <strong>team targets</strong>, <strong>overall target</strong>, <strong>achievement</strong> and <strong>conveyance</strong>, go to{" "}
+              <Link href="/staff/dashboard" className="text-blue-600 font-medium underline hover:no-underline">Dashboard</Link>.
+            </span>
+          </CardContent>
+        </Card>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>Filters</CardTitle>

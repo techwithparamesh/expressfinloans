@@ -127,7 +127,7 @@ export default function StaffLayout({
 
   return (
     <>
-      {isEmployee && <MonthlyTargetPopup />}
+      {(isEmployee || isTeamLead) && <MonthlyTargetPopup />}
       <div className="min-h-screen flex bg-slate-100">
         {sidebarOpen && (
           <button
