@@ -12,9 +12,19 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { getAuthMe, staffJson } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
-import { Users, Calendar, FileText, CheckCircle, Filter, Download } from "lucide-react";
+import { Users, Calendar, FileText, CheckCircle, Filter, Download, Target, TrendingUp, Percent } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
+
+type TeamMemberSummary = {
+  employeeId: string;
+  employeeName: string;
+  employeeNumber: string;
+  monthlyTarget: number;
+  leadsThisMonth: number;
+  achievementPct: number;
+  leadsConverted: number;
+};
 
 type Dashboard = {
   today: string;
@@ -23,6 +33,12 @@ type Dashboard = {
   leadsToday: { id: string; employeeId: string; employeeName: string; employeeNumber: string; date: string; customerName: string | null; status: string }[];
   totalClosures: number;
   leadsByEmployee?: { employeeId: string; employeeName: string; employeeNumber: string; count: number }[];
+  overallTarget?: number;
+  teamLeadsThisMonth?: number;
+  achievementPct?: number;
+  conveyancePct?: number;
+  teamMembersSummary?: TeamMemberSummary[];
+  monthLabel?: string;
 };
 
 type EmployeeOption = {
@@ -155,6 +171,78 @@ export default function StaffDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {user?.role === "team_lead" && data.overallTarget != null && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Overall target</CardTitle>
+              <Target className="h-4 w-4 text-slate-500" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{data.overallTarget}</p>
+              <p className="text-xs text-slate-500">{data.monthLabel ?? "This month"}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Achievement</CardTitle>
+              <TrendingUp className="h-4 w-4 text-slate-500" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{data.achievementPct ?? 0}%</p>
+              <p className="text-xs text-slate-500">{data.teamLeadsThisMonth ?? 0} of {data.overallTarget} leads</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Conveyance</CardTitle>
+              <Percent className="h-4 w-4 text-slate-500" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{data.conveyancePct ?? 0}%</p>
+              <p className="text-xs text-slate-500">Based on target &amp; converted leads</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {user?.role === "team_lead" && (data.teamMembersSummary?.length ?? 0) > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Individual target</CardTitle>
+            <CardDescription>Per-member target, leads this month, achievement and converted count for {data.monthLabel ?? "this month"}.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-slate-50">
+                    <th className="text-left p-3 font-medium min-w-[100px]">Employee ID</th>
+                    <th className="text-left p-3 font-medium min-w-[140px]">Name</th>
+                    <th className="text-left p-3 font-medium min-w-[90px]">Target</th>
+                    <th className="text-left p-3 font-medium min-w-[100px]">Leads this month</th>
+                    <th className="text-left p-3 font-medium min-w-[90px]">Achievement %</th>
+                    <th className="text-left p-3 font-medium min-w-[80px]">Converted</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data.teamMembersSummary ?? []).map((m) => (
+                    <tr key={m.employeeId} className="border-b last:border-0">
+                      <td className="p-3">{m.employeeNumber || "—"}</td>
+                      <td className="p-3">{m.employeeName}</td>
+                      <td className="p-3">{m.monthlyTarget}</td>
+                      <td className="p-3">{m.leadsThisMonth}</td>
+                      <td className="p-3">{m.achievementPct}%</td>
+                      <td className="p-3">{m.leadsConverted}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

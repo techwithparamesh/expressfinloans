@@ -104,7 +104,7 @@ export default function StaffLogin({ basePath = "/staff" }: { basePath?: string 
 
           <div className="relative">
             <h1 className="text-2xl font-semibold text-white tracking-tight text-center mb-1">
-              Staff portal
+              Express Staff Portal
             </h1>
             <p className="text-sm text-white/60 text-center mb-8">
               Sign in with your username and password

@@ -23,18 +23,14 @@ const path = (base: string, p: string) => (base ? `${base}${p}` : p);
 
 function CompanyLogo({ variant = "dark" }: { variant?: "dark" | "light" }) {
   const isDark = variant === "dark";
+  // One line: larger font on mobile (light = header), slightly smaller in sidebar (dark)
+  const fontSize = isDark ? "0.85rem" : "1.1rem";
   return (
-    <div className="flex flex-col leading-tight tracking-tight">
-      <span
-        className="font-bold text-[#1A4EC9]"
-        style={{ fontSize: isDark ? "0.95rem" : "1rem" }}
-      >
+    <div className="flex items-baseline gap-1 flex-nowrap leading-tight tracking-tight whitespace-nowrap">
+      <span className="font-bold text-[#1A4EC9]" style={{ fontSize }}>
         EXPRESS
       </span>
-      <span
-        className="font-bold text-[#E12428]"
-        style={{ fontSize: isDark ? "0.6rem" : "0.65rem" }}
-      >
+      <span className="font-bold text-[#E12428]" style={{ fontSize: `calc(${fontSize} * 0.7)` }}>
         FINANCIAL SERVICES
       </span>
     </div>

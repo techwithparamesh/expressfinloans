@@ -926,7 +926,7 @@ export async function registerRoutes(
       const attendanceTodayFiltered = filterByVisible(allAttendance);
       const leadsTodayFiltered = filterByVisible(allLeads);
       const closuresFiltered = filterByVisible(closures);
-      res.json({
+      const payload: Record<string, unknown> = {
         today,
         employeeCount: employees.length,
         attendanceToday: attendanceTodayFiltered.map((a) => ({
@@ -943,7 +943,52 @@ export async function registerRoutes(
         leadsLast14Days,
         leadsByStatus,
         leadsByEmployee,
-      });
+      };
+      const role = (req.user as any).role;
+      if (role === "team_lead" && employees.length > 0) {
+        const DEFAULT_MONTHLY_TARGET_LEADS = 20;
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+        let overallTarget = 0;
+        const teamMembersSummary: { employeeId: string; employeeName: string; employeeNumber: string; monthlyTarget: number; leadsThisMonth: number; achievementPct: number; leadsConverted: number }[] = [];
+        let teamLeadsThisMonth = 0;
+        let teamLeadsConverted = 0;
+        for (const emp of employees) {
+          const target = (emp as any).monthlyLeadTarget != null && !Number.isNaN(Number((emp as any).monthlyLeadTarget))
+            ? Number((emp as any).monthlyLeadTarget)
+            : DEFAULT_MONTHLY_TARGET_LEADS;
+          overallTarget += target;
+          const empLeads = await storage.getLeadsByEmployee(emp.id, monthStart, monthEnd);
+          const converted = empLeads.filter((l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned").length;
+          teamLeadsThisMonth += empLeads.length;
+          teamLeadsConverted += converted;
+          const achievementPct = target > 0 ? Math.round((empLeads.length / target) * 100) : 0;
+          teamMembersSummary.push({
+            employeeId: emp.id,
+            employeeName: byId[emp.id]?.name ?? emp.id,
+            employeeNumber: byId[emp.id]?.number ?? "",
+            monthlyTarget: target,
+            leadsThisMonth: empLeads.length,
+            achievementPct,
+            leadsConverted: converted,
+          });
+        }
+        const achievementPct = overallTarget > 0 ? Math.round((teamLeadsThisMonth / overallTarget) * 100) : 0;
+        let conveyancePct = 0;
+        if (teamLeadsThisMonth >= 20) {
+          if (achievementPct >= 100) conveyancePct = 120;
+          else if (teamLeadsConverted > 2) conveyancePct = 100;
+          else if (teamLeadsConverted >= 2) conveyancePct = 50;
+        }
+        payload.overallTarget = overallTarget;
+        payload.teamLeadsThisMonth = teamLeadsThisMonth;
+        payload.achievementPct = achievementPct;
+        payload.conveyancePct = conveyancePct;
+        payload.teamMembersSummary = teamMembersSummary;
+        payload.monthLabel = now.toLocaleString("default", { month: "long", year: "numeric" });
+      }
+      res.json(payload);
     } catch (e) {
       next(e);
     }
