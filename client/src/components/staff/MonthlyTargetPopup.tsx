@@ -42,6 +42,13 @@ function setShownToday(): void {
   } catch {}
 }
 
+/** Call on logout so the popup shows again after the next login. */
+export function clearMonthlyTargetPopupShown(): void {
+  try {
+    sessionStorage.removeItem(getTodayKey());
+  } catch {}
+}
+
 export default function MonthlyTargetPopup() {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<MonthlyTargetData | null>(null);

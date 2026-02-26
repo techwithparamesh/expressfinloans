@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import MonthlyTargetPopup from "@/components/staff/MonthlyTargetPopup";
+import MonthlyTargetPopup, { clearMonthlyTargetPopupShown } from "@/components/staff/MonthlyTargetPopup";
 
 const path = (base: string, p: string) => (base ? `${base}${p}` : p);
 
@@ -86,6 +86,7 @@ export default function StaffLayout({
   async function handleLogout() {
     try {
       await logout();
+      clearMonthlyTargetPopupShown();
       setUser(null);
       window.location.href = path(basePath, "/login");
     } catch {
