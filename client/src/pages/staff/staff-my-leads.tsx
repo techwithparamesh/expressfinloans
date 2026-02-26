@@ -74,6 +74,7 @@ type InsuranceLead = {
   location: string | null;
   insuranceType: string | null;
   insuranceSubtype: string | null;
+  insuranceSubtypeOther: string | null;
   profileType: string | null;
   profileComments: string | null;
   businessType: string | null;
@@ -150,6 +151,7 @@ const defaultInsuranceForm = () => ({
   location: "",
   insuranceType: "",
   insuranceSubtype: "",
+  insuranceSubtypeOther: "",
   profileType: "",
   profileComments: "",
   businessType: "",
@@ -278,6 +280,7 @@ export default function StaffMyLeads() {
           location: insuranceForm.location || null,
           insuranceType: insuranceForm.insuranceType || null,
           insuranceSubtype: insuranceForm.insuranceSubtype || null,
+          insuranceSubtypeOther: insuranceForm.insuranceSubtypeOther?.trim() || null,
           profileType: insuranceForm.profileType || null,
           profileComments: insuranceForm.profileComments?.trim() || null,
           businessType: insuranceForm.businessType || null,
@@ -849,7 +852,11 @@ export default function StaffMyLeads() {
                     <Select
                       value={insuranceForm.insuranceSubtype || undefined}
                       onValueChange={(v) =>
-                        setInsuranceForm((f) => ({ ...f, insuranceSubtype: v }))
+                        setInsuranceForm((f) => ({
+                          ...f,
+                          insuranceSubtype: v,
+                          insuranceSubtypeOther: v === "Other" || v === "Others" ? f.insuranceSubtypeOther : "",
+                        }))
                       }
                       disabled={!insuranceForm.insuranceType}
                     >
@@ -869,6 +876,18 @@ export default function StaffMyLeads() {
                     </Select>
                   </div>
                 </div>
+                {(insuranceForm.insuranceSubtype === "Other" || insuranceForm.insuranceSubtype === "Others") && (
+                  <div className="space-y-1">
+                    <Label>Specify other</Label>
+                    <Input
+                      placeholder="Enter subtype manually"
+                      value={insuranceForm.insuranceSubtypeOther}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({ ...f, insuranceSubtypeOther: e.target.value }))
+                      }
+                    />
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label>Profile type</Label>

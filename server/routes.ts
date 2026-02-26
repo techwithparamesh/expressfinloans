@@ -374,6 +374,7 @@ export async function registerRoutes(
         location: body.location ?? null,
         insuranceType: body.insuranceType ?? null,
         insuranceSubtype: body.insuranceSubtype ?? null,
+        insuranceSubtypeOther: body.insuranceSubtypeOther ?? null,
         profileType: body.profileType ?? null,
         profileComments: body.profileComments ?? null,
         businessType: body.businessType ?? null,

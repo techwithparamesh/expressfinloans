@@ -305,6 +305,14 @@ USE expressfinloans;
 ALTER TABLE insurance_leads ADD COLUMN difference VARCHAR(50) NULL;
 ```
 
+**Insurance lead form (subtype “Other” – manual entry):** When subtype is “Other” or “Others”, employees can specify the subtype manually. Run:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE insurance_leads ADD COLUMN insurance_subtype_other VARCHAR(255) NULL;
+```
+
 **Employee number (4-digit ID for staff):** To add the employee ID column used in attendance/leads (e.g. 1001, 1002), run:
 
 ```sql
@@ -380,6 +388,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
 | Insurance lead form (profile_type, profile_comments) | **Insurance lead form (profile type, profile comments)** ALTER block above |
 | Insurance lead form (business_type, payment_mode, payment_done_by + comments) | **Insurance lead form (business type, payment mode, payment done by and comments)** ALTER block above |
 | Insurance lead form (difference – auto-calculated) | **Insurance lead form (Difference – auto-calculated)** ALTER block above |
+| Insurance subtype “Other” manual entry (insurance_subtype_other) | **Insurance lead form (subtype “Other” – manual entry)** ALTER block above |
 
 Use `DESCRIBE table_name;` (see **Common database commands** below) to see which columns you already have.
 
