@@ -155,4 +155,12 @@ export const INSURANCE_TYPE_SUBTYPES: Record<(typeof INSURANCE_TYPES)[number], r
   Life: ["ICICI Prudential", "Others"],
 };
 
+/** Profile type for insurance lead form. */
+export const PROFILE_TYPES = [
+  "Salaried",
+  "Self Emp Professional",
+  "Self Emp Non-Professional",
+  "No Income Proof",
+] as const;
+
 export const INSURANCE_STATUSES = ["Open", "Closed", "Rejected"] as const;

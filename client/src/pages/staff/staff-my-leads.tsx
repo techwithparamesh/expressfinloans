@@ -33,6 +33,7 @@ import {
   BANKS_LOGGED,
   INSURANCE_TYPES,
   INSURANCE_TYPE_SUBTYPES,
+  PROFILE_TYPES,
   INSURANCE_STATUSES,
 } from "@/data/leadFormOptions";
 
@@ -70,6 +71,8 @@ type InsuranceLead = {
   location: string | null;
   insuranceType: string | null;
   insuranceSubtype: string | null;
+  profileType: string | null;
+  profileComments: string | null;
   premiumQuoted: string | null;
   premiumCollected: string | null;
   status: string;
@@ -121,6 +124,8 @@ const defaultInsuranceForm = () => ({
   location: "",
   insuranceType: "",
   insuranceSubtype: "",
+  profileType: "",
+  profileComments: "",
   premiumQuoted: "",
   premiumCollected: "",
   status: "Open",
@@ -241,6 +246,8 @@ export default function StaffMyLeads() {
           location: insuranceForm.location || null,
           insuranceType: insuranceForm.insuranceType || null,
           insuranceSubtype: insuranceForm.insuranceSubtype || null,
+          profileType: insuranceForm.profileType || null,
+          profileComments: insuranceForm.profileComments?.trim() || null,
           premiumQuoted: insuranceForm.premiumQuoted || null,
           premiumCollected: insuranceForm.premiumCollected || null,
           status: insuranceForm.status || "open",
@@ -817,6 +824,39 @@ export default function StaffMyLeads() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>Profile type</Label>
+                    <Select
+                      value={insuranceForm.profileType || undefined}
+                      onValueChange={(v) =>
+                        setInsuranceForm((f) => ({ ...f, profileType: v }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PROFILE_TYPES.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label>Profile comments</Label>
+                  <Textarea
+                    placeholder="Add any comments based on profile type selection (optional)"
+                    value={insuranceForm.profileComments}
+                    onChange={(e) =>
+                      setInsuranceForm((f) => ({ ...f, profileComments: e.target.value }))
+                    }
+                    className="min-h-[80px]"
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
