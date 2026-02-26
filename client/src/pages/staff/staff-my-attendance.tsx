@@ -112,7 +112,7 @@ export default function StaffMyAttendance() {
             <Calendar className="h-5 w-5" />
             Today ({today})
           </CardTitle>
-          <CardDescription>Mark login and logout. You need 2 or more leads to be marked present.</CardDescription>
+          <CardDescription>Mark login and logout. You need 2 or more leads to be marked present. Location is recorded when you tap Log in (from browser or IP).</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -144,9 +144,7 @@ export default function StaffMyAttendance() {
                 <span className="ml-4">Leads: {todayLog.leadsCount}</span>
                 <span className="ml-4">Status: {todayLog.status}</span>
               </div>
-              {todayLog.loginLocation && (
-                <p className="text-slate-500">Login location: {todayLog.loginLocation}</p>
-              )}
+              <p className="text-slate-500">Login location: {todayLog.loginLocation ?? "—"}</p>
               {todayLog.loginAt && todayLog.logoutAt && (
                 <p className="text-slate-500">You’ve already logged in and out for today. Buttons will be available again tomorrow.</p>
               )}
