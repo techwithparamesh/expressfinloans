@@ -52,6 +52,8 @@ type Lead = {
   tenure: string | null;
   roi: string | null;
   loanDisbursed: string | null;
+  loanSanctionedAt: string | null;
+  loanDisbursedAt: string | null;
   status: string;
   notes: string | null;
 };
@@ -73,6 +75,16 @@ type InsuranceLead = {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+/** Days between two YYYY-MM-DD date strings. Returns null if either is missing. */
+function daysBetween(from: string, to: string): number | null {
+  if (!from || !to) return null;
+  const a = new Date(from);
+  const b = new Date(to);
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return null;
+  const diff = Math.round((b.getTime() - a.getTime()) / (24 * 60 * 60 * 1000));
+  return diff >= 0 ? diff : null;
+}
+
 const defaultLoanForm = () => ({
   date: today(),
   customerName: "",
@@ -91,6 +103,8 @@ const defaultLoanForm = () => ({
   tenure: "",
   roi: "",
   loanDisbursed: "",
+  loanSanctionedAt: "",
+  loanDisbursedAt: "",
   status: "Open",
   notes: "",
 });
@@ -188,6 +202,8 @@ export default function StaffMyLeads() {
           tenure: loanForm.tenure?.trim() || null,
           roi: loanForm.roi || null,
           loanDisbursed: loanForm.loanDisbursed || null,
+          loanSanctionedAt: loanForm.loanSanctionedAt?.trim() || null,
+          loanDisbursedAt: loanForm.loanDisbursedAt?.trim() || null,
           status: loanForm.status || "open",
           notes: loanForm.notes || null,
         }),
@@ -562,13 +578,6 @@ export default function StaffMyLeads() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label>ROI</Label>
-                      <Input
-                        value={loanForm.roi}
-                        onChange={(e) => setLoanForm((f) => ({ ...f, roi: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-1">
                       <Label>Loan Amount</Label>
                       <Input
                         value={loanForm.loanDisbursed}
@@ -602,6 +611,66 @@ export default function StaffMyLeads() {
                         value={loanForm.notes}
                         onChange={(e) => setLoanForm((f) => ({ ...f, notes: e.target.value }))}
                       />
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="space-y-1 max-w-xs">
+                      <Label>ROI</Label>
+                      <Input
+                        value={loanForm.roi}
+                        onChange={(e) => setLoanForm((f) => ({ ...f, roi: e.target.value }))}
+                        placeholder="e.g. 10.5"
+                      />
+                    </div>
+                    <h4 className="text-sm font-medium text-slate-700">Loan Sanctioned / Disbursed</h4>
+                    <div className="rounded-md border overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-slate-50">
+                            <th className="text-left py-2 px-3 font-medium w-[140px]">Stage</th>
+                            <th className="text-left py-2 px-3 font-medium">Add date</th>
+                            <th className="text-left py-2 px-3 font-medium">TAT</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-b">
+                            <td className="py-2 px-3 font-medium">Loan Sanctioned</td>
+                            <td className="py-2 px-3">
+                              <Input
+                                type="date"
+                                value={loanForm.loanSanctionedAt}
+                                onChange={(e) => setLoanForm((f) => ({ ...f, loanSanctionedAt: e.target.value }))}
+                                className="max-w-[180px]"
+                              />
+                            </td>
+                            <td className="py-2 px-3 text-slate-600">
+                              {daysBetween(loanForm.date, loanForm.loanSanctionedAt) != null
+                                ? `${daysBetween(loanForm.date, loanForm.loanSanctionedAt)} days`
+                                : "—"}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="py-2 px-3 font-medium">Loan Disbursed</td>
+                            <td className="py-2 px-3">
+                              <Input
+                                type="date"
+                                value={loanForm.loanDisbursedAt}
+                                onChange={(e) => setLoanForm((f) => ({ ...f, loanDisbursedAt: e.target.value }))}
+                                className="max-w-[180px]"
+                              />
+                            </td>
+                            <td className="py-2 px-3 text-slate-600">
+                              {loanForm.loanSanctionedAt
+                                ? daysBetween(loanForm.loanSanctionedAt, loanForm.loanDisbursedAt) != null
+                                  ? `${daysBetween(loanForm.loanSanctionedAt, loanForm.loanDisbursedAt)} days`
+                                  : "—"
+                                : loanForm.loanDisbursedAt && loanForm.date
+                                  ? `${daysBetween(loanForm.date, loanForm.loanDisbursedAt)} days (from lead date)`
+                                  : "—"}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>

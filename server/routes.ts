@@ -210,6 +210,8 @@ export async function registerRoutes(
         tenure: body.tenure ?? null,
         roi: body.roi ?? null,
         loanDisbursed: body.loanDisbursed ?? null,
+        loanSanctionedAt: body.loanSanctionedAt && String(body.loanSanctionedAt).trim() ? String(body.loanSanctionedAt).trim().slice(0, 10) : null,
+        loanDisbursedAt: body.loanDisbursedAt && String(body.loanDisbursedAt).trim() ? String(body.loanDisbursedAt).trim().slice(0, 10) : null,
         status: body.status ?? "open",
         notes: body.notes ?? null,
       });
@@ -309,6 +311,8 @@ export async function registerRoutes(
       if (body.tenure !== undefined) data.tenure = body.tenure;
       if (body.roi !== undefined) data.roi = body.roi;
       if (body.loanDisbursed !== undefined) data.loanDisbursed = body.loanDisbursed;
+      if (body.loanSanctionedAt !== undefined) data.loanSanctionedAt = body.loanSanctionedAt && String(body.loanSanctionedAt).trim() ? String(body.loanSanctionedAt).trim().slice(0, 10) : null;
+      if (body.loanDisbursedAt !== undefined) data.loanDisbursedAt = body.loanDisbursedAt && String(body.loanDisbursedAt).trim() ? String(body.loanDisbursedAt).trim().slice(0, 10) : null;
       if (body.status !== undefined) data.status = body.status;
       if (body.notes !== undefined) data.notes = body.notes;
       if (body.date !== undefined) data.date = body.date;
