@@ -196,6 +196,14 @@ ALTER TABLE leads ADD COLUMN income_comments TEXT NULL AFTER income_type;
 ALTER TABLE leads MODIFY COLUMN income_type VARCHAR(100) NULL;
 ```
 
+**Tenure column (loan form):** To add the Tenure field for loan leads, run:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE leads ADD COLUMN tenure VARCHAR(50) NULL AFTER company_logged;
+```
+
 If you get "Duplicate column name", that column already exists—omit that line. Existing leads will have NULL for the new fields (backward compatible).
 
 **Admin-only loan fields (payout, reconsil, payment status):** If you already have the `leads` table and want to add admin-editable columns, run:
@@ -284,6 +292,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
 |---------------|----------------------------|
 | Full loan form (email, location, income_type, cibil, docs_collected, company_logged, roi, loan_disbursed) | First **ALTER TABLE leads** block in "If you already have the old leads table" |
 | Loan form update (date_of_birth, sub_loan_type, income_comments, income_type length) | **Loan application form update** ALTER block |
+| Tenure column (loan form) | **Tenure column** ALTER above |
 | Admin loan fields (payout_percent, payout_amount, reconsil, payment_status) | **Admin-only loan fields** ALTER block |
 | Profile photo (avatar) on users | In **CREATE TABLE users**: column `avatar_url`; or `ALTER TABLE users ADD COLUMN avatar_url VARCHAR(512) NULL;` |
 | Employee ID (4-digit) on users | **Employee number** ALTER above; then run `npm run seed` to backfill |

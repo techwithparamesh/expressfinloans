@@ -29,6 +29,7 @@ import {
   INCOME_TYPES,
   LOAN_STATUSES,
   BANKS_NBFCS,
+  BANKS_LOGGED,
   INSURANCE_TYPES,
   INSURANCE_STATUSES,
 } from "@/data/leadFormOptions";
@@ -47,8 +48,8 @@ type Lead = {
   incomeComments: string | null;
   amount: string | null;
   cibil: string | null;
-  docsCollected: string | null;
   companyLogged: string | null;
+  tenure: string | null;
   roi: string | null;
   loanDisbursed: string | null;
   status: string;
@@ -85,8 +86,9 @@ const defaultLoanForm = () => ({
   incomeComments: "",
   amount: "",
   cibil: "",
-  docsCollected: "",
   companyLogged: "",
+  bankOthers: "",
+  tenure: "",
   roi: "",
   loanDisbursed: "",
   status: "Open",
@@ -179,8 +181,8 @@ export default function StaffMyLeads() {
           incomeComments: loanForm.incomeComments?.trim() || null,
           amount: loanForm.amount || null,
           cibil: loanForm.cibil || null,
-          docsCollected: loanForm.docsCollected || null,
-          companyLogged: loanForm.companyLogged || null,
+          companyLogged: loanForm.companyLogged === "OTHERS" ? (loanForm.bankOthers?.trim() || "OTHERS") : (loanForm.companyLogged || null),
+          tenure: loanForm.tenure?.trim() || null,
           roi: loanForm.roi || null,
           loanDisbursed: loanForm.loanDisbursed || null,
           status: loanForm.status || "open",
@@ -265,6 +267,7 @@ export default function StaffMyLeads() {
                       <th className="text-left py-2">Loan type</th>
                       <th className="text-left py-2">Sub type</th>
                       <th className="text-left py-2">Amount</th>
+                      <th className="text-left py-2">Tenure</th>
                       <th className="text-left py-2">Status</th>
                     </tr>
                   </thead>
@@ -278,6 +281,7 @@ export default function StaffMyLeads() {
                         <td className="py-2">{l.loanType ?? "—"}</td>
                         <td className="py-2">{l.subLoanType ?? "—"}</td>
                         <td className="py-2">{l.amount ?? "—"}</td>
+                        <td className="py-2">{l.tenure ?? "—"}</td>
                         <td className="py-2">{l.status}</td>
                       </tr>
                     ))}
@@ -517,23 +521,16 @@ export default function StaffMyLeads() {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <Label>Docs collected</Label>
-                    <Input
-                      value={loanForm.docsCollected}
-                      onChange={(e) => setLoanForm((f) => ({ ...f, docsCollected: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Company logged</Label>
+                    <Label>Bank logged</Label>
                     <Select
-                      value={loanForm.companyLogged || undefined}
-                      onValueChange={(v) => setLoanForm((f) => ({ ...f, companyLogged: v }))}
+                      value={loanForm.companyLogged && (BANKS_LOGGED as readonly string[]).includes(loanForm.companyLogged) ? loanForm.companyLogged : loanForm.companyLogged ? "OTHERS" : undefined}
+                      onValueChange={(v) => setLoanForm((f) => ({ ...f, companyLogged: v, bankOthers: v === "OTHERS" ? f.bankOthers : "" }))}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Banks & NBFCs" />
+                        <SelectValue placeholder="Select bank" />
                       </SelectTrigger>
                       <SelectContent>
-                        {BANKS_NBFCS.map((b) => (
+                        {BANKS_LOGGED.map((b) => (
                           <SelectItem key={b} value={b}>
                             {b}
                           </SelectItem>
@@ -541,7 +538,26 @@ export default function StaffMyLeads() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {loanForm.companyLogged === "OTHERS" && (
+                    <div className="space-y-1">
+                      <Label htmlFor="bank-others">Others</Label>
+                      <Input
+                        id="bank-others"
+                        value={loanForm.bankOthers}
+                        onChange={(e) => setLoanForm((f) => ({ ...f, bankOthers: e.target.value }))}
+                        placeholder="Enter bank name manually"
+                      />
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Tenure</Label>
+                      <Input
+                        value={loanForm.tenure}
+                        onChange={(e) => setLoanForm((f) => ({ ...f, tenure: e.target.value }))}
+                        placeholder="e.g. 12 months"
+                      />
+                    </div>
                     <div className="space-y-1">
                       <Label>ROI</Label>
                       <Input

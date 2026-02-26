@@ -207,6 +207,7 @@ export async function registerRoutes(
         cibil: body.cibil ?? null,
         docsCollected: body.docsCollected ?? null,
         companyLogged: body.companyLogged ?? null,
+        tenure: body.tenure ?? null,
         roi: body.roi ?? null,
         loanDisbursed: body.loanDisbursed ?? null,
         status: body.status ?? "open",
@@ -305,6 +306,7 @@ export async function registerRoutes(
       if (body.cibil !== undefined) data.cibil = body.cibil;
       if (body.docsCollected !== undefined) data.docsCollected = body.docsCollected;
       if (body.companyLogged !== undefined) data.companyLogged = body.companyLogged;
+      if (body.tenure !== undefined) data.tenure = body.tenure;
       if (body.roi !== undefined) data.roi = body.roi;
       if (body.loanDisbursed !== undefined) data.loanDisbursed = body.loanDisbursed;
       if (body.status !== undefined) data.status = body.status;

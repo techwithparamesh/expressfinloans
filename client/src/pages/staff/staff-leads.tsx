@@ -51,6 +51,7 @@ type Lead = {
   incomeType?: string | null;
   incomeComments?: string | null;
   amount: string | null;
+  tenure?: string | null;
   status: string;
   payoutPercent: string | null;
   payoutAmount: string | null;
@@ -239,6 +240,7 @@ export default function StaffLeads() {
                   <th className="text-left py-2 px-2 min-w-[90px]">Phone</th>
                   <th className="text-left py-2 px-2 min-w-[90px]">Loan type</th>
                   <th className="text-left py-2 px-2 min-w-[90px]">Sub type</th>
+                  <th className="text-left py-2 px-2 min-w-[72px]">Tenure</th>
                   {showAdminFields && (
                     <>
                       <th className="text-left py-2 px-2 min-w-[70px]">Payout %</th>
@@ -263,6 +265,7 @@ export default function StaffLeads() {
                     <td className="py-2 px-2">{l.customerPhone ?? "—"}</td>
                     <td className="py-2 px-2">{l.loanType ?? "—"}</td>
                     <td className="py-2 px-2">{l.subLoanType ?? "—"}</td>
+                    <td className="py-2 px-2">{l.tenure ?? "—"}</td>
                     {showAdminFields && (
                       <>
                         <td className="py-2 px-2">{l.payoutPercent ?? "—"}</td>
