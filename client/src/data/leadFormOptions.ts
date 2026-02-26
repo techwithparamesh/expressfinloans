@@ -130,6 +130,29 @@ export const BANKS_LOGGED = [
   "OTHERS",
 ] as const;
 
-export const INSURANCE_TYPES = ["General Insurance", "Life", "Health"] as const;
+/** Main insurance type (parent). */
+export const INSURANCE_TYPES = ["General Insurance", "Health", "Life"] as const;
+
+/** Subtypes (companies/providers) per insurance type. */
+export const INSURANCE_TYPE_SUBTYPES: Record<(typeof INSURANCE_TYPES)[number], readonly string[]> = {
+  "General Insurance": [
+    "ICICI Lombard",
+    "Tata",
+    "Godigit",
+    "Liberty",
+    "SBI",
+    "HDFC Ergo",
+    "Sriram",
+    "Iffico",
+    "Bajaj GIC",
+    "Kotak",
+    "Centrali",
+    "Universal Sompu",
+    "Royal Sundaram",
+    "Other",
+  ],
+  Health: ["ICICI Lombard", "Tata", "Star", "Others"],
+  Life: ["ICICI Prudential", "Others"],
+};
 
 export const INSURANCE_STATUSES = ["Open", "Closed", "Rejected"] as const;

@@ -263,6 +263,16 @@ ALTER TABLE insurance_leads
   ADD COLUMN final_remarks VARCHAR(500) NULL;
 ```
 
+**Insurance lead form (date of birth, insurance subtype):** To add Date of Birth and Insurance Subtype (provider per type) to the insurance lead form, run:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE insurance_leads
+  ADD COLUMN date_of_birth DATE NULL,
+  ADD COLUMN insurance_subtype VARCHAR(100) NULL;
+```
+
 **Employee number (4-digit ID for staff):** To add the employee ID column used in attendance/leads (e.g. 1001, 1002), run:
 
 ```sql
@@ -334,6 +344,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
 | Monthly lead target (admin-allocated) | **Monthly lead target** ALTER above |
 | Insurance leads table | **CREATE TABLE insurance_leads** in "If you already have the old leads table" |
 | Admin insurance fields (collected_premium, actual_premium, final_remarks) | **Admin-only insurance lead fields** ALTER block |
+| Insurance lead form (date_of_birth, insurance_subtype) | **Insurance lead form** ALTER block above |
 
 Use `DESCRIBE table_name;` (see **Common database commands** below) to see which columns you already have.
 

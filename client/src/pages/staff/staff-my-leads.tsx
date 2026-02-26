@@ -32,6 +32,7 @@ import {
   BANKS_NBFCS,
   BANKS_LOGGED,
   INSURANCE_TYPES,
+  INSURANCE_TYPE_SUBTYPES,
   INSURANCE_STATUSES,
 } from "@/data/leadFormOptions";
 
@@ -63,11 +64,12 @@ type InsuranceLead = {
   id: string;
   date: string;
   customerName: string | null;
+  dateOfBirth: string | null;
   contactNum: string | null;
   mailId: string | null;
   location: string | null;
   insuranceType: string | null;
-  incomeType: string | null;
+  insuranceSubtype: string | null;
   premiumQuoted: string | null;
   premiumCollected: string | null;
   status: string;
@@ -113,11 +115,12 @@ const defaultLoanForm = () => ({
 const defaultInsuranceForm = () => ({
   date: today(),
   customerName: "",
+  dateOfBirth: "",
   contactNum: "",
   mailId: "",
   location: "",
   insuranceType: "",
-  incomeType: "",
+  insuranceSubtype: "",
   premiumQuoted: "",
   premiumCollected: "",
   status: "Open",
@@ -232,11 +235,12 @@ export default function StaffMyLeads() {
         body: JSON.stringify({
           date: insuranceForm.date,
           customerName: insuranceForm.customerName || null,
+          dateOfBirth: insuranceForm.dateOfBirth?.trim() || null,
           contactNum: insuranceForm.contactNum || null,
           mailId: insuranceForm.mailId || null,
           location: insuranceForm.location || null,
           insuranceType: insuranceForm.insuranceType || null,
-          incomeType: insuranceForm.incomeType || null,
+          insuranceSubtype: insuranceForm.insuranceSubtype || null,
           premiumQuoted: insuranceForm.premiumQuoted || null,
           premiumCollected: insuranceForm.premiumCollected || null,
           status: insuranceForm.status || "open",
@@ -724,6 +728,18 @@ export default function StaffMyLeads() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
+                    <Label>Date of birth</Label>
+                    <Input
+                      type="date"
+                      value={insuranceForm.dateOfBirth}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({ ...f, dateOfBirth: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
                     <Label>Contact num</Label>
                     <Input
                       value={insuranceForm.contactNum}
@@ -758,7 +774,11 @@ export default function StaffMyLeads() {
                     <Select
                       value={insuranceForm.insuranceType || undefined}
                       onValueChange={(v) =>
-                        setInsuranceForm((f) => ({ ...f, insuranceType: v }))
+                        setInsuranceForm((f) => ({
+                          ...f,
+                          insuranceType: v,
+                          insuranceSubtype: "",
+                        }))
                       }
                     >
                       <SelectTrigger>
@@ -774,22 +794,26 @@ export default function StaffMyLeads() {
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label>Income type</Label>
+                    <Label>Insurance subtype</Label>
                     <Select
-                      value={insuranceForm.incomeType || undefined}
+                      value={insuranceForm.insuranceSubtype || undefined}
                       onValueChange={(v) =>
-                        setInsuranceForm((f) => ({ ...f, incomeType: v }))
+                        setInsuranceForm((f) => ({ ...f, insuranceSubtype: v }))
                       }
+                      disabled={!insuranceForm.insuranceType}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select" />
+                        <SelectValue placeholder="Select type first" />
                       </SelectTrigger>
                       <SelectContent>
-                        {INCOME_TYPES.map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {t}
-                          </SelectItem>
-                        ))}
+                        {insuranceForm.insuranceType &&
+                          INSURANCE_TYPE_SUBTYPES[
+                            insuranceForm.insuranceType as keyof typeof INSURANCE_TYPE_SUBTYPES
+                          ]?.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>
