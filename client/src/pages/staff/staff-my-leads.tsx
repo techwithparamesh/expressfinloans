@@ -132,7 +132,10 @@ export default function StaffMyLeads() {
         setLeads(loanList);
         setInsuranceLeads(insList);
       })
-      .catch(() => toast({ title: "Failed to load leads", variant: "destructive" }))
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : "Failed to load leads";
+        toast({ title: msg, variant: "destructive", description: msg.includes("Database schema") ? "See docs/MYSQL_VPS_COMMANDS.md" : undefined });
+      })
       .finally(() => setLoading(false));
   }
 
@@ -529,7 +532,7 @@ export default function StaffMyLeads() {
                       <SelectTrigger>
                         <SelectValue placeholder="Select bank" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-[280px] overflow-y-auto">
                         {BANKS_LOGGED.map((b) => (
                           <SelectItem key={b} value={b}>
                             {b}

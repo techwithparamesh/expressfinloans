@@ -87,8 +87,10 @@ app.use((req, res, next) => {
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
+    let message = err.message || "Internal Server Error";
+    if (status === 500 && typeof message === "string" && message.includes("Unknown column")) {
+      message = "Database schema is out of date. Please run the migrations in docs/MYSQL_VPS_COMMANDS.md (see 'Fix: Failed to load dashboard') and restart the app.";
+    }
     res.status(status).json({ message });
     throw err;
   });

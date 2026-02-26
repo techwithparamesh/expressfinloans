@@ -20,20 +20,32 @@ export default function StaffMyDashboard() {
   const [user, setUser] = useState<StaffUser | null>(null);
   const [data, setData] = useState<MyDashboard | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getAuthMe().then((res) => setUser(res?.user ?? null));
   }, []);
 
   useEffect(() => {
+    setError(null);
     staffJson<MyDashboard>("/staff/my-dashboard")
-      .then(setData)
-      .catch(() => setData(null))
+      .then((d) => { setData(d); setError(null); })
+      .catch((err: unknown) => {
+        setData(null);
+        setError(err instanceof Error ? err.message : "Failed to load dashboard.");
+      })
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <p className="text-slate-500">Loading…</p>;
-  if (!data) return <p className="text-slate-500">Failed to load dashboard.</p>;
+  if (!data) {
+    return (
+      <div className="space-y-2">
+        <p className="text-slate-500">Failed to load dashboard.</p>
+        {error && <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3 max-w-xl">{error}</p>}
+      </div>
+    );
+  }
 
   const displayName = user?.fullName || user?.username || "Employee";
 

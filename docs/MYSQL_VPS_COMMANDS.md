@@ -148,6 +148,29 @@ CREATE TABLE sessions (
 );
 ```
 
+---
+
+## Fix: "Failed to load dashboard" / "Failed to load leads" on all pages
+
+If staff pages show **"Failed to load dashboard"** or **"Failed to load leads"** (and other pages fail to load data), the app code is newer than your database schema. The `leads` table is missing columns that the app now expects.
+
+**Run the following on your MySQL server** (skip any line that returns `Duplicate column name`):
+
+```sql
+USE expressfinloans;
+
+-- Loan form columns (add if missing)
+ALTER TABLE leads ADD COLUMN date_of_birth DATE NULL AFTER customer_name;
+ALTER TABLE leads ADD COLUMN sub_loan_type VARCHAR(100) NULL AFTER loan_type;
+ALTER TABLE leads ADD COLUMN income_comments TEXT NULL AFTER income_type;
+ALTER TABLE leads ADD COLUMN tenure VARCHAR(50) NULL AFTER company_logged;
+ALTER TABLE leads MODIFY COLUMN income_type VARCHAR(100) NULL;
+```
+
+Run each line separately if your MySQL client stops on error; or run as a block and ignore "Duplicate column" for columns you already have. Then **restart your app** (e.g. `pm2 restart all` or restart the Node process).
+
+---
+
 **If you already have the old `leads` table**, run this once to add loan-form columns and the insurance_leads table:
 
 ```sql
