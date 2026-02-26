@@ -384,6 +384,7 @@ export async function registerRoutes(
         paymentDoneByComments: body.paymentDoneByComments ?? null,
         premiumQuoted: body.premiumQuoted ?? null,
         premiumCollected: body.premiumCollected ?? null,
+        difference: body.difference ?? null,
         status: body.status ?? "open",
         notes: body.notes ?? null,
       });

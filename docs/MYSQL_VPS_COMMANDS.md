@@ -297,6 +297,14 @@ ALTER TABLE insurance_leads
   ADD COLUMN payment_done_by_comments TEXT NULL;
 ```
 
+**Insurance lead form (Difference – auto-calculated):** To store the auto-calculated difference (Premium quoted − Premium collected), run:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE insurance_leads ADD COLUMN difference VARCHAR(50) NULL;
+```
+
 **Employee number (4-digit ID for staff):** To add the employee ID column used in attendance/leads (e.g. 1001, 1002), run:
 
 ```sql
@@ -371,6 +379,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
 | Insurance lead form (date_of_birth, insurance_subtype) | **Insurance lead form** ALTER block above |
 | Insurance lead form (profile_type, profile_comments) | **Insurance lead form (profile type, profile comments)** ALTER block above |
 | Insurance lead form (business_type, payment_mode, payment_done_by + comments) | **Insurance lead form (business type, payment mode, payment done by and comments)** ALTER block above |
+| Insurance lead form (difference – auto-calculated) | **Insurance lead form (Difference – auto-calculated)** ALTER block above |
 
 Use `DESCRIBE table_name;` (see **Common database commands** below) to see which columns you already have.
 

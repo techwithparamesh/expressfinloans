@@ -84,11 +84,28 @@ type InsuranceLead = {
   paymentDoneByComments: string | null;
   premiumQuoted: string | null;
   premiumCollected: string | null;
+  difference: string | null;
   status: string;
   notes: string | null;
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+/** Parse premium string to number; returns null if empty or invalid. */
+function parsePremium(value: string | null | undefined): number | null {
+  if (value == null || String(value).trim() === "") return null;
+  const n = Number(String(value).replace(/,/g, "").trim());
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Compute difference (quoted - collected) for display/store. */
+function premiumDifference(quoted: string | null | undefined, collected: string | null | undefined): string | null {
+  const q = parsePremium(quoted);
+  const c = parsePremium(collected);
+  if (q == null && c == null) return null;
+  const diff = (q ?? 0) - (c ?? 0);
+  return String(diff);
+}
 
 /** Days between two YYYY-MM-DD date strings. Returns null if either is missing. */
 function daysBetween(from: string, to: string): number | null {
@@ -271,6 +288,10 @@ export default function StaffMyLeads() {
           paymentDoneByComments: insuranceForm.paymentDoneByComments?.trim() || null,
           premiumQuoted: insuranceForm.premiumQuoted || null,
           premiumCollected: insuranceForm.premiumCollected || null,
+          difference: premiumDifference(
+            insuranceForm.premiumQuoted,
+            insuranceForm.premiumCollected
+          ),
           status: insuranceForm.status || "open",
           notes: insuranceForm.notes || null,
         }),
@@ -355,6 +376,7 @@ export default function StaffMyLeads() {
                       <th className="text-left py-2">Insurance type</th>
                       <th className="text-left py-2">Premium quoted</th>
                       <th className="text-left py-2">Premium collected</th>
+                      <th className="text-left py-2">Difference</th>
                       <th className="text-left py-2">Status</th>
                     </tr>
                   </thead>
@@ -367,6 +389,7 @@ export default function StaffMyLeads() {
                         <td className="py-2">{l.insuranceType ?? "—"}</td>
                         <td className="py-2">{l.premiumQuoted ?? "—"}</td>
                         <td className="py-2">{l.premiumCollected ?? "—"}</td>
+                        <td className="py-2">{l.difference ?? "—"}</td>
                         <td className="py-2">{l.status}</td>
                       </tr>
                     ))}
@@ -999,6 +1022,22 @@ export default function StaffMyLeads() {
                       onChange={(e) =>
                         setInsuranceForm((f) => ({ ...f, premiumCollected: e.target.value }))
                       }
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>Difference</Label>
+                    <Input
+                      readOnly
+                      value={
+                        premiumDifference(
+                          insuranceForm.premiumQuoted,
+                          insuranceForm.premiumCollected
+                        ) ?? ""
+                      }
+                      placeholder="Auto-calculated (Quoted − Collected)"
+                      className="bg-muted"
                     />
                   </div>
                 </div>
