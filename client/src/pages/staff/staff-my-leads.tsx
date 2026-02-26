@@ -910,18 +910,21 @@ export default function StaffMyLeads() {
                     </Select>
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <Label>Profile comments</Label>
-                  <Textarea
-                    placeholder="Add any comments based on profile type selection (optional)"
-                    value={insuranceForm.profileComments}
-                    onChange={(e) =>
-                      setInsuranceForm((f) => ({ ...f, profileComments: e.target.value }))
-                    }
-                    className="min-h-[80px]"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
+                {insuranceForm.profileType && (
+                  <div className="space-y-1">
+                    <Label>Profile comments</Label>
+                    <Textarea
+                      placeholder="Add any comments based on profile type selection (optional)"
+                      value={insuranceForm.profileComments}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({ ...f, profileComments: e.target.value }))
+                      }
+                      className="min-h-[80px]"
+                    />
+                  </div>
+                )}
+                {/* Business type: dropdown + manual entry box when selected */}
+                <div className="space-y-2">
                   <div className="space-y-1">
                     <Label>Business type</Label>
                     <Select
@@ -942,88 +945,103 @@ export default function StaffMyLeads() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {insuranceForm.businessType && (
+                    <div className="space-y-1">
+                      <Label className="text-muted-foreground font-normal">
+                        Details for Business type (optional)
+                      </Label>
+                      <Textarea
+                        placeholder="Enter details manually…"
+                        value={insuranceForm.businessTypeComments}
+                        onChange={(e) =>
+                          setInsuranceForm((f) => ({ ...f, businessTypeComments: e.target.value }))
+                        }
+                        className="min-h-[80px]"
+                        aria-label="Business type details"
+                      />
+                    </div>
+                  )}
                 </div>
-                {insuranceForm.businessType && (
-                  <div className="space-y-1">
-                    <Label>Business type comments</Label>
-                    <Textarea
-                      placeholder="Add comments (optional)"
-                      value={insuranceForm.businessTypeComments}
-                      onChange={(e) =>
-                        setInsuranceForm((f) => ({ ...f, businessTypeComments: e.target.value }))
-                      }
-                      className="min-h-[80px]"
-                    />
-                  </div>
-                )}
+
+                {/* Payment mode & Payment done by: dropdowns + manual entry boxes when selected */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label>Payment mode</Label>
-                    <Select
-                      value={insuranceForm.paymentMode || undefined}
-                      onValueChange={(v) =>
-                        setInsuranceForm((f) => ({ ...f, paymentMode: v, paymentModeComments: "" }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PAYMENT_MODES.map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {t}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      <Label>Payment mode</Label>
+                      <Select
+                        value={insuranceForm.paymentMode || undefined}
+                        onValueChange={(v) =>
+                          setInsuranceForm((f) => ({ ...f, paymentMode: v, paymentModeComments: "" }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PAYMENT_MODES.map((t) => (
+                            <SelectItem key={t} value={t}>
+                              {t}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {insuranceForm.paymentMode && (
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground font-normal">
+                          Details for Payment mode (optional)
+                        </Label>
+                        <Textarea
+                          placeholder="Enter details manually…"
+                          value={insuranceForm.paymentModeComments}
+                          onChange={(e) =>
+                            setInsuranceForm((f) => ({ ...f, paymentModeComments: e.target.value }))
+                          }
+                          className="min-h-[80px]"
+                          aria-label="Payment mode details"
+                        />
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-1">
-                    <Label>Payment done by</Label>
-                    <Select
-                      value={insuranceForm.paymentDoneBy || undefined}
-                      onValueChange={(v) =>
-                        setInsuranceForm((f) => ({ ...f, paymentDoneBy: v, paymentDoneByComments: "" }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PAYMENT_DONE_BY.map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {t}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      <Label>Payment done by</Label>
+                      <Select
+                        value={insuranceForm.paymentDoneBy || undefined}
+                        onValueChange={(v) =>
+                          setInsuranceForm((f) => ({ ...f, paymentDoneBy: v, paymentDoneByComments: "" }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PAYMENT_DONE_BY.map((t) => (
+                            <SelectItem key={t} value={t}>
+                              {t}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {insuranceForm.paymentDoneBy && (
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground font-normal">
+                          Details for Payment done by (optional)
+                        </Label>
+                        <Textarea
+                          placeholder="Enter details manually…"
+                          value={insuranceForm.paymentDoneByComments}
+                          onChange={(e) =>
+                            setInsuranceForm((f) => ({ ...f, paymentDoneByComments: e.target.value }))
+                          }
+                          className="min-h-[80px]"
+                          aria-label="Payment done by details"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
-                {insuranceForm.paymentMode && (
-                  <div className="space-y-1">
-                    <Label>Payment mode comments</Label>
-                    <Textarea
-                      placeholder="Add comments (optional)"
-                      value={insuranceForm.paymentModeComments}
-                      onChange={(e) =>
-                        setInsuranceForm((f) => ({ ...f, paymentModeComments: e.target.value }))
-                      }
-                      className="min-h-[80px]"
-                    />
-                  </div>
-                )}
-                {insuranceForm.paymentDoneBy && (
-                  <div className="space-y-1">
-                    <Label>Payment done by comments</Label>
-                    <Textarea
-                      placeholder="Add comments (optional)"
-                      value={insuranceForm.paymentDoneByComments}
-                      onChange={(e) =>
-                        setInsuranceForm((f) => ({ ...f, paymentDoneByComments: e.target.value }))
-                      }
-                      className="min-h-[80px]"
-                    />
-                  </div>
-                )}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label>Premium quoted</Label>
