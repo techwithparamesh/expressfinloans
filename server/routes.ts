@@ -17,6 +17,22 @@ function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Validate date string YYYY-MM-DD and age between 18 and 70. Returns error message or null. */
+function validateDateOfBirthAndAge(dobStr: string | null | undefined): string | null {
+  if (dobStr == null || dobStr === "") return null;
+  const d = new Date(dobStr);
+  if (Number.isNaN(d.getTime())) return "Invalid date of birth";
+  const normalized = d.toISOString().slice(0, 10);
+  if (normalized !== dobStr) return "Invalid date of birth";
+  const today = new Date();
+  let age = today.getFullYear() - d.getFullYear();
+  const m = today.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
+  if (age < 18) return "Age must be at least 18 years";
+  if (age > 70) return "Age must not exceed 70 years";
+  return null;
+}
+
 /** Returns employee IDs the current user can see. Admin: null (all). Team Lead: their team member IDs. */
 async function getVisibleEmployeeIds(req: express.Request): Promise<string[] | null> {
   const role = (req.user as { role?: string })?.role;
@@ -161,15 +177,32 @@ export async function registerRoutes(
       const userId = (req.user as any).id;
       const body = req.body || {};
       const dateStr = body.date || todayStr();
+      if (!body.dateOfBirth || (typeof body.dateOfBirth === "string" && !body.dateOfBirth.trim())) {
+        return res.status(400).json({ message: "Date of birth is required" });
+      }
+      const dobErr = validateDateOfBirthAndAge(body.dateOfBirth);
+      if (dobErr) return res.status(400).json({ message: dobErr });
+      if (!body.loanType || (typeof body.loanType === "string" && !body.loanType.trim())) {
+        return res.status(400).json({ message: "Loan type is required" });
+      }
+      if (!body.subLoanType || (typeof body.subLoanType === "string" && !body.subLoanType.trim())) {
+        return res.status(400).json({ message: "Sub loan type is required" });
+      }
+      if (!body.incomeType || (typeof body.incomeType === "string" && !body.incomeType.trim())) {
+        return res.status(400).json({ message: "Income type is required" });
+      }
       const lead = await storage.createLead({
         employeeId: userId,
         date: dateStr,
         customerName: body.customerName ?? null,
+        dateOfBirth: body.dateOfBirth && String(body.dateOfBirth).trim() ? String(body.dateOfBirth).trim().slice(0, 10) : null,
         customerPhone: body.customerPhone ?? null,
         customerEmail: body.customerEmail ?? null,
         location: body.location ?? null,
         loanType: body.loanType ?? null,
+        subLoanType: body.subLoanType ?? null,
         incomeType: body.incomeType ?? null,
+        incomeComments: body.incomeComments ?? null,
         amount: body.amount ?? null,
         cibil: body.cibil ?? null,
         docsCollected: body.docsCollected ?? null,
@@ -256,13 +289,18 @@ export async function registerRoutes(
         }
       } else if (!isAdmin && lead.employeeId !== userId) return res.status(403).json({ message: "Forbidden" });
       const body = req.body || {};
+      const dobErr = validateDateOfBirthAndAge(body.dateOfBirth);
+      if (dobErr) return res.status(400).json({ message: dobErr });
       const data: Record<string, unknown> = {};
       if (body.customerName !== undefined) data.customerName = body.customerName;
+      if (body.dateOfBirth !== undefined) data.dateOfBirth = body.dateOfBirth && String(body.dateOfBirth).trim() ? String(body.dateOfBirth).trim().slice(0, 10) : null;
       if (body.customerPhone !== undefined) data.customerPhone = body.customerPhone;
       if (body.customerEmail !== undefined) data.customerEmail = body.customerEmail;
       if (body.location !== undefined) data.location = body.location;
       if (body.loanType !== undefined) data.loanType = body.loanType;
+      if (body.subLoanType !== undefined) data.subLoanType = body.subLoanType;
       if (body.incomeType !== undefined) data.incomeType = body.incomeType;
+      if (body.incomeComments !== undefined) data.incomeComments = body.incomeComments;
       if (body.amount !== undefined) data.amount = body.amount;
       if (body.cibil !== undefined) data.cibil = body.cibil;
       if (body.docsCollected !== undefined) data.docsCollected = body.docsCollected;

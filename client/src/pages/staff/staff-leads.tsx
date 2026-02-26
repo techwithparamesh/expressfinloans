@@ -44,8 +44,12 @@ type Lead = {
   employeeNumber?: string;
   date: string;
   customerName: string | null;
+  dateOfBirth?: string | null;
   customerPhone: string | null;
   loanType: string | null;
+  subLoanType?: string | null;
+  incomeType?: string | null;
+  incomeComments?: string | null;
   amount: string | null;
   status: string;
   payoutPercent: string | null;
@@ -231,8 +235,10 @@ export default function StaffLeads() {
                   <th className="text-left py-2 px-2 min-w-[80px]">Status</th>
                   <th className="text-left py-2 px-2 min-w-[80px]">Amount</th>
                   <th className="text-left py-2 px-2 min-w-[100px]">Customer</th>
+                  <th className="text-left py-2 px-2 min-w-[90px]">DOB</th>
                   <th className="text-left py-2 px-2 min-w-[90px]">Phone</th>
                   <th className="text-left py-2 px-2 min-w-[90px]">Loan type</th>
+                  <th className="text-left py-2 px-2 min-w-[90px]">Sub type</th>
                   {showAdminFields && (
                     <>
                       <th className="text-left py-2 px-2 min-w-[70px]">Payout %</th>
@@ -253,8 +259,10 @@ export default function StaffLeads() {
                     <td className="py-2 px-2">{l.status}</td>
                     <td className="py-2 px-2">{l.amount ?? "—"}</td>
                     <td className="py-2 px-2 max-w-[120px] truncate" title={l.customerName ?? undefined}>{l.customerName ?? "—"}</td>
+                    <td className="py-2 px-2 whitespace-nowrap">{l.dateOfBirth ?? "—"}</td>
                     <td className="py-2 px-2">{l.customerPhone ?? "—"}</td>
                     <td className="py-2 px-2">{l.loanType ?? "—"}</td>
+                    <td className="py-2 px-2">{l.subLoanType ?? "—"}</td>
                     {showAdminFields && (
                       <>
                         <td className="py-2 px-2">{l.payoutPercent ?? "—"}</td>

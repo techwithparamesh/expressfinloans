@@ -1,22 +1,55 @@
 /**
  * Dropdown options for Loan Lead form and Insurance Lead form (staff portal).
+ * Loan Type: no BT, no OD as main types. Sub Loan Type includes BT under each.
  */
 
 export const LOAN_TYPES = [
   "Personal Loan",
   "Car Loan",
   "MSME",
-  "Project",
-  "Business",
-  "OD",
+  "Business Loan",
+  "Project Finance",
   "LAP",
   "LRD",
-  "Education",
+  "Home Loan",
+  "Land Purchase",
+  "Education Loan",
   "Equipment Loan",
-  "BT",
 ] as const;
 
-export const INCOME_TYPES = ["Salaried", "Self Emp"] as const;
+/** Sub loan types for LAP, LRD, Home Loan, Land Purchase */
+const SUB_LAP_LRD_HOME_LAND = [
+  "New",
+  "BT",
+  "Topup",
+  "Self Construction",
+  "Land + Construction",
+  "Land Loan",
+  "Commercial Purchase",
+] as const;
+
+/** Sub loan types per loan type. BT available under all; OD removed. */
+export const LOAN_TYPE_SUBTYPES: Record<(typeof LOAN_TYPES)[number], readonly string[]> = {
+  "Personal Loan": ["New", "BT", "Topup"],
+  "Car Loan": ["New", "Used", "BT", "Topup"],
+  MSME: ["New", "Used", "BT", "Topup", "Term Loan"],
+  "Business Loan": ["New", "BT", "Topup"],
+  "Project Finance": ["Open Land", "Apartment", "Villas", "BT"],
+  LAP: [...SUB_LAP_LRD_HOME_LAND],
+  LRD: [...SUB_LAP_LRD_HOME_LAND],
+  "Home Loan": [...SUB_LAP_LRD_HOME_LAND],
+  "Land Purchase": [...SUB_LAP_LRD_HOME_LAND],
+  "Education Loan": ["New", "BT", "Topup"],
+  "Equipment Loan": ["New", "BT", "Topup"],
+};
+
+export const INCOME_TYPES = [
+  "Salaried",
+  "Self Employed Professional",
+  "Self Employed Non-Professional",
+  "No Income Proof",
+  "Others",
+] as const;
 
 export const LOAN_STATUSES = [
   "Open",

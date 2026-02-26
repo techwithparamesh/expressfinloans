@@ -22,8 +22,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { staffJson } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, ArrowLeft, FileText, Shield } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import {
   LOAN_TYPES,
+  LOAN_TYPE_SUBTYPES,
   INCOME_TYPES,
   LOAN_STATUSES,
   BANKS_NBFCS,
@@ -35,11 +37,14 @@ type Lead = {
   id: string;
   date: string;
   customerName: string | null;
+  dateOfBirth: string | null;
   customerPhone: string | null;
   customerEmail: string | null;
   location: string | null;
   loanType: string | null;
+  subLoanType: string | null;
   incomeType: string | null;
+  incomeComments: string | null;
   amount: string | null;
   cibil: string | null;
   docsCollected: string | null;
@@ -70,11 +75,14 @@ const today = () => new Date().toISOString().slice(0, 10);
 const defaultLoanForm = () => ({
   date: today(),
   customerName: "",
+  dateOfBirth: "",
   customerPhone: "",
   customerEmail: "",
   location: "",
   loanType: "",
+  subLoanType: "",
   incomeType: "",
+  incomeComments: "",
   amount: "",
   cibil: "",
   docsCollected: "",
@@ -137,6 +145,22 @@ export default function StaffMyLeads() {
 
   async function handleLoanSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!loanForm.dateOfBirth?.trim()) {
+      toast({ title: "Date of Birth is required", variant: "destructive" });
+      return;
+    }
+    if (!loanForm.loanType?.trim()) {
+      toast({ title: "Loan type is required", variant: "destructive" });
+      return;
+    }
+    if (!loanForm.subLoanType?.trim()) {
+      toast({ title: "Sub loan type is required", variant: "destructive" });
+      return;
+    }
+    if (!loanForm.incomeType?.trim()) {
+      toast({ title: "Income type is required", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       await staffJson("/staff/leads", {
@@ -145,11 +169,14 @@ export default function StaffMyLeads() {
         body: JSON.stringify({
           date: loanForm.date,
           customerName: loanForm.customerName || null,
+          dateOfBirth: loanForm.dateOfBirth?.trim() || null,
           customerPhone: loanForm.customerPhone || null,
           customerEmail: loanForm.customerEmail || null,
           location: loanForm.location || null,
           loanType: loanForm.loanType || null,
+          subLoanType: loanForm.subLoanType || null,
           incomeType: loanForm.incomeType || null,
+          incomeComments: loanForm.incomeComments?.trim() || null,
           amount: loanForm.amount || null,
           cibil: loanForm.cibil || null,
           docsCollected: loanForm.docsCollected || null,
@@ -164,7 +191,7 @@ export default function StaffMyLeads() {
       setOpen(false);
       setLoanForm(defaultLoanForm());
       load();
-    } catch (err) {
+    } catch (err: unknown) {
       toast({ title: err instanceof Error ? err.message : "Failed", variant: "destructive" });
     } finally {
       setSaving(false);
@@ -233,8 +260,10 @@ export default function StaffMyLeads() {
                     <tr className="border-b">
                       <th className="text-left py-2">Date</th>
                       <th className="text-left py-2">Customer</th>
+                      <th className="text-left py-2">DOB</th>
                       <th className="text-left py-2">Contact</th>
                       <th className="text-left py-2">Loan type</th>
+                      <th className="text-left py-2">Sub type</th>
                       <th className="text-left py-2">Amount</th>
                       <th className="text-left py-2">Status</th>
                     </tr>
@@ -244,8 +273,10 @@ export default function StaffMyLeads() {
                       <tr key={l.id} className="border-b">
                         <td className="py-2">{l.date}</td>
                         <td className="py-2">{l.customerName ?? "—"}</td>
+                        <td className="py-2">{l.dateOfBirth ?? "—"}</td>
                         <td className="py-2">{l.customerPhone ?? "—"}</td>
                         <td className="py-2">{l.loanType ?? "—"}</td>
+                        <td className="py-2">{l.subLoanType ?? "—"}</td>
                         <td className="py-2">{l.amount ?? "—"}</td>
                         <td className="py-2">{l.status}</td>
                       </tr>
@@ -330,75 +361,77 @@ export default function StaffMyLeads() {
                   <DialogDescription>Add a new loan lead.</DialogDescription>
                 </div>
               </DialogHeader>
-              <form onSubmit={handleLoanSubmit} className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label>Date</Label>
-                    <Input
-                      type="date"
-                      value={loanForm.date}
-                      onChange={(e) => setLoanForm((f) => ({ ...f, date: e.target.value }))}
-                    />
+              <form onSubmit={handleLoanSubmit} className="space-y-6">
+                {/* Basic Details */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-slate-700 border-b pb-2">Basic Details</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Date</Label>
+                      <Input
+                        type="date"
+                        value={loanForm.date}
+                        onChange={(e) => setLoanForm((f) => ({ ...f, date: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Customer name</Label>
+                      <Input
+                        value={loanForm.customerName}
+                        onChange={(e) => setLoanForm((f) => ({ ...f, customerName: e.target.value }))}
+                        placeholder="Full name"
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <Label>Customer name</Label>
-                    <Input
-                      value={loanForm.customerName}
-                      onChange={(e) => setLoanForm((f) => ({ ...f, customerName: e.target.value }))}
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="loan-dob">Date of Birth <span className="text-red-500">*</span></Label>
+                      <Input
+                        id="loan-dob"
+                        type="date"
+                        value={loanForm.dateOfBirth}
+                        onChange={(e) => setLoanForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Contact num</Label>
+                      <Input
+                        value={loanForm.customerPhone}
+                        onChange={(e) => setLoanForm((f) => ({ ...f, customerPhone: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Mail ID</Label>
+                      <Input
+                        type="email"
+                        value={loanForm.customerEmail}
+                        onChange={(e) => setLoanForm((f) => ({ ...f, customerEmail: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Location</Label>
+                      <Input
+                        value={loanForm.location}
+                        onChange={(e) => setLoanForm((f) => ({ ...f, location: e.target.value }))}
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+
+                {/* Income Details */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-slate-700 border-b pb-2">Income Details</h3>
                   <div className="space-y-1">
-                    <Label>Contact num</Label>
-                    <Input
-                      value={loanForm.customerPhone}
-                      onChange={(e) => setLoanForm((f) => ({ ...f, customerPhone: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Mail ID</Label>
-                    <Input
-                      type="email"
-                      value={loanForm.customerEmail}
-                      onChange={(e) => setLoanForm((f) => ({ ...f, customerEmail: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label>Location</Label>
-                  <Input
-                    value={loanForm.location}
-                    onChange={(e) => setLoanForm((f) => ({ ...f, location: e.target.value }))}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label>Loan type</Label>
-                    <Select
-                      value={loanForm.loanType || undefined}
-                      onValueChange={(v) => setLoanForm((f) => ({ ...f, loanType: v }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LOAN_TYPES.map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {t}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Income type</Label>
+                    <Label>Income type <span className="text-red-500">*</span></Label>
                     <Select
                       value={loanForm.incomeType || undefined}
                       onValueChange={(v) => setLoanForm((f) => ({ ...f, incomeType: v }))}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select" />
+                        <SelectValue placeholder="Select income type" />
                       </SelectTrigger>
                       <SelectContent>
                         {INCOME_TYPES.map((t) => (
@@ -409,92 +442,152 @@ export default function StaffMyLeads() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {loanForm.incomeType && (
+                    <div className="space-y-1">
+                      <Label htmlFor="income-comments">Comments</Label>
+                      <Textarea
+                        id="income-comments"
+                        name="income_comments"
+                        value={loanForm.incomeComments}
+                        onChange={(e) => setLoanForm((f) => ({ ...f, incomeComments: e.target.value }))}
+                        placeholder="Enter additional details if required"
+                        className="min-h-[80px] resize-y"
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+
+                {/* Loan Details */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-slate-700 border-b pb-2">Loan Details</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Loan type <span className="text-red-500">*</span></Label>
+                      <Select
+                        value={loanForm.loanType || undefined}
+                        onValueChange={(v) => setLoanForm((f) => ({ ...f, loanType: v, subLoanType: "" }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select loan type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LOAN_TYPES.map((t) => (
+                            <SelectItem key={t} value={t}>
+                              {t}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Sub loan type <span className="text-red-500">*</span></Label>
+                      <Select
+                        value={loanForm.subLoanType || undefined}
+                        onValueChange={(v) => setLoanForm((f) => ({ ...f, subLoanType: v }))}
+                        disabled={!loanForm.loanType}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={loanForm.loanType ? "Select sub type" : "Select loan type first"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {loanForm.loanType && LOAN_TYPE_SUBTYPES[loanForm.loanType as keyof typeof LOAN_TYPE_SUBTYPES]?.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Required amount</Label>
+                      <Input
+                        value={loanForm.amount}
+                        onChange={(e) => setLoanForm((f) => ({ ...f, amount: e.target.value }))}
+                        placeholder="e.g. 1000000"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>CIBIL</Label>
+                      <Input
+                        value={loanForm.cibil}
+                        onChange={(e) => setLoanForm((f) => ({ ...f, cibil: e.target.value }))}
+                      />
+                    </div>
+                  </div>
                   <div className="space-y-1">
-                    <Label>Required amount</Label>
+                    <Label>Docs collected</Label>
                     <Input
-                      value={loanForm.amount}
-                      onChange={(e) => setLoanForm((f) => ({ ...f, amount: e.target.value }))}
-                      placeholder="e.g. 1000000"
+                      value={loanForm.docsCollected}
+                      onChange={(e) => setLoanForm((f) => ({ ...f, docsCollected: e.target.value }))}
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label>CIBIL</Label>
-                    <Input
-                      value={loanForm.cibil}
-                      onChange={(e) => setLoanForm((f) => ({ ...f, cibil: e.target.value }))}
-                    />
+                    <Label>Company logged</Label>
+                    <Select
+                      value={loanForm.companyLogged || undefined}
+                      onValueChange={(v) => setLoanForm((f) => ({ ...f, companyLogged: v }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Banks & NBFCs" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BANKS_NBFCS.map((b) => (
+                          <SelectItem key={b} value={b}>
+                            {b}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>ROI</Label>
+                      <Input
+                        value={loanForm.roi}
+                        onChange={(e) => setLoanForm((f) => ({ ...f, roi: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Loan Amount</Label>
+                      <Input
+                        value={loanForm.loanDisbursed}
+                        onChange={(e) => setLoanForm((f) => ({ ...f, loanDisbursed: e.target.value }))}
+                        placeholder="e.g. 1000000"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Lead status</Label>
+                      <Select
+                        value={loanForm.status || undefined}
+                        onValueChange={(v) => setLoanForm((f) => ({ ...f, status: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LOAN_STATUSES.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Remarks</Label>
+                      <Input
+                        value={loanForm.notes}
+                        onChange={(e) => setLoanForm((f) => ({ ...f, notes: e.target.value }))}
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <Label>Docs collected</Label>
-                  <Input
-                    value={loanForm.docsCollected}
-                    onChange={(e) => setLoanForm((f) => ({ ...f, docsCollected: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Company logged</Label>
-                  <Select
-                    value={loanForm.companyLogged || undefined}
-                    onValueChange={(v) => setLoanForm((f) => ({ ...f, companyLogged: v }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Banks & NBFCs" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BANKS_NBFCS.map((b) => (
-                        <SelectItem key={b} value={b}>
-                          {b}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label>ROI</Label>
-                    <Input
-                      value={loanForm.roi}
-                      onChange={(e) => setLoanForm((f) => ({ ...f, roi: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Loan Amount</Label>
-                    <Input
-                      value={loanForm.loanDisbursed}
-                      onChange={(e) => setLoanForm((f) => ({ ...f, loanDisbursed: e.target.value }))}
-                      placeholder="e.g. 1000000"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label>Lead status</Label>
-                  <Select
-                    value={loanForm.status || undefined}
-                    onValueChange={(v) => setLoanForm((f) => ({ ...f, status: v }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LOAN_STATUSES.map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {s}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Remarks</Label>
-                  <Input
-                    value={loanForm.notes}
-                    onChange={(e) => setLoanForm((f) => ({ ...f, notes: e.target.value }))}
-                  />
-                </div>
-                <DialogFooter>
+
+                <DialogFooter className="gap-2 pt-2">
                   <Button type="button" variant="outline" onClick={() => setStep("choice")}>
                     Back
                   </Button>
