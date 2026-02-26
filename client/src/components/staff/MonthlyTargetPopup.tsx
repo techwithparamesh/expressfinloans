@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { staffJson } from "@/lib/api";
 
-type MonthlyTargetData = {
+export type MonthlyTargetData = {
   forTeamLead?: boolean;
   monthTarget: number;
   achievement: number;
@@ -22,61 +22,42 @@ type MonthlyTargetData = {
   monthLabel: string;
 };
 
-const STORAGE_KEY_PREFIX = "monthlyTargetPopupShown_";
+type MonthlyTargetPopupProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
 
-function getTodayKey(): string {
-  return STORAGE_KEY_PREFIX + new Date().toISOString().slice(0, 10);
+function fetchMonthlyTarget() {
+  return staffJson<MonthlyTargetData | { forStaffOnly: boolean }>("/staff/monthly-target");
 }
 
-function wasShownToday(): boolean {
-  try {
-    return sessionStorage.getItem(getTodayKey()) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function setShownToday(): void {
-  try {
-    sessionStorage.setItem(getTodayKey(), "1");
-  } catch {}
-}
-
-/** Call on logout so the popup shows again after the next login. */
-export function clearMonthlyTargetPopupShown(): void {
-  try {
-    sessionStorage.removeItem(getTodayKey());
-  } catch {}
-}
-
-export default function MonthlyTargetPopup() {
-  const [open, setOpen] = useState(false);
+export default function MonthlyTargetPopup({ open, onOpenChange }: MonthlyTargetPopupProps) {
   const [data, setData] = useState<MonthlyTargetData | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Whenever the popup opens, fetch fresh data so values reflect latest leads (added/updated/closed).
   useEffect(() => {
-    if (wasShownToday()) return;
+    if (!open) return;
     setLoading(true);
-    staffJson<MonthlyTargetData | { forStaffOnly: boolean }>("/staff/monthly-target")
+    setData(null);
+    fetchMonthlyTarget()
       .then((res) => {
         if ("forStaffOnly" in res && res.forStaffOnly) return;
         setData(res as MonthlyTargetData);
-        setOpen(true);
-        setShownToday();
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [open]);
 
   const isTeamLead = data?.forTeamLead ?? false;
   const title = isTeamLead ? "Team monthly target" : "Monthly Target";
   const subtitle = isTeamLead
-    ? `Your team's performance for ${data?.monthLabel ?? "this month"}. Shown once per day.`
-    : `Your performance for ${data?.monthLabel ?? "this month"}. Shown once per day.`;
+    ? `Your team's performance for ${data?.monthLabel ?? "this month"}. Live values from your leads.`
+    : `Your performance for ${data?.monthLabel ?? "this month"}. Live values from your leads.`;
   const conveyanceLabel = isTeamLead ? "Team conveyance" : "Your conveyance";
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -129,7 +110,7 @@ export default function MonthlyTargetPopup() {
               </p>
             </div>
             <div className="flex justify-end">
-              <Button onClick={() => setOpen(false)}>Close</Button>
+              <Button onClick={() => onOpenChange(false)}>Close</Button>
             </div>
           </div>
         )}

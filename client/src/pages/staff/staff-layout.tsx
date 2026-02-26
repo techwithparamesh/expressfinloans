@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, createContext, useContext } from "react";
 import { Link, useLocation } from "wouter";
 import { getAuthMe, logout, type StaffUser } from "@/lib/api";
 import {
@@ -17,7 +17,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import MonthlyTargetPopup, { clearMonthlyTargetPopupShown } from "@/components/staff/MonthlyTargetPopup";
+import MonthlyTargetPopup from "@/components/staff/MonthlyTargetPopup";
+
+const MonthlyTargetPopupContext = createContext<{ openMonthlyTargetPopup: () => void } | null>(null);
+
+export function useMonthlyTargetPopup() {
+  return useContext(MonthlyTargetPopupContext);
+}
 
 const path = (base: string, p: string) => (base ? `${base}${p}` : p);
 
@@ -47,6 +53,8 @@ export default function StaffLayout({
   const [user, setUser] = useState<StaffUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [popupOpen, setPopupOpen] = useState(false);
+  const hasAutoOpenedPopup = useRef(false);
   const [location] = useLocation();
   const { toast } = useToast();
 
@@ -83,10 +91,17 @@ export default function StaffLayout({
       .finally(() => setLoading(false));
   }, [location]);
 
+  // Auto-open monthly target popup once per login for employees and team leads.
+  useEffect(() => {
+    if (!user || !(user.role === "employee" || user.role === "team_lead")) return;
+    if (hasAutoOpenedPopup.current) return;
+    hasAutoOpenedPopup.current = true;
+    setPopupOpen(true);
+  }, [user?.id, user?.role]);
+
   async function handleLogout() {
     try {
       await logout();
-      clearMonthlyTargetPopupShown();
       setUser(null);
       window.location.href = path(basePath, "/login");
     } catch {
@@ -126,9 +141,15 @@ export default function StaffLayout({
 
   const closeSidebar = () => setSidebarOpen(false);
 
+  const monthlyTargetPopupValue = (isEmployee || isTeamLead)
+    ? { openMonthlyTargetPopup: () => setPopupOpen(true) }
+    : null;
+
   return (
-    <>
-      {(isEmployee || isTeamLead) && <MonthlyTargetPopup />}
+    <MonthlyTargetPopupContext.Provider value={monthlyTargetPopupValue}>
+      {(isEmployee || isTeamLead) && (
+        <MonthlyTargetPopup open={popupOpen} onOpenChange={setPopupOpen} />
+      )}
       <div className="min-h-screen flex bg-slate-100">
         {sidebarOpen && (
           <button
@@ -215,6 +236,6 @@ export default function StaffLayout({
           <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
         </div>
       </div>
-    </>
+    </MonthlyTargetPopupContext.Provider>
   );
 }

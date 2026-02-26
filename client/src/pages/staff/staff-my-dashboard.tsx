@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Button } from "@/components/ui/button";
 import { getAuthMe, staffJson } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
 import { FileText, Target, Calendar, TrendingUp } from "lucide-react";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
+import { useMonthlyTargetPopup } from "./staff-layout";
 
 type MyDashboard = {
   monthLabel: string;
@@ -21,6 +23,7 @@ export default function StaffMyDashboard() {
   const [data, setData] = useState<MyDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { openMonthlyTargetPopup } = useMonthlyTargetPopup() ?? {};
 
   useEffect(() => {
     getAuthMe().then((res) => setUser(res?.user ?? null));
@@ -125,7 +128,16 @@ export default function StaffMyDashboard() {
           <CardTitle>Quick links</CardTitle>
           <CardDescription>Add leads and track attendance from the menu.</CardDescription>
         </CardHeader>
-        <CardContent className="text-sm text-slate-600">
+        <CardContent className="space-y-3 text-sm text-slate-600">
+          {openMonthlyTargetPopup && (
+            <div className="pb-2 border-b border-slate-200">
+              <Button variant="outline" size="sm" onClick={openMonthlyTargetPopup}>
+                <Target className="h-4 w-4 mr-2" />
+                View monthly target
+              </Button>
+              <p className="text-xs text-slate-500 mt-2">See your live achievement, leads converted, and conveyance.</p>
+            </div>
+          )}
           <p>• <strong>My leads</strong> – Add loan and insurance leads, view your list.</p>
           <p>• <strong>My attendance</strong> – Login/logout and see your attendance history.</p>
           <p>• Add 2 or more loan leads per day to be marked <strong>present</strong>.</p>
