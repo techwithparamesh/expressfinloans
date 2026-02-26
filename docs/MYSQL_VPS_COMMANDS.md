@@ -321,6 +321,18 @@ USE expressfinloans;
 ALTER TABLE insurance_leads ADD COLUMN miscellaneous_expenses VARCHAR(100) NULL;
 ```
 
+**Attendance login location (hybrid: browser geolocation + IP fallback):** To store where the employee logged in (check-in location), run:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE attendance_logs
+  ADD COLUMN login_location VARCHAR(500) NULL,
+  ADD COLUMN login_ip VARCHAR(45) NULL,
+  ADD COLUMN login_lat DECIMAL(10,7) NULL,
+  ADD COLUMN login_lng DECIMAL(10,7) NULL;
+```
+
 **Employee number (4-digit ID for staff):** To add the employee ID column used in attendance/leads (e.g. 1001, 1002), run:
 
 ```sql
@@ -398,6 +410,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
 | Insurance lead form (difference – auto-calculated) | **Insurance lead form (Difference – auto-calculated)** ALTER block above |
 | Insurance subtype “Other” manual entry (insurance_subtype_other) | **Insurance lead form (subtype “Other” – manual entry)** ALTER block above |
 | Miscellaneous Expenses (insurance lead) | **Insurance lead form (Miscellaneous Expenses)** ALTER block above |
+| Attendance login location (login_location, login_ip, login_lat, login_lng) | **Attendance login location** ALTER block above |
 
 Use `DESCRIBE table_name;` (see **Common database commands** below) to see which columns you already have.
 

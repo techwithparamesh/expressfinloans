@@ -7,6 +7,7 @@ import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
 import { storage } from "./storage";
 import { requireAuth, requireAdmin, requireAdminOrTeamLead } from "./auth";
+import { getClientIp, getLocationFromIp, reverseGeocode } from "./lib/geolocation";
 
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 const AVATARS_DIR = path.join(UPLOADS_DIR, "avatars");
@@ -100,7 +101,33 @@ export async function registerRoutes(
     try {
       const userId = (req.user as any).id;
       const dateStr = (req.body?.date as string) || todayStr();
-      const log = await storage.setAttendanceLogin(userId, dateStr);
+      const body = req.body || {};
+      const clientIp = getClientIp(req);
+      const ipStr = clientIp ? clientIp.slice(0, 45) : null;
+
+      let loginLocation: string | null = null;
+      let loginLat: string | null = null;
+      let loginLng: string | null = null;
+
+      const lat = body.latitude != null ? Number(body.latitude) : NaN;
+      const lng = body.longitude != null ? Number(body.longitude) : NaN;
+      const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+
+      if (hasCoords) {
+        loginLat = String(lat);
+        loginLng = String(lng);
+        loginLocation = await reverseGeocode(lat, lng);
+        if (!loginLocation) loginLocation = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      } else {
+        loginLocation = await getLocationFromIp(clientIp);
+      }
+
+      const log = await storage.setAttendanceLogin(userId, dateStr, {
+        loginLocation: loginLocation || null,
+        loginIp: ipStr,
+        loginLat: loginLat || null,
+        loginLng: loginLng || null,
+      });
       res.json(log);
     } catch (e) {
       next(e);

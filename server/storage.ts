@@ -41,7 +41,11 @@ export interface IStorage {
   getAttendanceLogsByEmployee(employeeId: string, fromDate?: string, toDate?: string): Promise<AttendanceLog[]>;
   getAllAttendanceLogs(fromDate?: string, toDate?: string): Promise<AttendanceLog[]>;
   upsertAttendanceLog(data: InsertAttendanceLog): Promise<AttendanceLog>;
-  setAttendanceLogin(employeeId: string, dateStr: string): Promise<AttendanceLog>;
+  setAttendanceLogin(
+    employeeId: string,
+    dateStr: string,
+    options?: { loginLocation?: string | null; loginIp?: string | null; loginLat?: string | null; loginLng?: string | null }
+  ): Promise<AttendanceLog>;
   setAttendanceLogout(employeeId: string, dateStr: string): Promise<AttendanceLog>;
   updateAttendanceFromLeadsCount(employeeId: string, dateStr: string, count: number): Promise<void>;
 
@@ -210,6 +214,10 @@ export class DrizzleStorage implements IStorage {
         .set({
           loginAt: data.loginAt ?? existing.loginAt,
           logoutAt: data.logoutAt ?? existing.logoutAt,
+          loginLocation: data.loginLocation ?? existing.loginLocation,
+          loginIp: data.loginIp ?? existing.loginIp,
+          loginLat: data.loginLat ?? existing.loginLat,
+          loginLng: data.loginLng ?? existing.loginLng,
           leadsCount: data.leadsCount ?? existing.leadsCount,
           status: data.status ?? existing.status,
           updatedAt: new Date(),
@@ -225,14 +233,24 @@ export class DrizzleStorage implements IStorage {
     return created;
   }
 
-  async setAttendanceLogin(employeeId: string, dateStr: string): Promise<AttendanceLog> {
+  async setAttendanceLogin(
+    employeeId: string,
+    dateStr: string,
+    options?: { loginLocation?: string | null; loginIp?: string | null; loginLat?: string | null; loginLng?: string | null }
+  ): Promise<AttendanceLog> {
     await guardDb();
     const existing = await this.getAttendanceLog(employeeId, dateStr);
     const now = new Date();
+    const locationFields = {
+      loginLocation: options?.loginLocation ?? undefined,
+      loginIp: options?.loginIp ?? undefined,
+      loginLat: options?.loginLat ?? undefined,
+      loginLng: options?.loginLng ?? undefined,
+    };
     if (existing) {
       await db
         .update(attendanceLogs)
-        .set({ loginAt: now, updatedAt: now })
+        .set({ loginAt: now, updatedAt: now, ...locationFields })
         .where(eq(attendanceLogs.id, existing.id));
       const [updated] = await db.select().from(attendanceLogs).where(eq(attendanceLogs.id, existing.id)).limit(1);
       if (!updated) throw new Error("Failed to update login");
@@ -244,6 +262,7 @@ export class DrizzleStorage implements IStorage {
       loginAt: now,
       leadsCount: 0,
       status: "incomplete",
+      ...locationFields,
     });
   }
 
