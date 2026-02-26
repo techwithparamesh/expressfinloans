@@ -1062,7 +1062,7 @@ export default function StaffMyLeads() {
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label>Notes</Label>
+                  <Label>Remarks</Label>
                   <Input
                     value={insuranceForm.notes}
                     onChange={(e) =>
