@@ -672,6 +672,278 @@ export async function registerRoutes(
     }
   });
 
+  // --- Hierarchical Monthly Target Allocation ---
+  app.get("/api/staff/targets/company", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const month = parseInt(String(req.query.month), 10);
+      const year = parseInt(String(req.query.year), 10);
+      if (Number.isNaN(month) || Number.isNaN(year) || month < 1 || month > 12) {
+        return res.status(400).json({ message: "Valid month (1-12) and year required" });
+      }
+      const row = await storage.getCompanyMonthlyTarget(month, year);
+      res.json(row ?? { month, year, totalBudget: "0", totalLeads: 0, isLocked: 0 });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.post("/api/staff/targets/company", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const body = req.body as { month?: number; year?: number; totalBudget?: number | string; totalLeads?: number };
+      const month = Number(body?.month);
+      const year = Number(body?.year);
+      if (Number.isNaN(month) || Number.isNaN(year) || month < 1 || month > 12) {
+        return res.status(400).json({ message: "Valid month (1-12) and year required" });
+      }
+      const existing = await storage.getCompanyMonthlyTarget(month, year);
+      if (existing && existing.isLocked === 1) {
+        return res.status(400).json({ message: "Targets are locked for this month" });
+      }
+      const totalBudget = body.totalBudget != null ? Number(body.totalBudget) : 0;
+      const totalLeads = Number(body.totalLeads) || 0;
+      const created = await storage.upsertCompanyMonthlyTarget({
+        month,
+        year,
+        totalBudget: String(totalBudget),
+        totalLeads,
+        createdBy: (req.user as any).id,
+      });
+      await storage.insertTargetAuditLog({
+        month,
+        year,
+        action: existing ? "updated" : "created",
+        changedBy: (req.user as any).id,
+        newValue: JSON.stringify({ totalBudget, totalLeads }),
+      });
+      res.json(created);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/targets/leaders", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const month = parseInt(String(req.query.month), 10);
+      const year = parseInt(String(req.query.year), 10);
+      if (Number.isNaN(month) || Number.isNaN(year) || month < 1 || month > 12) {
+        return res.status(400).json({ message: "Valid month and year required" });
+      }
+      const leaders = await storage.listTeamLeads();
+      const targets = await storage.getMonthlyTargetsByMonth(month, year);
+      const byUser = new Map(targets.map((t) => [t.userId, t]));
+      const list = leaders.map((u) => {
+        const t = byUser.get(u.id);
+        return {
+          userId: u.id,
+          fullName: (u as any).fullName || (u as any).username,
+          username: (u as any).username,
+          assignedBudget: t ? String(t.assignedBudget) : "0",
+          assignedLeads: t?.assignedLeads ?? 0,
+        };
+      });
+      res.json({ leaders: list });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.post("/api/staff/targets/leaders", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const body = req.body as { month?: number; year?: number; leaderTargets?: Array<{ userId: string; assignedBudget: number | string; assignedLeads: number }> };
+      const month = Number(body?.month);
+      const year = Number(body?.year);
+      if (Number.isNaN(month) || Number.isNaN(year) || month < 1 || month > 12) {
+        return res.status(400).json({ message: "Valid month and year required" });
+      }
+      const company = await storage.getCompanyMonthlyTarget(month, year);
+      if (company && company.isLocked === 1) {
+        return res.status(400).json({ message: "Targets are locked for this month" });
+      }
+      const totalBudget = company ? parseFloat(String(company.totalBudget)) : 0;
+      const totalLeads = company?.totalLeads ?? 0;
+      const leaderTargets = Array.isArray(body.leaderTargets) ? body.leaderTargets : [];
+      let sumBudget = 0;
+      let sumLeads = 0;
+      for (const lt of leaderTargets) {
+        const b = parseFloat(String(lt.assignedBudget));
+        const l = Number(lt.assignedLeads) || 0;
+        if (!Number.isNaN(b)) sumBudget += b;
+        sumLeads += l;
+      }
+      const budgetMatch = Math.abs(sumBudget - totalBudget) < 0.01;
+      if (!budgetMatch || sumLeads !== totalLeads) {
+        return res.status(400).json({
+          message: "Sum of leader budgets must equal company budget and sum of leader leads must equal company leads",
+          totalBudget,
+          totalLeads,
+          sumBudget,
+          sumLeads,
+        });
+      }
+      const adminId = (req.user as any).id;
+      for (const lt of leaderTargets) {
+        await storage.upsertMonthlyTarget({
+          userId: lt.userId,
+          month,
+          year,
+          assignedBudget: lt.assignedBudget,
+          assignedLeads: Number(lt.assignedLeads) || 0,
+          createdBy: adminId,
+        });
+      }
+      res.json({ ok: true });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/targets/employees", requireAuth, requireAdminOrTeamLead, async (req, res, next) => {
+    try {
+      const month = parseInt(String(req.query.month), 10);
+      const year = parseInt(String(req.query.year), 10);
+      const leaderId = (req.query.leaderId as string) || (req.user as any).id;
+      if (Number.isNaN(month) || Number.isNaN(year)) {
+        return res.status(400).json({ message: "Valid month and year required" });
+      }
+      const role = (req.user as any).role;
+      if (role === "team_lead" && leaderId !== (req.user as any).id) {
+        return res.status(403).json({ message: "Can only view own team" });
+      }
+      const employees = await storage.listEmployees({ teamLeadId: leaderId });
+      const targets = await storage.getMonthlyTargetsByMonth(month, year);
+      const byUser = new Map(targets.map((t) => [t.userId, t]));
+      const list = employees.map((u) => {
+        const t = byUser.get(u.id);
+        return {
+          userId: u.id,
+          fullName: (u as any).fullName || (u as any).username,
+          username: (u as any).username,
+          employeeNumber: (u as any).employeeNumber,
+          assignedBudget: t ? String(t.assignedBudget) : "0",
+          assignedLeads: t?.assignedLeads ?? 0,
+        };
+      });
+      res.json({ employees: list });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.post("/api/staff/targets/employees", requireAuth, requireAdminOrTeamLead, async (req, res, next) => {
+    try {
+      const body = req.body as { month?: number; year?: number; employeeTargets?: Array<{ userId: string; assignedBudget: number | string; assignedLeads: number }> };
+      const month = Number(body?.month);
+      const year = Number(body?.year);
+      const leaderId = (req.user as any).id;
+      const role = (req.user as any).role;
+      if (role !== "admin" && role !== "team_lead") {
+        return res.status(403).json({ message: "Only admin or leader can allocate" });
+      }
+      if (Number.isNaN(month) || Number.isNaN(year)) {
+        return res.status(400).json({ message: "Valid month and year required" });
+      }
+      const leaderTarget = await storage.getMonthlyTarget(leaderId, month, year);
+      const leaderBudget = leaderTarget ? parseFloat(String(leaderTarget.assignedBudget)) : 0;
+      const leaderLeads = leaderTarget?.assignedLeads ?? 0;
+      const company = await storage.getCompanyMonthlyTarget(month, year);
+      if (company && company.isLocked === 1) {
+        return res.status(400).json({ message: "Targets are locked for this month" });
+      }
+      const employeeTargets = Array.isArray(body.employeeTargets) ? body.employeeTargets : [];
+      let sumBudget = 0;
+      let sumLeads = 0;
+      for (const et of employeeTargets) {
+        const b = parseFloat(String(et.assignedBudget));
+        if (!Number.isNaN(b)) sumBudget += b;
+        sumLeads += Number(et.assignedLeads) || 0;
+      }
+      const budgetMatch = Math.abs(sumBudget - leaderBudget) < 0.01;
+      if (!budgetMatch || sumLeads !== leaderLeads) {
+        return res.status(400).json({
+          message: "Sum of employee budgets must equal your assigned budget and sum of leads must equal your assigned leads",
+          leaderBudget,
+          leaderLeads,
+          sumBudget,
+          sumLeads,
+        });
+      }
+      for (const et of employeeTargets) {
+        await storage.upsertMonthlyTarget({
+          userId: et.userId,
+          month,
+          year,
+          assignedBudget: et.assignedBudget,
+          assignedLeads: Number(et.assignedLeads) || 0,
+          createdBy: leaderId,
+        });
+      }
+      res.json({ ok: true });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.post("/api/staff/targets/lock", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const body = req.body as { month?: number; year?: number; locked?: boolean };
+      const month = Number(body?.month);
+      const year = Number(body?.year);
+      const locked = body?.locked === true;
+      if (Number.isNaN(month) || Number.isNaN(year)) {
+        return res.status(400).json({ message: "Valid month and year required" });
+      }
+      await storage.setMonthlyTargetsLocked(month, year, locked, (req.user as any).id);
+      await storage.insertTargetAuditLog({
+        month,
+        year,
+        action: locked ? "locked" : "unlocked",
+        changedBy: (req.user as any).id,
+      });
+      res.json({ ok: true });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/targets/performance", requireAuth, async (req, res, next) => {
+    try {
+      const month = parseInt(String(req.query.month), 10);
+      const year = parseInt(String(req.query.year), 10);
+      const userId = (req.query.userId as string) || (req.user as any).id;
+      if (Number.isNaN(month) || Number.isNaN(year)) {
+        return res.status(400).json({ message: "Valid month and year required" });
+      }
+      const role = (req.user as any).role;
+      if (role === "employee" && userId !== (req.user as any).id) {
+        return res.status(403).json({ message: "Can only view own performance" });
+      }
+      const target = await storage.getMonthlyTarget(userId, month, year);
+      const { achievedBudget, achievedLeads } = await storage.getAchievedBudgetAndLeads(userId, month, year);
+      const assignedBudget = target ? parseFloat(String(target.assignedBudget)) : 0;
+      const achievementPct = assignedBudget > 0 ? Math.round((achievedBudget / assignedBudget) * 10000) / 100 : 0;
+      await storage.upsertMonthlyPerformance({
+        userId,
+        month,
+        year,
+        achievedBudget,
+        achievedLeads,
+        achievementPercentage: achievementPct,
+      });
+      res.json({
+        userId,
+        month,
+        year,
+        assignedBudget: target ? String(target.assignedBudget) : "0",
+        assignedLeads: target?.assignedLeads ?? 0,
+        achievedBudget,
+        achievedLeads,
+        achievementPercentage: achievementPct,
+      });
+    } catch (e) {
+      next(e);
+    }
+  });
+
   // --- Staff: my dashboard (employee-only; admin/team_lead use /dashboard) ---
   app.get("/api/staff/my-dashboard", requireAuth, async (req, res, next) => {
     try {

@@ -341,6 +341,78 @@ If you use **option A** (`npm run db:push`), Drizzle will apply these schema cha
 
 ---
 
+**Hierarchical Monthly Target Allocation (company target, monthly_targets, monthly_performance, audit):** For the target allocation and performance tracking system (Admin → Leader → Sales Manager), run:
+
+```sql
+USE expressfinloans;
+
+-- Users: reporting_to and is_active (optional; app works without these)
+-- If you get "Duplicate column", the column already exists; skip that line.
+ALTER TABLE users ADD COLUMN reporting_to VARCHAR(36) NULL;
+ALTER TABLE users ADD COLUMN is_active INT NOT NULL DEFAULT 1;
+
+-- Company overall target (one row per month; admin sets total budget & leads)
+CREATE TABLE IF NOT EXISTS company_monthly_target (
+  id VARCHAR(36) PRIMARY KEY,
+  month INT NOT NULL,
+  year INT NOT NULL,
+  total_budget DECIMAL(15,2) NOT NULL DEFAULT 0,
+  total_leads INT NOT NULL DEFAULT 0,
+  is_locked INT NOT NULL DEFAULT 0,
+  created_by VARCHAR(36) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_company_month (month, year)
+);
+
+-- Per-user monthly targets (leaders and employees)
+CREATE TABLE IF NOT EXISTS monthly_targets (
+  id VARCHAR(36) PRIMARY KEY,
+  user_id VARCHAR(36) NOT NULL,
+  month INT NOT NULL,
+  year INT NOT NULL,
+  assigned_budget DECIMAL(15,2) NOT NULL DEFAULT 0,
+  assigned_leads INT NOT NULL DEFAULT 0,
+  is_locked INT NOT NULL DEFAULT 0,
+  created_by VARCHAR(36) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_user_month_year (user_id, month, year),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Calculated performance (achieved budget/leads, achievement %)
+CREATE TABLE IF NOT EXISTS monthly_performance (
+  id VARCHAR(36) PRIMARY KEY,
+  user_id VARCHAR(36) NOT NULL,
+  month INT NOT NULL,
+  year INT NOT NULL,
+  achieved_budget DECIMAL(15,2) NOT NULL DEFAULT 0,
+  achieved_leads INT NOT NULL DEFAULT 0,
+  achievement_percentage DECIMAL(8,2) NOT NULL DEFAULT 0,
+  calculated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Audit log for target changes (lock/unlock, allocation edits)
+CREATE TABLE IF NOT EXISTS target_audit_log (
+  id VARCHAR(36) PRIMARY KEY,
+  monthly_target_id VARCHAR(36) NULL,
+  user_id VARCHAR(36) NULL,
+  month INT NOT NULL,
+  year INT NOT NULL,
+  action VARCHAR(50) NOT NULL,
+  changed_by VARCHAR(36) NULL,
+  changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  old_value TEXT NULL,
+  new_value TEXT NULL
+);
+```
+
+(Skip if you use `npm run db:push`; Drizzle will create/alter from the schema.)
+
+---
+
 If you use option B, you still need to create the **admin user** by running the app seed from the project directory:
 
 ```bash

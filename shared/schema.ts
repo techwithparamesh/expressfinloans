@@ -1,5 +1,6 @@
 import {
   date,
+  decimal,
   int,
   mysqlTable,
   text,
@@ -24,6 +25,8 @@ export const users = mysqlTable("users", {
   employeeNumber: varchar("employee_number", { length: 10 }), // 4-digit display ID e.g. 1001
   monthlyLeadTarget: int("monthly_lead_target"), // admin-allocated target; null = use default (20)
   teamLeadId: varchar("team_lead_id", { length: 36 }).references(() => users.id, { onDelete: "set null" }), // employee's Team Lead (null = unassigned)
+  reportingTo: varchar("reporting_to", { length: 36 }).references(() => users.id, { onDelete: "set null" }), // hierarchical: who this user reports to (null for admin)
+  isActive: int("is_active").notNull().default(1), // 1 = active, 0 = inactive
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -211,3 +214,70 @@ export const insertLeaveRequestSchema = createInsertSchema(leaveRequests).pick({
 
 export type LeaveRequest = typeof leaveRequests.$inferSelect;
 export type InsertLeaveRequest = z.infer<typeof insertLeaveRequestSchema>;
+
+// --- Hierarchical Monthly Target Allocation ---
+// Budget in rupees (e.g. 5 crore = 50000000). Leads = count.
+// Admin sets overall for the company (one row per month).
+export const companyMonthlyTarget = mysqlTable("company_monthly_target", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  month: int("month").notNull(),
+  year: int("year").notNull(),
+  totalBudget: decimal("total_budget", { precision: 15, scale: 2 }).notNull().default("0"),
+  totalLeads: int("total_leads").notNull().default(0),
+  isLocked: int("is_locked").notNull().default(0),
+  createdBy: varchar("created_by", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export type CompanyMonthlyTarget = typeof companyMonthlyTarget.$inferSelect;
+
+export const monthlyTargets = mysqlTable("monthly_targets", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id", { length: 36 })
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  month: int("month").notNull(), // 1-12
+  year: int("year").notNull(),
+  assignedBudget: decimal("assigned_budget", { precision: 15, scale: 2 }).notNull().default("0"),
+  assignedLeads: int("assigned_leads").notNull().default(0),
+  isLocked: int("is_locked").notNull().default(0), // 0 = false, 1 = true
+  createdBy: varchar("created_by", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export type MonthlyTarget = typeof monthlyTargets.$inferSelect;
+export type InsertMonthlyTarget = Omit<MonthlyTarget, "id" | "createdAt" | "updatedAt"> & { id?: string; createdAt?: Date; updatedAt?: Date };
+
+export const monthlyPerformance = mysqlTable("monthly_performance", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id", { length: 36 })
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  month: int("month").notNull(),
+  year: int("year").notNull(),
+  achievedBudget: decimal("achieved_budget", { precision: 15, scale: 2 }).notNull().default("0"),
+  achievedLeads: int("achieved_leads").notNull().default(0),
+  achievementPercentage: decimal("achievement_percentage", { precision: 8, scale: 2 }).notNull().default("0"),
+  calculatedAt: timestamp("calculated_at").defaultNow().notNull(),
+});
+
+export type MonthlyPerformance = typeof monthlyPerformance.$inferSelect;
+export type InsertMonthlyPerformance = Omit<MonthlyPerformance, "id" | "calculatedAt"> & { id?: string; calculatedAt?: Date };
+
+export const targetAuditLog = mysqlTable("target_audit_log", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  monthlyTargetId: varchar("monthly_target_id", { length: 36 }).references(() => monthlyTargets.id, { onDelete: "set null" }),
+  userId: varchar("user_id", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
+  month: int("month").notNull(),
+  year: int("year").notNull(),
+  action: varchar("action", { length: 50 }).notNull(), // created | updated | locked | unlocked
+  changedBy: varchar("changed_by", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
+  changedAt: timestamp("changed_at").defaultNow().notNull(),
+  oldValue: text("old_value"), // JSON
+  newValue: text("new_value"), // JSON
+});
+
+export type TargetAuditLog = typeof targetAuditLog.$inferSelect;
+export type InsertTargetAuditLog = Omit<TargetAuditLog, "id" | "changedAt"> & { id?: string; changedAt?: Date };

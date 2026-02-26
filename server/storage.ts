@@ -9,11 +9,19 @@ import {
   type InsertInsuranceLead,
   type LeaveRequest,
   type InsertLeaveRequest,
+  type CompanyMonthlyTarget,
+  type MonthlyTarget,
+  type MonthlyPerformance,
+  type TargetAuditLog,
   users,
   attendanceLogs,
   leads,
   insuranceLeads,
   leaveRequests,
+  companyMonthlyTarget,
+  monthlyTargets,
+  monthlyPerformance,
+  targetAuditLog,
 } from "@shared/schema";
 import { eq, and, desc, gte, lte, isNull, inArray } from "drizzle-orm";
 import { db, hasDb } from "./db";
@@ -62,6 +70,17 @@ export interface IStorage {
 
   /** Joint visits count for team lead in date range (for conveyance). Returns 0 until joint visits are logged in CRM. */
   getJointVisitsCount(teamLeadId: string, fromDate: string, toDate: string): Promise<number>;
+
+  getCompanyMonthlyTarget(month: number, year: number): Promise<CompanyMonthlyTarget | undefined>;
+  upsertCompanyMonthlyTarget(data: { month: number; year: number; totalBudget: string | number; totalLeads: number; isLocked?: number; createdBy?: string | null }): Promise<CompanyMonthlyTarget>;
+  getMonthlyTarget(userId: string, month: number, year: number): Promise<MonthlyTarget | undefined>;
+  getMonthlyTargetsByMonth(month: number, year: number): Promise<MonthlyTarget[]>;
+  upsertMonthlyTarget(data: { userId: string; month: number; year: number; assignedBudget: string | number; assignedLeads: number; isLocked?: number; createdBy?: string | null }): Promise<MonthlyTarget>;
+  setMonthlyTargetsLocked(month: number, year: number, isLocked: boolean, changedBy: string): Promise<void>;
+  getAchievedBudgetAndLeads(userId: string, month: number, year: number): Promise<{ achievedBudget: number; achievedLeads: number }>;
+  insertTargetAuditLog(entry: { monthlyTargetId?: string | null; userId?: string | null; month: number; year: number; action: string; changedBy?: string | null; oldValue?: string | null; newValue?: string | null }): Promise<TargetAuditLog>;
+  upsertMonthlyPerformance(data: { userId: string; month: number; year: number; achievedBudget: number; achievedLeads: number; achievementPercentage: number }): Promise<MonthlyPerformance>;
+  getMonthlyPerformance(userId: string, month: number, year: number): Promise<MonthlyPerformance | undefined>;
 }
 
 async function guardDb() {
@@ -341,6 +360,8 @@ export class DrizzleStorage implements IStorage {
     await db.delete(leads).where(eq(leads.employeeId, id));
     await db.delete(insuranceLeads).where(eq(insuranceLeads.employeeId, id));
     await db.delete(attendanceLogs).where(eq(attendanceLogs.employeeId, id));
+    await db.delete(monthlyTargets).where(eq(monthlyTargets.userId, id));
+    await db.delete(monthlyPerformance).where(eq(monthlyPerformance.userId, id));
     await db.delete(users).where(eq(users.id, id));
   }
 
@@ -493,6 +514,215 @@ export class DrizzleStorage implements IStorage {
     // Placeholder: joint visits not yet logged in CRM. When implemented, query joint_visits (or equivalent) table.
     return 0;
   }
+
+  async getCompanyMonthlyTarget(month: number, year: number): Promise<CompanyMonthlyTarget | undefined> {
+    await guardDb();
+    const [row] = await db
+      .select()
+      .from(companyMonthlyTarget)
+      .where(and(eq(companyMonthlyTarget.month, month), eq(companyMonthlyTarget.year, year)))
+      .limit(1);
+    return row;
+  }
+
+  async upsertCompanyMonthlyTarget(data: {
+    month: number;
+    year: number;
+    totalBudget: string | number;
+    totalLeads: number;
+    isLocked?: number;
+    createdBy?: string | null;
+  }): Promise<CompanyMonthlyTarget> {
+    await guardDb();
+    const budget = typeof data.totalBudget === "number" ? String(data.totalBudget) : data.totalBudget;
+    const existing = await this.getCompanyMonthlyTarget(data.month, data.year);
+    if (existing) {
+      await db
+        .update(companyMonthlyTarget)
+        .set({
+          totalBudget: budget,
+          totalLeads: data.totalLeads,
+          isLocked: data.isLocked ?? existing.isLocked,
+          updatedAt: new Date(),
+        })
+        .where(eq(companyMonthlyTarget.id, existing.id));
+      const [updated] = await db.select().from(companyMonthlyTarget).where(eq(companyMonthlyTarget.id, existing.id)).limit(1);
+      return updated!;
+    }
+    await db.insert(companyMonthlyTarget).values({
+      month: data.month,
+      year: data.year,
+      totalBudget: budget,
+      totalLeads: data.totalLeads,
+      isLocked: data.isLocked ?? 0,
+      createdBy: data.createdBy ?? null,
+    });
+    const row = await this.getCompanyMonthlyTarget(data.month, data.year);
+    return row!;
+  }
+
+  async getMonthlyTarget(userId: string, month: number, year: number): Promise<MonthlyTarget | undefined> {
+    await guardDb();
+    const [row] = await db
+      .select()
+      .from(monthlyTargets)
+      .where(and(eq(monthlyTargets.userId, userId), eq(monthlyTargets.month, month), eq(monthlyTargets.year, year)))
+      .limit(1);
+    return row;
+  }
+
+  async getMonthlyTargetsByMonth(month: number, year: number): Promise<MonthlyTarget[]> {
+    await guardDb();
+    return db
+      .select()
+      .from(monthlyTargets)
+      .where(and(eq(monthlyTargets.month, month), eq(monthlyTargets.year, year)));
+  }
+
+  async upsertMonthlyTarget(data: {
+    userId: string;
+    month: number;
+    year: number;
+    assignedBudget: string | number;
+    assignedLeads: number;
+    isLocked?: number;
+    createdBy?: string | null;
+  }): Promise<MonthlyTarget> {
+    await guardDb();
+    const budget = typeof data.assignedBudget === "number" ? String(data.assignedBudget) : data.assignedBudget;
+    const existing = await this.getMonthlyTarget(data.userId, data.month, data.year);
+    if (existing) {
+      await db
+        .update(monthlyTargets)
+        .set({
+          assignedBudget: budget,
+          assignedLeads: data.assignedLeads,
+          isLocked: data.isLocked ?? existing.isLocked,
+          updatedAt: new Date(),
+        })
+        .where(eq(monthlyTargets.id, existing.id));
+      const [updated] = await db.select().from(monthlyTargets).where(eq(monthlyTargets.id, existing.id)).limit(1);
+      return updated!;
+    }
+    await db.insert(monthlyTargets).values({
+      userId: data.userId,
+      month: data.month,
+      year: data.year,
+      assignedBudget: budget,
+      assignedLeads: data.assignedLeads,
+      isLocked: data.isLocked ?? 0,
+      createdBy: data.createdBy ?? null,
+    });
+    const [row] = await db
+      .select()
+      .from(monthlyTargets)
+      .where(and(eq(monthlyTargets.userId, data.userId), eq(monthlyTargets.month, data.month), eq(monthlyTargets.year, data.year)))
+      .limit(1);
+    return row!;
+  }
+
+  async setMonthlyTargetsLocked(month: number, year: number, isLocked: boolean, _changedBy: string): Promise<void> {
+    await guardDb();
+    const val = isLocked ? 1 : 0;
+    await db.update(companyMonthlyTarget).set({ isLocked: val, updatedAt: new Date() }).where(and(eq(companyMonthlyTarget.month, month), eq(companyMonthlyTarget.year, year)));
+    await db.update(monthlyTargets).set({ isLocked: val, updatedAt: new Date() }).where(and(eq(monthlyTargets.month, month), eq(monthlyTargets.year, year)));
+  }
+
+  async getAchievedBudgetAndLeads(userId: string, month: number, year: number): Promise<{ achievedBudget: number; achievedLeads: number }> {
+    await guardDb();
+    const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const monthEnd = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    const list = await this.getLeadsByEmployee(userId, monthStart, monthEnd);
+    let achievedBudget = 0;
+    const disbursedOrSanctioned = list.filter(
+      (l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned"
+    );
+    for (const l of disbursedOrSanctioned) {
+      const amt = (l as Lead).loanDisbursed || (l as Lead).amount;
+      if (amt) {
+        const n = parseFloat(String(amt).replace(/,/g, ""));
+        if (!Number.isNaN(n)) achievedBudget += n;
+      }
+    }
+    return { achievedBudget, achievedLeads: list.length };
+  }
+
+  async insertTargetAuditLog(entry: {
+    monthlyTargetId?: string | null;
+    userId?: string | null;
+    month: number;
+    year: number;
+    action: string;
+    changedBy?: string | null;
+    oldValue?: string | null;
+    newValue?: string | null;
+  }): Promise<TargetAuditLog> {
+    await guardDb();
+    const id = crypto.randomUUID();
+    await db.insert(targetAuditLog).values({
+      id,
+      monthlyTargetId: entry.monthlyTargetId ?? null,
+      userId: entry.userId ?? null,
+      month: entry.month,
+      year: entry.year,
+      action: entry.action,
+      changedBy: entry.changedBy ?? null,
+      oldValue: entry.oldValue ?? null,
+      newValue: entry.newValue ?? null,
+    });
+    const [log] = await db.select().from(targetAuditLog).where(eq(targetAuditLog.id, id)).limit(1);
+    return log!;
+  }
+
+  async upsertMonthlyPerformance(data: {
+    userId: string;
+    month: number;
+    year: number;
+    achievedBudget: number;
+    achievedLeads: number;
+    achievementPercentage: number;
+  }): Promise<MonthlyPerformance> {
+    await guardDb();
+    const existing = await db
+      .select()
+      .from(monthlyPerformance)
+      .where(and(eq(monthlyPerformance.userId, data.userId), eq(monthlyPerformance.month, data.month), eq(monthlyPerformance.year, data.year)))
+      .limit(1);
+    if (existing.length > 0) {
+      await db
+        .update(monthlyPerformance)
+        .set({
+          achievedBudget: String(data.achievedBudget),
+          achievedLeads: data.achievedLeads,
+          achievementPercentage: String(data.achievementPercentage),
+          calculatedAt: new Date(),
+        })
+        .where(eq(monthlyPerformance.id, existing[0].id));
+      const [row] = await db.select().from(monthlyPerformance).where(eq(monthlyPerformance.id, existing[0].id)).limit(1);
+      return row!;
+    }
+    await db.insert(monthlyPerformance).values({
+      userId: data.userId,
+      month: data.month,
+      year: data.year,
+      achievedBudget: String(data.achievedBudget),
+      achievedLeads: data.achievedLeads,
+      achievementPercentage: String(data.achievementPercentage),
+    });
+    const row = await this.getMonthlyPerformance(data.userId, data.month, data.year);
+    return row!;
+  }
+
+  async getMonthlyPerformance(userId: string, month: number, year: number): Promise<MonthlyPerformance | undefined> {
+    await guardDb();
+    const [row] = await db
+      .select()
+      .from(monthlyPerformance)
+      .where(and(eq(monthlyPerformance.userId, userId), eq(monthlyPerformance.month, month), eq(monthlyPerformance.year, year)))
+      .limit(1);
+    return row;
+  }
 }
 
 // When DB is not configured, use a no-op storage that throws on staff-specific methods
@@ -634,6 +864,45 @@ class NoDbStorage implements IStorage {
   async getJointVisitsCount() {
     this.guard();
     return 0;
+  }
+  async getCompanyMonthlyTarget() {
+    this.guard();
+    return undefined;
+  }
+  async upsertCompanyMonthlyTarget() {
+    this.guard();
+    throw new Error("Not implemented");
+  }
+  async getMonthlyTarget() {
+    this.guard();
+    return undefined;
+  }
+  async getMonthlyTargetsByMonth() {
+    this.guard();
+    return [];
+  }
+  async upsertMonthlyTarget() {
+    this.guard();
+    throw new Error("Not implemented");
+  }
+  async setMonthlyTargetsLocked() {
+    this.guard();
+  }
+  async getAchievedBudgetAndLeads() {
+    this.guard();
+    return { achievedBudget: 0, achievedLeads: 0 };
+  }
+  async insertTargetAuditLog() {
+    this.guard();
+    throw new Error("Not implemented");
+  }
+  async upsertMonthlyPerformance() {
+    this.guard();
+    throw new Error("Not implemented");
+  }
+  async getMonthlyPerformance() {
+    this.guard();
+    return undefined;
   }
 }
 

@@ -15,6 +15,7 @@ import StaffInsuranceLeads from "./staff-insurance-leads";
 import StaffMyTeam from "./staff-my-team";
 import StaffMyLeave from "./staff-my-leave";
 import StaffLeaveRequests from "./staff-leave-requests";
+import StaffTargetAllocation from "./staff-target-allocation";
 
 function StaffRedirect({ to }: { to: string }) {
   const [, setLocation] = useLocation();
@@ -73,6 +74,7 @@ export default function StaffApp({ basePath = "/staff" }: { basePath?: string })
         <Route path={p(basePath, "/leads")} component={StaffLeads} />
         <Route path={p(basePath, "/insurance-leads")} component={StaffInsuranceLeads} />
         <Route path={p(basePath, "/leave-requests")} component={StaffLeaveRequests} />
+        <Route path={p(basePath, "/target-allocation")} component={StaffTargetAllocation} />
         <Route path={p(basePath, "/my-leads")} component={StaffMyLeads} />
         <Route path={p(basePath, "/my-attendance")} component={StaffMyAttendance} />
         <Route path={p(basePath, "/my-leave")} component={StaffMyLeave} />
