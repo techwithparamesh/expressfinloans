@@ -22,18 +22,40 @@ type MonthlyTargetData = {
   monthLabel: string;
 };
 
+const STORAGE_KEY_PREFIX = "monthlyTargetPopupShown_";
+
+function getTodayKey(): string {
+  return STORAGE_KEY_PREFIX + new Date().toISOString().slice(0, 10);
+}
+
+function wasShownToday(): boolean {
+  try {
+    return sessionStorage.getItem(getTodayKey()) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function setShownToday(): void {
+  try {
+    sessionStorage.setItem(getTodayKey(), "1");
+  } catch {}
+}
+
 export default function MonthlyTargetPopup() {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<MonthlyTargetData | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (wasShownToday()) return;
     setLoading(true);
     staffJson<MonthlyTargetData | { forStaffOnly: boolean }>("/staff/monthly-target")
       .then((res) => {
         if ("forStaffOnly" in res && res.forStaffOnly) return;
         setData(res as MonthlyTargetData);
         setOpen(true);
+        setShownToday();
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -42,8 +64,8 @@ export default function MonthlyTargetPopup() {
   const isTeamLead = data?.forTeamLead ?? false;
   const title = isTeamLead ? "Team monthly target" : "Monthly Target";
   const subtitle = isTeamLead
-    ? `Your team's performance for ${data?.monthLabel ?? "this month"}. Shown on login.`
-    : `Your performance for ${data?.monthLabel ?? "this month"}. Shown on login.`;
+    ? `Your team's performance for ${data?.monthLabel ?? "this month"}. Shown once per day.`
+    : `Your performance for ${data?.monthLabel ?? "this month"}. Shown once per day.`;
   const conveyanceLabel = isTeamLead ? "Team conveyance" : "Your conveyance";
 
   return (
@@ -88,11 +110,12 @@ export default function MonthlyTargetPopup() {
               </div>
             </div>
             <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
-              <p className="mb-2 font-medium">Conveyance conditions</p>
+              <p className="mb-2 font-medium">Conveyance rules</p>
               <ul className="space-y-1 text-sm text-muted-foreground">
-                <li>• Min leads compulsory: 20 leads per month</li>
-                <li>• Achievement % &gt; 75%: Eligible for 50% conveyance</li>
-                <li>• Achievement % &gt; 100%: Eligible for 100% conveyance</li>
+                <li>• Need min 20 leads updated</li>
+                <li>• If min 2 leads converted → 50% conveyance</li>
+                <li>• If &gt;2 leads converted → 100% conveyance</li>
+                <li>• If you achieve 100% (irrespective of conversion) → 120% conveyance</li>
               </ul>
               <p className="mt-3 text-base font-semibold">
                 {conveyanceLabel}: <span className="text-primary">{data.conveyancePct}%</span>
