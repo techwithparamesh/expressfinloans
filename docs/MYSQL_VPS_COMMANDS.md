@@ -313,6 +313,14 @@ USE expressfinloans;
 ALTER TABLE insurance_leads ADD COLUMN insurance_subtype_other VARCHAR(255) NULL;
 ```
 
+**Insurance lead form (Miscellaneous Expenses):** To add the manually editable Miscellaneous Expenses column, run:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE insurance_leads ADD COLUMN miscellaneous_expenses VARCHAR(100) NULL;
+```
+
 **Employee number (4-digit ID for staff):** To add the employee ID column used in attendance/leads (e.g. 1001, 1002), run:
 
 ```sql
@@ -389,6 +397,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
 | Insurance lead form (business_type, payment_mode, payment_done_by + comments) | **Insurance lead form (business type, payment mode, payment done by and comments)** ALTER block above |
 | Insurance lead form (difference – auto-calculated) | **Insurance lead form (Difference – auto-calculated)** ALTER block above |
 | Insurance subtype “Other” manual entry (insurance_subtype_other) | **Insurance lead form (subtype “Other” – manual entry)** ALTER block above |
+| Miscellaneous Expenses (insurance lead) | **Insurance lead form (Miscellaneous Expenses)** ALTER block above |
 
 Use `DESCRIBE table_name;` (see **Common database commands** below) to see which columns you already have.
 

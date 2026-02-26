@@ -86,6 +86,7 @@ type InsuranceLead = {
   premiumQuoted: string | null;
   premiumCollected: string | null;
   difference: string | null;
+  miscellaneousExpenses: string | null;
   status: string;
   notes: string | null;
 };
@@ -162,6 +163,7 @@ const defaultInsuranceForm = () => ({
   paymentDoneByComments: "",
   premiumQuoted: "",
   premiumCollected: "",
+  miscellaneousExpenses: "",
   status: "Open",
   notes: "",
 });
@@ -295,6 +297,7 @@ export default function StaffMyLeads() {
             insuranceForm.premiumQuoted,
             insuranceForm.premiumCollected
           ),
+          miscellaneousExpenses: insuranceForm.miscellaneousExpenses?.trim() || null,
           status: insuranceForm.status || "open",
           notes: insuranceForm.notes || null,
         }),
@@ -380,6 +383,7 @@ export default function StaffMyLeads() {
                       <th className="text-left py-2">Premium quoted</th>
                       <th className="text-left py-2">Premium collected</th>
                       <th className="text-left py-2">Difference</th>
+                      <th className="text-left py-2">Misc. Expenses</th>
                       <th className="text-left py-2">Status</th>
                     </tr>
                   </thead>
@@ -393,6 +397,7 @@ export default function StaffMyLeads() {
                         <td className="py-2">{l.premiumQuoted ?? "—"}</td>
                         <td className="py-2">{l.premiumCollected ?? "—"}</td>
                         <td className="py-2">{l.difference ?? "—"}</td>
+                        <td className="py-2">{l.miscellaneousExpenses ?? "—"}</td>
                         <td className="py-2">{l.status}</td>
                       </tr>
                     ))}
@@ -1075,6 +1080,16 @@ export default function StaffMyLeads() {
                       }
                       placeholder="Auto-calculated (Quoted − Collected)"
                       className="bg-muted"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Miscellaneous Expenses</Label>
+                    <Input
+                      value={insuranceForm.miscellaneousExpenses}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({ ...f, miscellaneousExpenses: e.target.value }))
+                      }
+                      placeholder="Enter amount or details"
                     />
                   </div>
                 </div>
