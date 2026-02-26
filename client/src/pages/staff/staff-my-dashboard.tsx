@@ -6,7 +6,7 @@ import { getAuthMe, staffJson } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
 import { FileText, Target, Calendar, TrendingUp } from "lucide-react";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
-import { useMonthlyTargetPopup } from "./staff-layout";
+import { useMonthlyTargetPopup, useConveyancePolicyPopup } from "./staff-layout";
 
 type MyDashboard = {
   monthLabel: string;
@@ -24,6 +24,7 @@ export default function StaffMyDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { openMonthlyTargetPopup } = useMonthlyTargetPopup() ?? {};
+  const { openConveyancePolicyPopup } = useConveyancePolicyPopup() ?? {};
 
   useEffect(() => {
     getAuthMe().then((res) => setUser(res?.user ?? null));
@@ -129,13 +130,22 @@ export default function StaffMyDashboard() {
           <CardDescription>Add leads and track attendance from the menu.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-slate-600">
-          {openMonthlyTargetPopup && (
-            <div className="pb-2 border-b border-slate-200">
-              <Button variant="outline" size="sm" onClick={openMonthlyTargetPopup}>
-                <Target className="h-4 w-4 mr-2" />
-                View monthly target
-              </Button>
-              <p className="text-xs text-slate-500 mt-2">See your live achievement, leads converted, and conveyance.</p>
+          {(openMonthlyTargetPopup || openConveyancePolicyPopup) && (
+            <div className="pb-2 border-b border-slate-200 space-y-2">
+              {openMonthlyTargetPopup && (
+                <>
+                  <Button variant="outline" size="sm" onClick={openMonthlyTargetPopup}>
+                    <Target className="h-4 w-4 mr-2" />
+                    View monthly target
+                  </Button>
+                  <p className="text-xs text-slate-500">See your live achievement, leads converted, and conveyance.</p>
+                </>
+              )}
+              {openConveyancePolicyPopup && (
+                <Button variant="outline" size="sm" onClick={openConveyancePolicyPopup}>
+                  Conveyance Policy
+                </Button>
+              )}
             </div>
           )}
           <p>• <strong>My leads</strong> – Add loan and insurance leads, view your list.</p>

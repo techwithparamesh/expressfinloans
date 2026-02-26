@@ -18,11 +18,23 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import MonthlyTargetPopup from "@/components/staff/MonthlyTargetPopup";
+import ConveyancePolicyPopup from "@/components/staff/ConveyancePolicyPopup";
 
-const MonthlyTargetPopupContext = createContext<{ openMonthlyTargetPopup: () => void } | null>(null);
+type StaffPopupsContextValue = {
+  openMonthlyTargetPopup: () => void;
+  openConveyancePolicyPopup: () => void;
+};
+
+const StaffPopupsContext = createContext<StaffPopupsContextValue | null>(null);
 
 export function useMonthlyTargetPopup() {
-  return useContext(MonthlyTargetPopupContext);
+  const ctx = useContext(StaffPopupsContext);
+  return ctx ? { openMonthlyTargetPopup: ctx.openMonthlyTargetPopup } : null;
+}
+
+export function useConveyancePolicyPopup() {
+  const ctx = useContext(StaffPopupsContext);
+  return ctx ? { openConveyancePolicyPopup: ctx.openConveyancePolicyPopup } : null;
 }
 
 const path = (base: string, p: string) => (base ? `${base}${p}` : p);
@@ -54,6 +66,7 @@ export default function StaffLayout({
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
+  const [conveyancePopupOpen, setConveyancePopupOpen] = useState(false);
   const hasAutoOpenedPopup = useRef(false);
   const [location] = useLocation();
   const { toast } = useToast();
@@ -141,14 +154,28 @@ export default function StaffLayout({
 
   const closeSidebar = () => setSidebarOpen(false);
 
-  const monthlyTargetPopupValue = (isEmployee || isTeamLead)
-    ? { openMonthlyTargetPopup: () => setPopupOpen(true) }
+  const staffPopupsValue = (isEmployee || isTeamLead)
+    ? {
+        openMonthlyTargetPopup: () => setPopupOpen(true),
+        openConveyancePolicyPopup: () => setConveyancePopupOpen(true),
+      }
     : null;
 
   return (
-    <MonthlyTargetPopupContext.Provider value={monthlyTargetPopupValue}>
+    <StaffPopupsContext.Provider value={staffPopupsValue}>
       {(isEmployee || isTeamLead) && (
-        <MonthlyTargetPopup open={popupOpen} onOpenChange={setPopupOpen} />
+        <>
+          <MonthlyTargetPopup
+            open={popupOpen}
+            onOpenChange={setPopupOpen}
+            onOpenConveyancePolicy={staffPopupsValue?.openConveyancePolicyPopup}
+          />
+          <ConveyancePolicyPopup
+            open={conveyancePopupOpen}
+            onOpenChange={setConveyancePopupOpen}
+            variant={isTeamLead ? "team_lead" : "employee"}
+          />
+        </>
       )}
       <div className="min-h-screen flex bg-slate-100">
         {sidebarOpen && (
@@ -236,6 +263,6 @@ export default function StaffLayout({
           <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
         </div>
       </div>
-    </MonthlyTargetPopupContext.Provider>
+    </StaffPopupsContext.Provider>
   );
 }

@@ -25,13 +25,14 @@ export type MonthlyTargetData = {
 type MonthlyTargetPopupProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onOpenConveyancePolicy?: () => void;
 };
 
 function fetchMonthlyTarget() {
   return staffJson<MonthlyTargetData | { forStaffOnly: boolean }>("/staff/monthly-target");
 }
 
-export default function MonthlyTargetPopup({ open, onOpenChange }: MonthlyTargetPopupProps) {
+export default function MonthlyTargetPopup({ open, onOpenChange, onOpenConveyancePolicy }: MonthlyTargetPopupProps) {
   const [data, setData] = useState<MonthlyTargetData | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -100,14 +101,24 @@ export default function MonthlyTargetPopup({ open, onOpenChange }: MonthlyTarget
             <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
               <p className="mb-2 font-medium">Conveyance rules</p>
               <ul className="space-y-1 text-sm text-muted-foreground">
-                <li>• Need min 20 leads updated</li>
-                <li>• If min 2 leads converted → 50% conveyance</li>
-                <li>• If &gt;2 leads converted → 100% conveyance</li>
-                <li>• If you achieve 100% (irrespective of conversion) → 120% conveyance</li>
+                {isTeamLead ? (
+                  <>
+                    <li>• Min 4 joint visits &amp; 10 leads; then Budget ≥ <strong>80%</strong> → 50%, ≥ <strong>100%</strong> → <strong>120%</strong></li>
+                  </>
+                ) : (
+                  <>
+                    <li>• Min 20 leads; then Budget Achievement ≥ <strong>60%</strong> → 50%, ≥ <strong>100%</strong> → <strong>120%</strong></li>
+                  </>
+                )}
               </ul>
               <p className="mt-3 text-base font-semibold">
                 {conveyanceLabel}: <span className="text-primary">{data.conveyancePct}%</span>
               </p>
+              {onOpenConveyancePolicy && (
+                <Button variant="outline" size="sm" className="mt-3" onClick={onOpenConveyancePolicy}>
+                  Conveyance Policy
+                </Button>
+              )}
             </div>
             <div className="flex justify-end">
               <Button onClick={() => onOpenChange(false)}>Close</Button>

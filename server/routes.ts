@@ -611,11 +611,11 @@ export async function registerRoutes(
           });
         }
         const achievementPct = overallTarget > 0 ? Math.round((teamLeadsThisMonth / overallTarget) * 100) : 0;
+        const jointVisits = await storage.getJointVisitsCount(userId, from, to);
         let conveyancePct = 0;
-        if (teamLeadsThisMonth >= 20) {
+        if (jointVisits >= 4 && teamLeadsThisMonth >= 10) {
           if (achievementPct >= 100) conveyancePct = 120;
-          else if (teamLeadsConverted > 2) conveyancePct = 100;
-          else if (teamLeadsConverted >= 2) conveyancePct = 50;
+          else if (achievementPct >= 80) conveyancePct = 50;
         }
         return res.json({
           forTeamLead: true,
@@ -650,11 +650,11 @@ export async function registerRoutes(
       });
       const achievement = overallLeadsGenerated;
       const achievementPct = monthTarget > 0 ? Math.round((achievement / monthTarget) * 100) : 0;
+      const budgetAchievementPct = monthTarget > 0 ? Math.round((leadsConverted / monthTarget) * 100) : 0;
       let conveyancePct = 0;
       if (overallLeadsGenerated >= 20) {
-        if (achievementPct >= 100) conveyancePct = 120;
-        else if (leadsConverted > 2) conveyancePct = 100;
-        else if (leadsConverted >= 2) conveyancePct = 50;
+        if (budgetAchievementPct >= 100) conveyancePct = 120;
+        else if (budgetAchievementPct >= 60) conveyancePct = 50;
       }
       res.json({
         monthTarget,
@@ -1069,11 +1069,11 @@ export async function registerRoutes(
           });
         }
         const achievementPct = overallTarget > 0 ? Math.round((teamLeadsThisMonth / overallTarget) * 100) : 0;
+        const jointVisits = await storage.getJointVisitsCount((req.user as any).id, monthStart, monthEnd);
         let conveyancePct = 0;
-        if (teamLeadsThisMonth >= 20) {
+        if (jointVisits >= 4 && teamLeadsThisMonth >= 10) {
           if (achievementPct >= 100) conveyancePct = 120;
-          else if (teamLeadsConverted > 2) conveyancePct = 100;
-          else if (teamLeadsConverted >= 2) conveyancePct = 50;
+          else if (achievementPct >= 80) conveyancePct = 50;
         }
         payload.overallTarget = overallTarget;
         payload.teamLeadsThisMonth = teamLeadsThisMonth;

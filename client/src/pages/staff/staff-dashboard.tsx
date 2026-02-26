@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { getAuthMe, staffJson } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
-import { useMonthlyTargetPopup } from "./staff-layout";
+import { useMonthlyTargetPopup, useConveyancePolicyPopup } from "./staff-layout";
 import { Users, Calendar, FileText, CheckCircle, Filter, Download, Target, TrendingUp, Percent } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
@@ -54,6 +54,7 @@ export default function StaffDashboard() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const { openMonthlyTargetPopup } = useMonthlyTargetPopup() ?? {};
+  const { openConveyancePolicyPopup } = useConveyancePolicyPopup() ?? {};
   const [staffChartFilter, setStaffChartFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [exportMonth, setExportMonth] = useState(() => {
@@ -181,12 +182,19 @@ export default function StaffDashboard() {
               <h2 className="text-lg font-semibold text-slate-800">Team targets &amp; achievement</h2>
               <p className="text-sm text-slate-600 -mt-2 mb-1">Individual target, overall target, achievement and conveyance for your team this month. Add members in My team to set targets.</p>
             </div>
-            {openMonthlyTargetPopup && (
-              <Button variant="outline" size="sm" onClick={openMonthlyTargetPopup}>
-                <Target className="h-4 w-4 mr-2" />
-                View monthly target
-              </Button>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {openMonthlyTargetPopup && (
+                <Button variant="outline" size="sm" onClick={openMonthlyTargetPopup}>
+                  <Target className="h-4 w-4 mr-2" />
+                  View monthly target
+                </Button>
+              )}
+              {openConveyancePolicyPopup && (
+                <Button variant="outline" size="sm" onClick={openConveyancePolicyPopup}>
+                  Conveyance Policy
+                </Button>
+              )}
+            </div>
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>

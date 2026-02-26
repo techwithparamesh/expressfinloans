@@ -59,6 +59,9 @@ export interface IStorage {
   getLeaveRequestsByEmployee(employeeId: string, fromDate?: string, toDate?: string): Promise<LeaveRequest[]>;
   getLeaveRequestsForApproval(employeeIds: string[], filters?: { status?: string; fromDate?: string; toDate?: string }): Promise<LeaveRequest[]>;
   updateLeaveRequest(id: string, data: Partial<Pick<LeaveRequest, "status" | "approvedById" | "approvedAt">>): Promise<LeaveRequest | undefined>;
+
+  /** Joint visits count for team lead in date range (for conveyance). Returns 0 until joint visits are logged in CRM. */
+  getJointVisitsCount(teamLeadId: string, fromDate: string, toDate: string): Promise<number>;
 }
 
 async function guardDb() {
@@ -484,6 +487,12 @@ export class DrizzleStorage implements IStorage {
     await db.update(leaveRequests).set({ ...data, updatedAt: new Date() }).where(eq(leaveRequests.id, id));
     return this.getLeaveRequest(id);
   }
+
+  async getJointVisitsCount(_teamLeadId: string, _fromDate: string, _toDate: string): Promise<number> {
+    await guardDb();
+    // Placeholder: joint visits not yet logged in CRM. When implemented, query joint_visits (or equivalent) table.
+    return 0;
+  }
 }
 
 // When DB is not configured, use a no-op storage that throws on staff-specific methods
@@ -621,6 +630,10 @@ class NoDbStorage implements IStorage {
   }
   async deleteInsuranceLead() {
     this.guard();
+  }
+  async getJointVisitsCount() {
+    this.guard();
+    return 0;
   }
 }
 
