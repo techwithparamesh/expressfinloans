@@ -21,6 +21,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { staffJson } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useMyDashboardInvalidate } from "./staff-layout";
 import { Plus, ArrowLeft, FileText, Shield } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -125,6 +126,7 @@ const defaultInsuranceForm = () => ({
 
 export default function StaffMyLeads() {
   const { toast } = useToast();
+  const { invalidateMyDashboard } = useMyDashboardInvalidate() ?? {};
   const [leads, setLeads] = useState<Lead[]>([]);
   const [insuranceLeads, setInsuranceLeads] = useState<InsuranceLead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -212,6 +214,7 @@ export default function StaffMyLeads() {
       setOpen(false);
       setLoanForm(defaultLoanForm());
       load();
+      invalidateMyDashboard?.();
     } catch (err: unknown) {
       toast({ title: err instanceof Error ? err.message : "Failed", variant: "destructive" });
     } finally {
@@ -244,6 +247,7 @@ export default function StaffMyLeads() {
       setOpen(false);
       setInsuranceForm(defaultInsuranceForm());
       load();
+      invalidateMyDashboard?.();
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : "Failed", variant: "destructive" });
     } finally {

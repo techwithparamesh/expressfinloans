@@ -23,6 +23,8 @@ import ConveyancePolicyPopup from "@/components/staff/ConveyancePolicyPopup";
 type StaffPopupsContextValue = {
   openMonthlyTargetPopup: () => void;
   openConveyancePolicyPopup: () => void;
+  invalidateMyDashboard: () => void;
+  myDashboardInvalidation: number;
 };
 
 const StaffPopupsContext = createContext<StaffPopupsContextValue | null>(null);
@@ -35,6 +37,11 @@ export function useMonthlyTargetPopup() {
 export function useConveyancePolicyPopup() {
   const ctx = useContext(StaffPopupsContext);
   return ctx ? { openConveyancePolicyPopup: ctx.openConveyancePolicyPopup } : null;
+}
+
+export function useMyDashboardInvalidate() {
+  const ctx = useContext(StaffPopupsContext);
+  return ctx ? { invalidateMyDashboard: ctx.invalidateMyDashboard, myDashboardInvalidation: ctx.myDashboardInvalidation } : null;
 }
 
 const path = (base: string, p: string) => (base ? `${base}${p}` : p);
@@ -67,6 +74,7 @@ export default function StaffLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
   const [conveyancePopupOpen, setConveyancePopupOpen] = useState(false);
+  const [myDashboardInvalidation, setMyDashboardInvalidation] = useState(0);
   const hasAutoOpenedPopup = useRef(false);
   const [location] = useLocation();
   const { toast } = useToast();
@@ -158,6 +166,8 @@ export default function StaffLayout({
     ? {
         openMonthlyTargetPopup: () => setPopupOpen(true),
         openConveyancePolicyPopup: () => setConveyancePopupOpen(true),
+        invalidateMyDashboard: () => setMyDashboardInvalidation((n) => n + 1),
+        myDashboardInvalidation,
       }
     : null;
 

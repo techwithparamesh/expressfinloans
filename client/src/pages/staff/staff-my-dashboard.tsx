@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { getAuthMe, staffJson } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
 import { FileText, Target, Calendar, TrendingUp } from "lucide-react";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
-import { useMonthlyTargetPopup, useConveyancePolicyPopup } from "./staff-layout";
+import { useMonthlyTargetPopup, useConveyancePolicyPopup, useMyDashboardInvalidate } from "./staff-layout";
 
 type MyDashboard = {
   monthLabel: string;
@@ -23,15 +24,20 @@ export default function StaffMyDashboard() {
   const [data, setData] = useState<MyDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [location] = useLocation();
   const { openMonthlyTargetPopup } = useMonthlyTargetPopup() ?? {};
   const { openConveyancePolicyPopup } = useConveyancePolicyPopup() ?? {};
+  const { myDashboardInvalidation } = useMyDashboardInvalidate() ?? { myDashboardInvalidation: 0 };
 
   useEffect(() => {
     getAuthMe().then((res) => setUser(res?.user ?? null));
   }, []);
 
+  // Refetch when dashboard is shown (route) or after lead/attendance actions (invalidation)
   useEffect(() => {
+    if (!location.includes("my-dashboard")) return;
     setError(null);
+    setLoading(true);
     staffJson<MyDashboard>("/staff/my-dashboard")
       .then((d) => { setData(d); setError(null); })
       .catch((err: unknown) => {
@@ -39,7 +45,7 @@ export default function StaffMyDashboard() {
         setError(err instanceof Error ? err.message : "Failed to load dashboard.");
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [location, myDashboardInvalidation]);
 
   if (loading) return <p className="text-slate-500">Loading…</p>;
   if (!data) {
