@@ -283,6 +283,20 @@ ALTER TABLE insurance_leads
   ADD COLUMN profile_comments TEXT NULL;
 ```
 
+**Insurance lead form (business type, payment mode, payment done by and comments):** To add Business Type, Payment Mode, Payment done by and their comment fields, run:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE insurance_leads
+  ADD COLUMN business_type VARCHAR(100) NULL,
+  ADD COLUMN business_type_comments TEXT NULL,
+  ADD COLUMN payment_mode VARCHAR(100) NULL,
+  ADD COLUMN payment_mode_comments TEXT NULL,
+  ADD COLUMN payment_done_by VARCHAR(100) NULL,
+  ADD COLUMN payment_done_by_comments TEXT NULL;
+```
+
 **Employee number (4-digit ID for staff):** To add the employee ID column used in attendance/leads (e.g. 1001, 1002), run:
 
 ```sql
@@ -356,6 +370,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
 | Admin insurance fields (collected_premium, actual_premium, final_remarks) | **Admin-only insurance lead fields** ALTER block |
 | Insurance lead form (date_of_birth, insurance_subtype) | **Insurance lead form** ALTER block above |
 | Insurance lead form (profile_type, profile_comments) | **Insurance lead form (profile type, profile comments)** ALTER block above |
+| Insurance lead form (business_type, payment_mode, payment_done_by + comments) | **Insurance lead form (business type, payment mode, payment done by and comments)** ALTER block above |
 
 Use `DESCRIBE table_name;` (see **Common database commands** below) to see which columns you already have.
 

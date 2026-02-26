@@ -163,4 +163,13 @@ export const PROFILE_TYPES = [
   "No Income Proof",
 ] as const;
 
+/** Business type for insurance lead form. */
+export const BUSINESS_TYPES = ["Own Renewal", "New", "Rollover"] as const;
+
+/** Payment mode for insurance lead form. */
+export const PAYMENT_MODES = ["Online", "Cheque", "Cash"] as const;
+
+/** Payment done by for insurance lead form. */
+export const PAYMENT_DONE_BY = ["Customer", "Company Payment", "Others"] as const;
+
 export const INSURANCE_STATUSES = ["Open", "Closed", "Rejected"] as const;
