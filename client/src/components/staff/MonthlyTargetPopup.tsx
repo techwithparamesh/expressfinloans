@@ -98,25 +98,51 @@ export default function MonthlyTargetPopup({ open, onOpenChange, onOpenConveyanc
                 </p>
               </div>
             </div>
-            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
-              <p className="mb-2 font-medium">Conveyance rules</p>
-              <ul className="space-y-1 text-sm text-muted-foreground">
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-4">
+              <div>
+                <p className="font-medium text-foreground mb-2">How conveyance is calculated</p>
                 {isTeamLead ? (
-                  <>
-                    <li>• Min 4 joint visits &amp; 10 leads; then Budget ≥ <strong>80%</strong> → 50%, ≥ <strong>100%</strong> → <strong>120%</strong></li>
-                  </>
+                  <div className="space-y-3 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground text-xs uppercase tracking-wide">Step 1 — Eligibility (both required)</p>
+                    <ul className="space-y-1 list-disc list-inside pl-0">
+                      <li>At least <strong className="text-foreground">4</strong> joint visits with team members this month</li>
+                      <li>At least <strong className="text-foreground">10</strong> leads (team total) this month</li>
+                    </ul>
+                    <p className="font-medium text-foreground text-xs uppercase tracking-wide mt-2">Step 2 — Payout (based on budget achievement)</p>
+                    <ul className="space-y-1 list-disc list-inside pl-0">
+                      <li>Below <strong className="text-foreground">80%</strong> → No conveyance</li>
+                      <li><strong className="text-foreground">80%</strong> to 99% → <strong className="text-foreground">50%</strong> of base conveyance</li>
+                      <li><strong className="text-foreground">100%</strong> or more → <strong className="text-foreground">120%</strong> of base conveyance</li>
+                    </ul>
+                  </div>
                 ) : (
-                  <>
-                    <li>• Min 20 leads; then Budget Achievement ≥ <strong>60%</strong> → 50%, ≥ <strong>100%</strong> → <strong>120%</strong></li>
-                  </>
+                  <div className="space-y-3 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground text-xs uppercase tracking-wide">Step 1 — Eligibility</p>
+                    <ul className="space-y-1 list-disc list-inside pl-0">
+                      <li>At least <strong className="text-foreground">20</strong> leads recorded in CRM this month</li>
+                    </ul>
+                    <p className="font-medium text-foreground text-xs uppercase tracking-wide mt-2">Step 2 — Payout (based on budget achievement)</p>
+                    <p className="text-xs text-muted-foreground">Budget achievement = disbursed/sanctioned leads vs your monthly target.</p>
+                    <ul className="space-y-1 list-disc list-inside pl-0">
+                      <li>Below <strong className="text-foreground">60%</strong> → No conveyance</li>
+                      <li><strong className="text-foreground">60%</strong> to 99% → <strong className="text-foreground">50%</strong> of base conveyance</li>
+                      <li><strong className="text-foreground">100%</strong> or more → <strong className="text-foreground">120%</strong> of base conveyance</li>
+                    </ul>
+                  </div>
                 )}
-              </ul>
-              <p className="mt-3 text-base font-semibold">
-                {conveyanceLabel}: <span className="text-primary">{data.conveyancePct}%</span>
-              </p>
+              </div>
+              <div className="pt-2 border-t border-primary/20">
+                <p className="text-sm">
+                  <span className="font-medium text-foreground">{conveyanceLabel}</span>
+                  <span className="ml-2 text-primary font-semibold">{data.conveyancePct}%</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {data.conveyancePct === 0 ? "Eligibility or budget conditions not yet met." : "Based on current month data above."}
+                </p>
+              </div>
               {onOpenConveyancePolicy && (
-                <Button variant="outline" size="sm" className="mt-3" onClick={onOpenConveyancePolicy}>
-                  Conveyance Policy
+                <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={onOpenConveyancePolicy}>
+                  Full Conveyance Policy
                 </Button>
               )}
             </div>
