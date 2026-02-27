@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { getAuthMe, staffJson } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
 import { useMonthlyTargetPopup, useConveyancePolicyPopup } from "./staff-layout";
-import { Users, Calendar, FileText, CheckCircle, Filter, Download, Target, TrendingUp, Percent } from "lucide-react";
+import { Users, Calendar, FileText, CheckCircle, Filter, Download, Target, TrendingUp, Percent, DollarSign, Car, Activity } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
@@ -27,10 +27,62 @@ type TeamMemberSummary = {
   leadsConverted: number;
 };
 
+type AdminKpi = {
+  companyTargetYtd: number;
+  companyAchievedYtd: number;
+  companyTargetMtd: number;
+  companyAchievedMtd: number;
+  monthLabel: string;
+};
+
+type TargetAchievementRow = {
+  employeeId: string;
+  employeeName: string;
+  employeeNumber: string;
+  monthlyTarget: number;
+  assignedBudget: number;
+  achievedLeads: number;
+  achievedBudget: number;
+  achievementPct: number;
+  leadsConverted: number;
+};
+
+type ConveyanceRow = {
+  employeeId: string;
+  employeeName: string;
+  employeeNumber: string;
+  isTeamLead: boolean;
+  teamLeadsThisMonth: number;
+  achievementPct: number;
+  jointVisits: number;
+  conveyancePct: number;
+};
+
+type ExpenditureData = {
+  loans: number;
+  miscellaneous: number;
+  total: number;
+  monthLabel: string;
+};
+
+type AttendanceRow = {
+  employeeId: string;
+  employeeName: string;
+  employeeNumber: string;
+  date: string;
+  loginAt: string | null;
+  logoutAt: string | null;
+  leadsCount: number;
+  status: string;
+  monthlyTarget?: number;
+  leadsThisMonth?: number;
+  achievementPct?: number;
+};
+
 type Dashboard = {
   today: string;
   employeeCount: number;
-  attendanceToday: { employeeId: string; employeeName: string; employeeNumber: string; date: string; loginAt: string | null; logoutAt: string | null; leadsCount: number; status: string }[];
+  attendanceToday: AttendanceRow[];
   leadsToday: { id: string; employeeId: string; employeeName: string; employeeNumber: string; date: string; customerName: string | null; status: string }[];
   totalClosures: number;
   leadsByEmployee?: { employeeId: string; employeeName: string; employeeNumber: string; count: number }[];
@@ -40,6 +92,10 @@ type Dashboard = {
   conveyancePct?: number;
   teamMembersSummary?: TeamMemberSummary[];
   monthLabel?: string;
+  adminKpi?: AdminKpi;
+  allEmployeeTargetAchievement?: TargetAchievementRow[];
+  conveyanceReport?: ConveyanceRow[];
+  expenditure?: ExpenditureData;
 };
 
 type EmployeeOption = {
@@ -62,6 +118,15 @@ export default function StaffDashboard() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
   const [exporting, setExporting] = useState<string | null>(null);
+  const [reportMonth, setReportMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [reportMonthLabel, setReportMonthLabel] = useState<string>("");
+  const [targetAchievementRows, setTargetAchievementRows] = useState<TargetAchievementRow[]>([]);
+  const [conveyanceRows, setConveyanceRows] = useState<ConveyanceRow[]>([]);
+  const [expenditureData, setExpenditureData] = useState<ExpenditureData | null>(null);
+  const [reportsLoading, setReportsLoading] = useState(false);
 
   useEffect(() => {
     getAuthMe().then((res) => setUser(res?.user ?? null));
@@ -74,8 +139,39 @@ export default function StaffDashboard() {
     ]).then(([dashboard, empList]) => {
       setData(dashboard ?? null);
       setEmployees(Array.isArray(empList) ? empList : []);
+      if (dashboard?.adminKpi) {
+        setTargetAchievementRows(dashboard.allEmployeeTargetAchievement ?? []);
+        setConveyanceRows(dashboard.conveyanceReport ?? []);
+        setExpenditureData(dashboard.expenditure ?? null);
+        setReportMonthLabel(dashboard.adminKpi.monthLabel);
+      }
     }).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!user || user.role !== "admin") return;
+    const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+    if (reportMonth === currentMonth && data?.adminKpi) {
+      setTargetAchievementRows(data.allEmployeeTargetAchievement ?? []);
+      setConveyanceRows(data.conveyanceReport ?? []);
+      setExpenditureData(data.expenditure ?? null);
+      setReportMonthLabel(data.adminKpi.monthLabel);
+      return;
+    }
+    if (reportMonth === currentMonth) return;
+    setReportsLoading(true);
+    Promise.all([
+      staffJson<{ month: string; monthLabel: string; rows: TargetAchievementRow[] }>(`/staff/reports/target-achievement?month=${reportMonth}`).catch(() => ({ month: reportMonth, monthLabel: "", rows: [] })),
+      staffJson<{ month: string; monthLabel: string; rows: ConveyanceRow[] }>(`/staff/reports/conveyance?month=${reportMonth}`).catch(() => ({ month: reportMonth, monthLabel: "", rows: [] })),
+      staffJson<{ month: string; monthLabel: string; loans: number; miscellaneous: number; total: number }>(`/staff/reports/expenditure?month=${reportMonth}`).catch(() => null),
+    ]).then(([ta, conv, exp]) => {
+      setTargetAchievementRows(ta.rows ?? []);
+      setConveyanceRows(conv.rows ?? []);
+      setReportMonthLabel(ta.monthLabel || conv.monthLabel || "");
+      if (exp) setExpenditureData({ ...exp, monthLabel: exp.monthLabel || "" });
+      else setExpenditureData(null);
+    }).finally(() => setReportsLoading(false));
+  }, [user?.role, reportMonth, data?.adminKpi]);
 
   if (loading) return <p className="text-slate-500">Loading…</p>;
   if (!data) return <p className="text-slate-500">Failed to load dashboard.</p>;
@@ -174,6 +270,238 @@ export default function StaffDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {user?.role === "admin" && data.adminKpi && (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold text-slate-800">Company KPIs</h2>
+            {openMonthlyTargetPopup && (
+              <Button variant="outline" size="sm" onClick={openMonthlyTargetPopup}>
+                <Target className="h-4 w-4 mr-2" />
+                Monthly target
+              </Button>
+            )}
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">YTD Budget target</CardTitle>
+                <Target className="h-4 w-4 text-slate-500" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(data.adminKpi.companyTargetYtd)}
+                </p>
+                <p className="text-xs text-slate-500">Jan – current month</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">YTD Achieved</CardTitle>
+                <TrendingUp className="h-4 w-4 text-slate-500" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(data.adminKpi.companyAchievedYtd)}
+                </p>
+                <p className="text-xs text-slate-500">Disbursed / sanctioned</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">MTD Budget target</CardTitle>
+                <Target className="h-4 w-4 text-slate-500" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(data.adminKpi.companyTargetMtd)}
+                </p>
+                <p className="text-xs text-slate-500">{data.adminKpi.monthLabel}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">MTD Achieved</CardTitle>
+                <TrendingUp className="h-4 w-4 text-slate-500" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(data.adminKpi.companyAchievedMtd)}
+                </p>
+                <p className="text-xs text-slate-500">{data.adminKpi.monthLabel}</p>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
+
+      {user?.role === "admin" && (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-800">Reports</h2>
+              <p className="text-sm text-slate-600">Target vs achievement, conveyance and expenditure by month.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {openConveyancePolicyPopup && (
+                <Button variant="outline" size="sm" onClick={openConveyancePolicyPopup}>
+                  Conveyance policy
+                </Button>
+              )}
+              <div className="flex items-center gap-2">
+                <Label htmlFor="report-month" className="text-sm text-slate-600 shrink-0">Month</Label>
+                <Input
+                  id="report-month"
+                  type="month"
+                  value={reportMonth}
+                  onChange={(e) => setReportMonth(e.target.value)}
+                  className="w-[160px]"
+                  style={{ colorScheme: "light" }}
+                />
+              </div>
+            </div>
+          </div>
+          {reportsLoading && (
+            <p className="text-sm text-slate-500">Loading reports…</p>
+          )}
+        </>
+      )}
+
+      {user?.role === "admin" && !reportsLoading && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Every employee target vs achievement
+              </CardTitle>
+              <CardDescription>
+                {reportMonthLabel || reportMonth} – Target, achieved leads, achieved budget and achievement %.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border overflow-x-auto">
+                <table className="w-full text-sm min-w-[640px]">
+                  <thead>
+                    <tr className="border-b bg-slate-50">
+                      <th className="text-left p-3 font-medium">ID</th>
+                      <th className="text-left p-3 font-medium">Name</th>
+                      <th className="text-right p-3 font-medium">Target (leads)</th>
+                      <th className="text-right p-3 font-medium">Budget</th>
+                      <th className="text-right p-3 font-medium">Achieved (leads)</th>
+                      <th className="text-right p-3 font-medium">Achieved (₹)</th>
+                      <th className="text-right p-3 font-medium">Achievement %</th>
+                      <th className="text-right p-3 font-medium">Converted</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {targetAchievementRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-6 text-center text-slate-500">No data for this month.</td>
+                      </tr>
+                    ) : (
+                      targetAchievementRows.map((r) => (
+                        <tr key={r.employeeId} className="border-b last:border-0 hover:bg-slate-50/50">
+                          <td className="p-3 font-medium">{r.employeeNumber || "—"}</td>
+                          <td className="p-3">{r.employeeName}</td>
+                          <td className="p-3 text-right">{r.monthlyTarget}</td>
+                          <td className="p-3 text-right">{r.assignedBudget > 0 ? new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(r.assignedBudget) : "—"}</td>
+                          <td className="p-3 text-right">{r.achievedLeads}</td>
+                          <td className="p-3 text-right">{new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(r.achievedBudget)}</td>
+                          <td className="p-3 text-right">{r.achievementPct}%</td>
+                          <td className="p-3 text-right">{r.leadsConverted}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Car className="h-5 w-5" />
+                Conveyance report
+              </CardTitle>
+              <CardDescription>
+                {reportMonthLabel || reportMonth} – Team lead conveyance eligibility (joint visits &amp; team achievement).
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border overflow-x-auto">
+                <table className="w-full text-sm min-w-[520px]">
+                  <thead>
+                    <tr className="border-b bg-slate-50">
+                      <th className="text-left p-3 font-medium">ID</th>
+                      <th className="text-left p-3 font-medium">Name</th>
+                      <th className="text-center p-3 font-medium">Team lead</th>
+                      <th className="text-right p-3 font-medium">Team leads (month)</th>
+                      <th className="text-right p-3 font-medium">Achievement %</th>
+                      <th className="text-right p-3 font-medium">Joint visits</th>
+                      <th className="text-right p-3 font-medium">Conveyance %</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {conveyanceRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-6 text-center text-slate-500">No data.</td>
+                      </tr>
+                    ) : (
+                      conveyanceRows.map((r) => (
+                        <tr key={r.employeeId} className="border-b last:border-0 hover:bg-slate-50/50">
+                          <td className="p-3 font-medium">{r.employeeNumber || "—"}</td>
+                          <td className="p-3">{r.employeeName}</td>
+                          <td className="p-3 text-center">{r.isTeamLead ? "Yes" : "—"}</td>
+                          <td className="p-3 text-right">{r.isTeamLead ? r.teamLeadsThisMonth : "—"}</td>
+                          <td className="p-3 text-right">{r.isTeamLead ? `${r.achievementPct}%` : "—"}</td>
+                          <td className="p-3 text-right">{r.isTeamLead ? r.jointVisits : "—"}</td>
+                          <td className="p-3 text-right font-medium">{r.conveyancePct > 0 ? `${r.conveyancePct}%` : "—"}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Expenditure
+              </CardTitle>
+              <CardDescription>
+                {expenditureData?.monthLabel || reportMonth} – Loans (disbursed/sanctioned) and miscellaneous (insurance).
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="rounded-lg border bg-slate-50/50 p-4">
+                  <p className="text-sm font-medium text-slate-600">Loans</p>
+                  <p className="text-xl font-bold mt-1">
+                    {expenditureData ? new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(expenditureData.loans) : "—"}
+                  </p>
+                </div>
+                <div className="rounded-lg border bg-slate-50/50 p-4">
+                  <p className="text-sm font-medium text-slate-600">Miscellaneous</p>
+                  <p className="text-xl font-bold mt-1">
+                    {expenditureData ? new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(expenditureData.miscellaneous) : "—"}
+                  </p>
+                </div>
+                <div className="rounded-lg border bg-primary/5 p-4">
+                  <p className="text-sm font-medium text-slate-600">Total</p>
+                  <p className="text-xl font-bold mt-1">
+                    {expenditureData ? new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(expenditureData.total) : "—"}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {user?.role === "team_lead" && data.overallTarget != null && (
         <>
@@ -375,7 +703,10 @@ export default function StaffDashboard() {
       <Card>
         <CardHeader>
           <CardTitle>Attendance today ({data.today})</CardTitle>
-          <CardDescription>Login/logout and status (present = 2 or more leads).</CardDescription>
+          <CardDescription>
+            Login/logout and status (present = 2 or more leads).
+            {user?.role === "admin" && " Target, achievement and % are for current month."}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -388,24 +719,38 @@ export default function StaffDashboard() {
                   <th className="text-left py-2 px-2 min-w-[70px]">Logout</th>
                   <th className="text-left py-2 px-2 min-w-[56px]">Leads</th>
                   <th className="text-left py-2 px-2 min-w-[88px]">Status</th>
+                  {user?.role === "admin" && (
+                    <>
+                      <th className="text-right py-2 px-2 min-w-[56px]">Target</th>
+                      <th className="text-right py-2 px-2 min-w-[72px]">Achievement</th>
+                      <th className="text-right py-2 px-2 min-w-[72px]">Achievement %</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {data.attendanceToday.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-500">
+                    <td colSpan={user?.role === "admin" ? 9 : 6} className="py-8 text-center text-slate-500">
                       No attendance recorded for today yet.
                     </td>
                   </tr>
                 ) : (
                   data.attendanceToday.map((a) => (
-                    <tr key={a.employeeId + a.date} className="border-b">
+                    <tr key={a.employeeId + a.date} className="border-b hover:bg-slate-50/50">
                       <td className="py-2 px-2 sticky left-0 z-10 bg-white font-medium">{a.employeeNumber || "—"}</td>
                       <td className="py-2 px-2 sticky left-[72px] z-10 bg-white">{a.employeeName || a.employeeId}</td>
                       <td className="py-2 px-2">{a.loginAt ? new Date(a.loginAt).toLocaleTimeString() : "—"}</td>
                       <td className="py-2 px-2">{a.logoutAt ? new Date(a.logoutAt).toLocaleTimeString() : "—"}</td>
                       <td className="py-2 px-2">{a.leadsCount}</td>
                       <td className="py-2 px-2">{a.status}</td>
+                      {user?.role === "admin" && (
+                        <>
+                          <td className="py-2 px-2 text-right">{a.monthlyTarget ?? "—"}</td>
+                          <td className="py-2 px-2 text-right">{a.leadsThisMonth ?? "—"}</td>
+                          <td className="py-2 px-2 text-right">{a.achievementPct != null ? `${a.achievementPct}%` : "—"}</td>
+                        </>
+                      )}
                     </tr>
                   ))
                 )}

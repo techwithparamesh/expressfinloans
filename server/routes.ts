@@ -1393,7 +1393,332 @@ export async function registerRoutes(
         payload.teamMembersSummary = teamMembersSummary;
         payload.monthLabel = now.toLocaleString("default", { month: "long", year: "numeric" });
       }
+      if (role === "admin") {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        const monthStart = new Date(year, now.getMonth(), 1).toISOString().slice(0, 10);
+        const monthEnd = new Date(year, now.getMonth() + 1, 0).toISOString().slice(0, 10);
+        const ytdStart = `${year}-01-01`;
+        const ytdEnd = today;
+        const DEFAULT_MONTHLY_TARGET_LEADS = 20;
+
+        let companyTargetYtd = 0;
+        let companyAchievedYtd = 0;
+        for (let m = 1; m <= month; m++) {
+          const ct = await storage.getCompanyMonthlyTarget(m, year);
+          if (ct?.totalBudget) {
+            const n = parseFloat(String(ct.totalBudget).replace(/,/g, ""));
+            if (!Number.isNaN(n)) companyTargetYtd += n;
+          }
+        }
+        const leadsYtd = await storage.getAllLeads({ fromDate: ytdStart, toDate: ytdEnd });
+        const disbursedYtd = leadsYtd.filter(
+          (l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned"
+        );
+        for (const l of disbursedYtd) {
+          const amt = (l as { loanDisbursed?: string; amount?: string }).loanDisbursed || (l as { amount?: string }).amount;
+          if (amt) {
+            const n = parseFloat(String(amt).replace(/,/g, ""));
+            if (!Number.isNaN(n)) companyAchievedYtd += n;
+          }
+        }
+
+        const ctMtd = await storage.getCompanyMonthlyTarget(month, year);
+        const companyTargetMtd = ctMtd?.totalBudget
+          ? (parseFloat(String(ctMtd.totalBudget).replace(/,/g, "")) || 0)
+          : 0;
+        const leadsMtd = await storage.getAllLeads({ fromDate: monthStart, toDate: monthEnd });
+        const disbursedMtd = leadsMtd.filter(
+          (l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned"
+        );
+        let companyAchievedMtd = 0;
+        for (const l of disbursedMtd) {
+          const amt = (l as { loanDisbursed?: string; amount?: string }).loanDisbursed || (l as { amount?: string }).amount;
+          if (amt) {
+            const n = parseFloat(String(amt).replace(/,/g, ""));
+            if (!Number.isNaN(n)) companyAchievedMtd += n;
+          }
+        }
+
+        const allEmployeeTargetAchievement: {
+          employeeId: string;
+          employeeName: string;
+          employeeNumber: string;
+          monthlyTarget: number;
+          assignedBudget: number;
+          achievedLeads: number;
+          achievedBudget: number;
+          achievementPct: number;
+          leadsConverted: number;
+        }[] = [];
+        const targetsThisMonth = await storage.getMonthlyTargetsByMonth(month, year);
+        const targetByUser = new Map(targetsThisMonth.map((t) => [t.userId, t]));
+        for (const emp of employees) {
+          const mt = targetByUser.get(emp.id);
+          const targetLeads = mt ? mt.assignedLeads : (Number((emp as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+          const assignedBudget = mt ? parseFloat(String(mt.assignedBudget).replace(/,/g, "")) || 0 : 0;
+          const { achievedBudget, achievedLeads } = await storage.getAchievedBudgetAndLeads(emp.id, month, year);
+          const achievementPct = targetLeads > 0 ? Math.round((achievedLeads / targetLeads) * 100) : 0;
+          const empLeads = await storage.getLeadsByEmployee(emp.id, monthStart, monthEnd);
+          const leadsConverted = empLeads.filter(
+            (l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned"
+          ).length;
+          allEmployeeTargetAchievement.push({
+            employeeId: emp.id,
+            employeeName: byId[emp.id]?.name ?? emp.id,
+            employeeNumber: byId[emp.id]?.number ?? "",
+            monthlyTarget: targetLeads,
+            assignedBudget,
+            achievedLeads,
+            achievedBudget,
+            achievementPct,
+            leadsConverted,
+          });
+        }
+
+        const teamLeads = await storage.listTeamLeads();
+        const conveyanceReport: {
+          employeeId: string;
+          employeeName: string;
+          employeeNumber: string;
+          isTeamLead: boolean;
+          teamLeadsThisMonth: number;
+          achievementPct: number;
+          jointVisits: number;
+          conveyancePct: number;
+        }[] = [];
+        for (const emp of employees) {
+          const isTeamLead = teamLeads.some((tl) => tl.id === emp.id);
+          let teamLeadsThisMonth = 0;
+          let achievementPct = 0;
+          let conveyancePct = 0;
+          let jointVisits = 0;
+          if (isTeamLead) {
+            const teamMembers = await storage.listEmployees({ teamLeadId: emp.id });
+            let overallTarget = 0;
+            for (const m of teamMembers) {
+              const mt = targetByUser.get(m.id);
+              const t = mt ? mt.assignedLeads : (Number((m as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+              overallTarget += t;
+              const leads = await storage.getLeadsByEmployee(m.id, monthStart, monthEnd);
+              teamLeadsThisMonth += leads.length;
+            }
+            achievementPct = overallTarget > 0 ? Math.round((teamLeadsThisMonth / overallTarget) * 100) : 0;
+            jointVisits = await storage.getJointVisitsCount(emp.id, monthStart, monthEnd);
+            if (jointVisits >= 4 && teamLeadsThisMonth >= 10) {
+              if (achievementPct >= 100) conveyancePct = 120;
+              else if (achievementPct >= 80) conveyancePct = 50;
+            }
+          }
+          conveyanceReport.push({
+            employeeId: emp.id,
+            employeeName: byId[emp.id]?.name ?? emp.id,
+            employeeNumber: byId[emp.id]?.number ?? "",
+            isTeamLead,
+            teamLeadsThisMonth,
+            achievementPct,
+            jointVisits,
+            conveyancePct,
+          });
+        }
+
+        const insuranceLeadsMonth = await storage.getAllInsuranceLeads({ fromDate: monthStart, toDate: monthEnd });
+        let expenditureMisc = 0;
+        for (const il of insuranceLeadsMonth) {
+          const v = (il as { miscellaneousExpenses?: string | null }).miscellaneousExpenses;
+          if (v) {
+            const n = parseFloat(String(v).replace(/,/g, ""));
+            if (!Number.isNaN(n)) expenditureMisc += n;
+          }
+        }
+        payload.adminKpi = {
+          companyTargetYtd,
+          companyAchievedYtd,
+          companyTargetMtd,
+          companyAchievedMtd,
+          monthLabel: now.toLocaleString("default", { month: "long", year: "numeric" }),
+        };
+        payload.allEmployeeTargetAchievement = allEmployeeTargetAchievement;
+        payload.conveyanceReport = conveyanceReport;
+        payload.expenditure = {
+          loans: companyAchievedMtd,
+          miscellaneous: expenditureMisc,
+          total: companyAchievedMtd + expenditureMisc,
+          monthLabel: payload.adminKpi.monthLabel,
+        };
+        const attendanceWithTargets = await Promise.all(
+          attendanceTodayFiltered.map(async (a) => {
+            const mt = targetByUser.get(a.employeeId);
+            const targetLeads = mt ? mt.assignedLeads : (Number((employees.find((e) => e.id === a.employeeId) as any)?.monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+            const { achievedLeads } = await storage.getAchievedBudgetAndLeads(a.employeeId, month, year);
+            const achievementPct = targetLeads > 0 ? Math.round((achievedLeads / targetLeads) * 100) : 0;
+            return {
+              ...a,
+              monthlyTarget: targetLeads,
+              leadsThisMonth: achievedLeads,
+              achievementPct,
+            };
+          })
+        );
+        payload.attendanceToday = attendanceWithTargets;
+      }
       res.json(payload);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // --- Staff: admin reports (month = YYYY-MM, defaults to current month) ---
+  app.get("/api/staff/reports/target-achievement", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const monthParam = (req.query.month as string)?.trim();
+      const now = new Date();
+      const year = monthParam && /^\d{4}-\d{2}$/.test(monthParam)
+        ? parseInt(monthParam.slice(0, 4), 10)
+        : now.getFullYear();
+      const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam)
+        ? parseInt(monthParam.slice(5, 7), 10)
+        : now.getMonth() + 1;
+      const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
+      const lastDay = new Date(year, month, 0).getDate();
+      const monthEnd = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      const employees = await storage.listEmployees();
+      const byId: Record<string, { name: string; number: string }> = {};
+      for (const u of employees) {
+        byId[u.id] = {
+          name: (u as any).fullName?.trim() || u.username || u.id,
+          number: (u as any).employeeNumber ?? "",
+        };
+      }
+      const DEFAULT_MONTHLY_TARGET_LEADS = 20;
+      const targetsThisMonth = await storage.getMonthlyTargetsByMonth(month, year);
+      const targetByUser = new Map(targetsThisMonth.map((t) => [t.userId, t]));
+      const rows: { employeeId: string; employeeName: string; employeeNumber: string; monthlyTarget: number; assignedBudget: number; achievedLeads: number; achievedBudget: number; achievementPct: number; leadsConverted: number }[] = [];
+      for (const emp of employees) {
+        const mt = targetByUser.get(emp.id);
+        const targetLeads = mt ? mt.assignedLeads : (Number((emp as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+        const assignedBudget = mt ? parseFloat(String(mt.assignedBudget).replace(/,/g, "")) || 0 : 0;
+        const { achievedBudget, achievedLeads } = await storage.getAchievedBudgetAndLeads(emp.id, month, year);
+        const achievementPct = targetLeads > 0 ? Math.round((achievedLeads / targetLeads) * 100) : 0;
+        const empLeads = await storage.getLeadsByEmployee(emp.id, monthStart, monthEnd);
+        const leadsConverted = empLeads.filter(
+          (l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned"
+        ).length;
+        rows.push({
+          employeeId: emp.id,
+          employeeName: byId[emp.id]?.name ?? emp.id,
+          employeeNumber: byId[emp.id]?.number ?? "",
+          monthlyTarget: targetLeads,
+          assignedBudget,
+          achievedLeads,
+          achievedBudget,
+          achievementPct,
+          leadsConverted,
+        });
+      }
+      res.json({ month: `${year}-${String(month).padStart(2, "0")}`, monthLabel: new Date(year, month - 1, 1).toLocaleString("default", { month: "long", year: "numeric" }), rows });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/reports/conveyance", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const monthParam = (req.query.month as string)?.trim();
+      const now = new Date();
+      const year = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? parseInt(monthParam.slice(0, 4), 10) : now.getFullYear();
+      const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? parseInt(monthParam.slice(5, 7), 10) : now.getMonth() + 1;
+      const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
+      const lastDay = new Date(year, month, 0).getDate();
+      const monthEnd = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      const employees = await storage.listEmployees();
+      const byId: Record<string, { name: string; number: string }> = {};
+      for (const u of employees) {
+        byId[u.id] = { name: (u as any).fullName?.trim() || u.username || u.id, number: (u as any).employeeNumber ?? "" };
+      }
+      const DEFAULT_MONTHLY_TARGET_LEADS = 20;
+      const targetsThisMonth = await storage.getMonthlyTargetsByMonth(month, year);
+      const targetByUser = new Map(targetsThisMonth.map((t) => [t.userId, t]));
+      const teamLeads = await storage.listTeamLeads();
+      const rows: { employeeId: string; employeeName: string; employeeNumber: string; isTeamLead: boolean; teamLeadsThisMonth: number; achievementPct: number; jointVisits: number; conveyancePct: number }[] = [];
+      for (const emp of employees) {
+        const isTeamLead = teamLeads.some((tl) => tl.id === emp.id);
+        let teamLeadsThisMonth = 0;
+        let achievementPct = 0;
+        let conveyancePct = 0;
+        let jointVisits = 0;
+        if (isTeamLead) {
+          const teamMembers = await storage.listEmployees({ teamLeadId: emp.id });
+          let overallTarget = 0;
+          for (const m of teamMembers) {
+            const mt = targetByUser.get(m.id);
+            const t = mt ? mt.assignedLeads : (Number((m as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+            overallTarget += t;
+            const leads = await storage.getLeadsByEmployee(m.id, monthStart, monthEnd);
+            teamLeadsThisMonth += leads.length;
+          }
+          achievementPct = overallTarget > 0 ? Math.round((teamLeadsThisMonth / overallTarget) * 100) : 0;
+          jointVisits = await storage.getJointVisitsCount(emp.id, monthStart, monthEnd);
+          if (jointVisits >= 4 && teamLeadsThisMonth >= 10) {
+            if (achievementPct >= 100) conveyancePct = 120;
+            else if (achievementPct >= 80) conveyancePct = 50;
+          }
+        }
+        rows.push({
+          employeeId: emp.id,
+          employeeName: byId[emp.id]?.name ?? emp.id,
+          employeeNumber: byId[emp.id]?.number ?? "",
+          isTeamLead,
+          teamLeadsThisMonth,
+          achievementPct,
+          jointVisits,
+          conveyancePct,
+        });
+      }
+      res.json({ month: `${year}-${String(month).padStart(2, "0")}`, monthLabel: new Date(year, month - 1, 1).toLocaleString("default", { month: "long", year: "numeric" }), rows });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/reports/expenditure", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const monthParam = (req.query.month as string)?.trim();
+      const now = new Date();
+      const year = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? parseInt(monthParam.slice(0, 4), 10) : now.getFullYear();
+      const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? parseInt(monthParam.slice(5, 7), 10) : now.getMonth() + 1;
+      const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
+      const lastDay = new Date(year, month, 0).getDate();
+      const monthEnd = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      const leadsMtd = await storage.getAllLeads({ fromDate: monthStart, toDate: monthEnd });
+      const disbursedMtd = leadsMtd.filter(
+        (l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned"
+      );
+      let loans = 0;
+      for (const l of disbursedMtd) {
+        const amt = (l as { loanDisbursed?: string; amount?: string }).loanDisbursed || (l as { amount?: string }).amount;
+        if (amt) {
+          const n = parseFloat(String(amt).replace(/,/g, ""));
+          if (!Number.isNaN(n)) loans += n;
+        }
+      }
+      const insuranceLeadsMonth = await storage.getAllInsuranceLeads({ fromDate: monthStart, toDate: monthEnd });
+      let miscellaneous = 0;
+      for (const il of insuranceLeadsMonth) {
+        const v = (il as { miscellaneousExpenses?: string | null }).miscellaneousExpenses;
+        if (v) {
+          const n = parseFloat(String(v).replace(/,/g, ""));
+          if (!Number.isNaN(n)) miscellaneous += n;
+        }
+      }
+      res.json({
+        month: `${year}-${String(month).padStart(2, "0")}`,
+        monthLabel: new Date(year, month - 1, 1).toLocaleString("default", { month: "long", year: "numeric" }),
+        loans,
+        miscellaneous,
+        total: loans + miscellaneous,
+      });
     } catch (e) {
       next(e);
     }
