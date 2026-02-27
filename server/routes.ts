@@ -1368,16 +1368,25 @@ export async function registerRoutes(
       if (role === "team_lead") {
         const DEFAULT_MONTHLY_TARGET_LEADS = 20;
         const now = new Date();
+        const month = now.getMonth() + 1;
+        const year = now.getFullYear();
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
         const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+        const teamLeadId = (req.user as any).id;
+        const leaderOwnTarget = await storage.getMonthlyTarget(teamLeadId, month, year);
+        const leaderAssignedLeads = leaderOwnTarget ? leaderOwnTarget.assignedLeads : 0;
+        const leaderAssignedBudget = leaderOwnTarget && leaderOwnTarget.assignedBudget
+          ? parseFloat(String(leaderOwnTarget.assignedBudget).replace(/,/g, "")) || 0
+          : 0;
         let overallTarget = 0;
         const teamMembersSummary: { employeeId: string; employeeName: string; employeeNumber: string; monthlyTarget: number; leadsThisMonth: number; achievementPct: number; leadsConverted: number }[] = [];
         let teamLeadsThisMonth = 0;
         let teamLeadsConverted = 0;
         for (const emp of employees) {
-          const target = (emp as any).monthlyLeadTarget != null && !Number.isNaN(Number((emp as any).monthlyLeadTarget))
+          const mt = await storage.getMonthlyTarget(emp.id, month, year);
+          const target = mt ? mt.assignedLeads : ((emp as any).monthlyLeadTarget != null && !Number.isNaN(Number((emp as any).monthlyLeadTarget))
             ? Number((emp as any).monthlyLeadTarget)
-            : DEFAULT_MONTHLY_TARGET_LEADS;
+            : DEFAULT_MONTHLY_TARGET_LEADS);
           overallTarget += target;
           const empLeads = await storage.getLeadsByEmployee(emp.id, monthStart, monthEnd);
           const converted = empLeads.filter((l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned").length;
@@ -1394,8 +1403,11 @@ export async function registerRoutes(
             leadsConverted: converted,
           });
         }
+        if (employees.length === 0 && leaderAssignedLeads > 0) {
+          overallTarget = leaderAssignedLeads;
+        }
         const achievementPct = overallTarget > 0 ? Math.round((teamLeadsThisMonth / overallTarget) * 100) : 0;
-        const jointVisits = await storage.getJointVisitsCount((req.user as any).id, monthStart, monthEnd);
+        const jointVisits = await storage.getJointVisitsCount(teamLeadId, monthStart, monthEnd);
         let conveyancePct = 0;
         if (jointVisits >= 4 && teamLeadsThisMonth >= 10) {
           if (achievementPct >= 100) conveyancePct = 120;
@@ -1407,6 +1419,7 @@ export async function registerRoutes(
         payload.conveyancePct = conveyancePct;
         payload.teamMembersSummary = teamMembersSummary;
         payload.monthLabel = now.toLocaleString("default", { month: "long", year: "numeric" });
+        payload.leaderAssignedBudget = leaderAssignedBudget;
       }
       if (role === "admin") {
         const now = new Date();

@@ -90,6 +90,24 @@ export default function StaffTargetAllocation() {
   const totalLeadsNum = parseInt(companyLeads, 10) || 0;
   const leaderSumBudget = leaders.reduce((s, r) => s + (parseFloat(r.assignedBudget) || 0), 0);
   const leaderSumLeads = leaders.reduce((s, r) => s + (r.assignedLeads || 0), 0);
+
+  useEffect(() => {
+    if (!isAdmin || loading || leaders.length === 0) return;
+    if (totalBudget <= 0 && totalLeadsNum <= 0) return;
+    const hasNoAllocation = Math.abs(leaderSumBudget) < 0.01 && leaderSumLeads === 0;
+    if (!hasNoAllocation) return;
+    const n = leaders.length;
+    const budgetPerLeader = totalBudget / n;
+    const leadsPerLeader = Math.floor(totalLeadsNum / n);
+    const remainderLeads = totalLeadsNum - leadsPerLeader * n;
+    setLeaders((prev) =>
+      prev.map((r, i) => ({
+        ...r,
+        assignedBudget: budgetPerLeader.toFixed(2),
+        assignedLeads: leadsPerLeader + (i < remainderLeads ? 1 : 0),
+      }))
+    );
+  }, [isAdmin, loading, totalBudget, totalLeadsNum, leaders.length, leaderSumBudget, leaderSumLeads]);
   const employeeSumBudget = employees.reduce((s, r) => s + (parseFloat(r.assignedBudget) || 0), 0);
   const employeeSumLeads = employees.reduce((s, r) => s + (r.assignedLeads || 0), 0);
   const leaderBudgetMatch = Math.abs(leaderSumBudget - totalBudget) < 0.01;

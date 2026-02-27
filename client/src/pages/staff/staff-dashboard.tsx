@@ -82,6 +82,7 @@ type Dashboard = {
   teamLeadsThisMonth?: number;
   achievementPct?: number;
   conveyancePct?: number;
+  leaderAssignedBudget?: number;
   teamMembersSummary?: TeamMemberSummary[];
   monthLabel?: string;
   adminKpi?: AdminKpi;
@@ -618,12 +619,12 @@ export default function StaffDashboard() {
         </>
       )}
 
-      {user?.role === "team_lead" && data.overallTarget != null && (
+      {user?.role === "team_lead" && (data.overallTarget != null || (data.leaderAssignedBudget != null && data.leaderAssignedBudget > 0)) && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-lg font-semibold text-slate-800">Team targets &amp; achievement</h2>
-              <p className="text-sm text-slate-600 -mt-2 mb-1">Individual target, overall target, achievement and conveyance for your team this month. Add members in My team to set targets.</p>
+              <p className="text-sm text-slate-600 -mt-2 mb-1">Your assigned budget and lead target from admin. Individual target, achievement and conveyance for your team this month. Add members in My team to set targets.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {openMonthlyTargetPopup && (
@@ -642,11 +643,25 @@ export default function StaffDashboard() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Overall target</CardTitle>
+              <CardTitle className="text-sm font-medium">Your assigned budget (₹)</CardTitle>
+              <DollarSign className="h-4 w-4 text-slate-500" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">
+                {data.leaderAssignedBudget != null && data.leaderAssignedBudget > 0
+                  ? new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(data.leaderAssignedBudget)
+                  : "—"}
+              </p>
+              <p className="text-xs text-slate-500">{data.monthLabel ?? "This month"}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Overall target (leads)</CardTitle>
               <Target className="h-4 w-4 text-slate-500" />
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">{data.overallTarget}</p>
+              <p className="text-2xl font-bold">{data.overallTarget ?? "—"}</p>
               <p className="text-xs text-slate-500">{data.monthLabel ?? "This month"}</p>
             </CardContent>
           </Card>
@@ -657,7 +672,7 @@ export default function StaffDashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">{data.achievementPct ?? 0}%</p>
-              <p className="text-xs text-slate-500">{data.teamLeadsThisMonth ?? 0} of {data.overallTarget} leads</p>
+              <p className="text-xs text-slate-500">{data.teamLeadsThisMonth ?? 0} of {data.overallTarget ?? 0} leads</p>
             </CardContent>
           </Card>
           <Card>
