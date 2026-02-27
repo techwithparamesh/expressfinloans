@@ -326,84 +326,112 @@ export default function StaffMyLeads() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Leads this month</CardTitle>
-          <CardDescription>Add 2 or more loan leads per day to be marked present.</CardDescription>
+      <Card className="overflow-hidden">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Leads this month</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">Add 2 or more loan leads per day to be marked present.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
           <Tabs defaultValue="loan">
-            <TabsList>
-              <TabsTrigger value="loan">Loan leads</TabsTrigger>
-              <TabsTrigger value="insurance">Insurance leads</TabsTrigger>
+            <TabsList className="w-full sm:w-auto grid grid-cols-2">
+              <TabsTrigger value="loan" className="text-xs sm:text-sm">Loan leads</TabsTrigger>
+              <TabsTrigger value="insurance" className="text-xs sm:text-sm">Insurance leads</TabsTrigger>
             </TabsList>
-            <TabsContent value="loan" className="mt-4">
-              <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
-                <table className="w-full text-sm min-w-[720px]">
+            <TabsContent value="loan" className="mt-4 min-w-0">
+              <div className="w-full min-w-0 overflow-x-auto overflow-y-visible -mx-4 px-4 sm:mx-0 sm:px-0" style={{ WebkitOverflowScrolling: "touch" }}>
+                <table className="text-sm border-collapse" style={{ tableLayout: "fixed", minWidth: "692px" }}>
+                  <colgroup>
+                    <col className="w-[82px] sm:w-[88px]" />
+                    <col className="w-[90px]" />
+                    <col className="w-[72px]" />
+                    <col className="w-[88px]" />
+                    <col className="w-[84px] sm:w-[90px]" />
+                    <col className="w-[68px] sm:w-[72px]" />
+                    <col className="w-[80px]" />
+                    <col className="w-[56px]" />
+                    <col className="w-[72px]" />
+                  </colgroup>
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2 whitespace-nowrap min-w-[88px]">Date</th>
-                      <th className="text-left py-2 whitespace-nowrap min-w-[90px]">Customer</th>
-                      <th className="text-left py-2 whitespace-nowrap min-w-[72px]">DOB</th>
-                      <th className="text-left py-2 whitespace-nowrap min-w-[88px]">Contact</th>
-                      <th className="text-left py-2 whitespace-nowrap min-w-[80px]">Loan type</th>
-                      <th className="text-left py-2 whitespace-nowrap min-w-[72px]">Sub type</th>
-                      <th className="text-left py-2 whitespace-nowrap min-w-[72px]">Amount</th>
-                      <th className="text-left py-2 whitespace-nowrap min-w-[56px]">Tenure</th>
-                      <th className="text-left py-2 whitespace-nowrap min-w-[72px]">Status</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Date</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Customer</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">DOB</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Contact</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Loan type</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Sub type</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Amount</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Tenure</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {leads.map((l) => (
                       <tr key={l.id} className="border-b">
-                        <td className="py-2 whitespace-nowrap">{l.date}</td>
-                        <td className="py-2 whitespace-nowrap max-w-[120px] truncate" title={l.customerName ?? undefined}>{l.customerName ?? "—"}</td>
-                        <td className="py-2 whitespace-nowrap">{l.dateOfBirth ?? "—"}</td>
-                        <td className="py-2 whitespace-nowrap">{l.customerPhone ?? "—"}</td>
-                        <td className="py-2 whitespace-nowrap">{l.loanType ?? "—"}</td>
-                        <td className="py-2 whitespace-nowrap">{l.subLoanType ?? "—"}</td>
-                        <td className="py-2 whitespace-nowrap">{l.amount ?? "—"}</td>
-                        <td className="py-2 whitespace-nowrap">{l.tenure ?? "—"}</td>
-                        <td className="py-2 whitespace-nowrap">{l.status}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.date}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap max-w-[90px] truncate" title={l.customerName ?? undefined}>{l.customerName ?? "—"}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.dateOfBirth ?? "—"}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.customerPhone ?? "—"}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.loanType ?? "—"}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.subLoanType ?? "—"}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap tabular-nums">{l.amount ?? "—"}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.tenure ?? "—"}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.status}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              {leads.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-2 sm:hidden">Swipe horizontally to see all columns.</p>
+              )}
             </TabsContent>
-            <TabsContent value="insurance" className="mt-4">
-              <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
-                <table className="w-full text-sm min-w-[760px]">
+            <TabsContent value="insurance" className="mt-4 min-w-0">
+              <div className="w-full min-w-0 overflow-x-auto overflow-y-visible -mx-4 px-4 sm:mx-0 sm:px-0" style={{ WebkitOverflowScrolling: "touch" }}>
+                <table className="text-sm border-collapse" style={{ tableLayout: "fixed", minWidth: "784px" }}>
+                  <colgroup>
+                    <col className="w-[82px] sm:w-[88px]" />
+                    <col className="w-[90px]" />
+                    <col className="w-[88px]" />
+                    <col className="w-[100px]" />
+                    <col className="w-[92px] sm:w-[100px]" />
+                    <col className="w-[100px]" />
+                    <col className="w-[72px]" />
+                    <col className="w-[88px] sm:w-[96px]" />
+                    <col className="w-[72px]" />
+                  </colgroup>
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2 whitespace-nowrap min-w-[88px]">Date</th>
-                      <th className="text-left py-2 whitespace-nowrap min-w-[90px]">Customer</th>
-                      <th className="text-left py-2 whitespace-nowrap min-w-[88px]">Contact</th>
-                      <th className="text-left py-2 whitespace-nowrap min-w-[100px]">Insurance type</th>
-                      <th className="text-left py-2 whitespace-nowrap min-w-[80px]">Premium quoted</th>
-                      <th className="text-left py-2 whitespace-nowrap min-w-[90px]">Premium collected</th>
-                      <th className="text-left py-2 whitespace-nowrap min-w-[72px]">Difference</th>
-                      <th className="text-left py-2 whitespace-nowrap min-w-[80px]">Misc. Expenses</th>
-                      <th className="text-left py-2 whitespace-nowrap min-w-[72px]">Status</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Date</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Customer</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Contact</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Insurance type</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Premium quoted</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Premium collected</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Difference</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Misc. Expenses</th>
+                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {insuranceLeads.map((l) => (
                       <tr key={l.id} className="border-b">
-                        <td className="py-2 whitespace-nowrap">{l.date}</td>
-                        <td className="py-2 whitespace-nowrap max-w-[120px] truncate" title={l.customerName ?? undefined}>{l.customerName ?? "—"}</td>
-                        <td className="py-2 whitespace-nowrap">{l.contactNum ?? "—"}</td>
-                        <td className="py-2 whitespace-nowrap">{l.insuranceType ?? "—"}</td>
-                        <td className="py-2 whitespace-nowrap">{l.premiumQuoted ?? "—"}</td>
-                        <td className="py-2 whitespace-nowrap">{l.premiumCollected ?? "—"}</td>
-                        <td className="py-2 whitespace-nowrap">{l.difference ?? "—"}</td>
-                        <td className="py-2 whitespace-nowrap">{l.miscellaneousExpenses ?? "—"}</td>
-                        <td className="py-2 whitespace-nowrap">{l.status}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.date}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap max-w-[90px] truncate" title={l.customerName ?? undefined}>{l.customerName ?? "—"}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.contactNum ?? "—"}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.insuranceType ?? "—"}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap tabular-nums">{l.premiumQuoted ?? "—"}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap tabular-nums">{l.premiumCollected ?? "—"}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap tabular-nums">{l.difference ?? "—"}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.miscellaneousExpenses ?? "—"}</td>
+                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.status}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              {insuranceLeads.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-2 sm:hidden">Swipe horizontally to see all columns.</p>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>

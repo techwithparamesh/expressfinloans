@@ -105,16 +105,16 @@ export default function StaffMyAttendance() {
   if (loading) return <p className="text-slate-500">Loading…</p>;
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
+    <div className="space-y-4 sm:space-y-6">
+      <Card className="overflow-hidden">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Calendar className="h-5 w-5 shrink-0" />
             Today ({today})
           </CardTitle>
-          <CardDescription>Mark login and logout. You need 2 or more leads to be marked present. Location is recorded when you tap Log in (from browser or IP).</CardDescription>
+          <CardDescription className="text-xs sm:text-sm">Mark login and logout. You need 2 or more leads to be marked present. Location is recorded when you tap Log in (from browser or IP).</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4">
+        <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0 flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <Button
               type="button"
@@ -153,38 +153,49 @@ export default function StaffMyAttendance() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>History</CardTitle>
-          <CardDescription>Recent attendance.</CardDescription>
+      <Card className="overflow-hidden">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">History</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">Recent attendance.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
-            <table className="w-full text-sm min-w-[520px]">
+        <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+          <div className="w-full min-w-0 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0" style={{ WebkitOverflowScrolling: "touch" }}>
+            <table className="text-sm border-collapse" style={{ tableLayout: "fixed", minWidth: "480px" }}>
+              <colgroup>
+                <col className="w-[64px]" />
+                <col className="w-[70px]" />
+                <col className="w-[70px]" />
+                <col className="w-[120px] sm:w-[140px]" />
+                <col className="w-[48px]" />
+                <col className="w-[72px]" />
+              </colgroup>
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-2 whitespace-nowrap min-w-[64px]">Date</th>
-                  <th className="text-left py-2 whitespace-nowrap min-w-[70px]">Login</th>
-                  <th className="text-left py-2 whitespace-nowrap min-w-[70px]">Logout</th>
-                  <th className="text-left py-2 whitespace-nowrap min-w-[100px]">Location</th>
-                  <th className="text-left py-2 whitespace-nowrap min-w-[48px]">Leads</th>
-                  <th className="text-left py-2 whitespace-nowrap min-w-[72px]">Status</th>
+                  <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Date</th>
+                  <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Login</th>
+                  <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Logout</th>
+                  <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Location</th>
+                  <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Leads</th>
+                  <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {logs.map((l) => (
                   <tr key={l.id} className="border-b">
-                    <td className="py-2 whitespace-nowrap" title={l.date}>{formatShortDate(l.date)}</td>
-                    <td className="py-2 whitespace-nowrap">{l.loginAt ? new Date(l.loginAt).toLocaleTimeString() : "—"}</td>
-                    <td className="py-2 whitespace-nowrap">{l.logoutAt ? new Date(l.logoutAt).toLocaleTimeString() : "—"}</td>
-                    <td className="py-2 max-w-[180px] truncate whitespace-nowrap" title={l.loginLocation ?? undefined}>{l.loginLocation ?? "—"}</td>
-                    <td className="py-2 whitespace-nowrap">{l.leadsCount}</td>
-                    <td className="py-2 whitespace-nowrap">{l.status}</td>
+                    <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap" title={l.date}>{formatShortDate(l.date)}</td>
+                    <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.loginAt ? new Date(l.loginAt).toLocaleTimeString() : "—"}</td>
+                    <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.logoutAt ? new Date(l.logoutAt).toLocaleTimeString() : "—"}</td>
+                    <td className="py-2.5 pr-2 text-xs sm:text-sm max-w-[120px] sm:max-w-[140px] truncate whitespace-nowrap" title={l.loginLocation ?? undefined}>{l.loginLocation ?? "—"}</td>
+                    <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.leadsCount}</td>
+                    <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.status}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          {logs.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-2 sm:hidden">Swipe horizontally to see all columns.</p>
+          )}
         </CardContent>
       </Card>
     </div>
