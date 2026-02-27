@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -10,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { staffJson } from "@/lib/api";
+import { Calendar } from "lucide-react";
 
 type Log = {
   id: string;
@@ -31,7 +33,19 @@ type EmployeeOption = {
   username: string;
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
+function getMonthStart(): string {
+  const d = new Date();
+  d.setDate(1);
+  return d.toISOString().slice(0, 10);
+}
+
+function getDaysAgo(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+}
 
 function fetchEmployees() {
   return staffJson<EmployeeOption[]>("/staff/employees").catch(() => []);
@@ -43,7 +57,7 @@ export default function StaffAttendance() {
   const [employeeId, setEmployeeId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState(getMonthStart());
-  const [to, setTo] = useState(today());
+  const [to, setTo] = useState(todayStr());
 
   function load() {
     setLoading(true);
@@ -70,10 +84,88 @@ export default function StaffAttendance() {
       <h1 className="text-2xl font-bold">Attendance</h1>
       <Card>
         <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>View attendance by date range and staff member.</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Filters
+          </CardTitle>
+          <CardDescription>
+            Track employee attendance for any date range. Pick a preset or choose custom From / To dates.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-4">
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="att-from">From date</Label>
+              <Input
+                id="att-from"
+                type="date"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+                className="min-w-[160px] h-10 text-base [color-scheme:light]"
+                style={{ colorScheme: "light" }}
+                aria-label="From date"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="att-to">To date</Label>
+              <Input
+                id="att-to"
+                type="date"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                className="min-w-[160px] h-10 text-base [color-scheme:light]"
+                style={{ colorScheme: "light" }}
+                aria-label="To date"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFrom(getMonthStart());
+                  setTo(todayStr());
+                }}
+              >
+                This month
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFrom(getDaysAgo(6));
+                  setTo(todayStr());
+                }}
+              >
+                Last 7 days
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFrom(getDaysAgo(29));
+                  setTo(todayStr());
+                }}
+              >
+                Last 30 days
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const t = todayStr();
+                  setFrom(t);
+                  setTo(t);
+                }}
+              >
+                Today
+              </Button>
+            </div>
+          </div>
           <div className="space-y-2">
             <Label>Staff member</Label>
             <Select value={employeeId || "all"} onValueChange={(v) => setEmployeeId(v === "all" ? "" : v)}>
@@ -89,14 +181,6 @@ export default function StaffAttendance() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>From</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>To</Label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           </div>
         </CardContent>
       </Card>
@@ -152,10 +236,4 @@ export default function StaffAttendance() {
       </Card>
     </div>
   );
-}
-
-function getMonthStart(): string {
-  const d = new Date();
-  d.setDate(1);
-  return d.toISOString().slice(0, 10);
 }
