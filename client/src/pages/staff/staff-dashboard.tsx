@@ -6,7 +6,7 @@ import { Link } from "wouter";
 import { getAuthMe, staffJson } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
 import { useMonthlyTargetPopup, useConveyancePolicyPopup } from "./staff-layout";
-import { Users, Calendar, FileText, CheckCircle, Download, Target, TrendingUp, Percent, DollarSign, Car, Activity, Search } from "lucide-react";
+import { Users, Calendar, FileText, CheckCircle, Download, Target, TrendingUp, Percent, DollarSign, Car, Activity, Search, CalendarRange } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -122,6 +122,12 @@ export default function StaffDashboard() {
   const [conveyanceRows, setConveyanceRows] = useState<ConveyanceRow[]>([]);
   const [expenditureData, setExpenditureData] = useState<ExpenditureData | null>(null);
   const [reportsLoading, setReportsLoading] = useState(false);
+  const [customFrom, setCustomFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [customTo, setCustomTo] = useState(() => new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
     getAuthMe().then((res) => setUser(res?.user ?? null));
@@ -671,10 +677,46 @@ export default function StaffDashboard() {
       </Card>
 
       {(user?.role === "admin" || user?.role === "team_lead") && (
-        <p className="text-sm text-slate-600">
-          To view attendance for any date range and track employee status by custom dates, go to{" "}
-          <Link href="/staff/attendance" className="font-medium text-primary underline hover:no-underline">Attendance</Link>.
-        </p>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarRange className="h-5 w-5" />
+              Custom date range
+            </CardTitle>
+            <CardDescription>
+              Track employee attendance for specific dates. Choose From and To, then open Attendance to see logs for this range.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-end gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="custom-from">From date</Label>
+              <Input
+                id="custom-from"
+                type="date"
+                value={customFrom}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                className="min-w-[160px] h-10 text-base [color-scheme:light]"
+                style={{ colorScheme: "light" }}
+                aria-label="From date"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="custom-to">To date</Label>
+              <Input
+                id="custom-to"
+                type="date"
+                value={customTo}
+                onChange={(e) => setCustomTo(e.target.value)}
+                className="min-w-[160px] h-10 text-base [color-scheme:light]"
+                style={{ colorScheme: "light" }}
+                aria-label="To date"
+              />
+            </div>
+            <Link href={`/staff/attendance?from=${customFrom}&to=${customTo}`}>
+              <Button type="button">View attendance for this range</Button>
+            </Link>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

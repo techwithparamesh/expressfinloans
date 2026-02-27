@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,12 +53,22 @@ function fetchEmployees() {
 }
 
 export default function StaffAttendance() {
+  const [location] = useLocation();
   const [logs, setLogs] = useState<Log[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [employeeId, setEmployeeId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState(getMonthStart());
   const [to, setTo] = useState(todayStr());
+
+  useEffect(() => {
+    const qs = location.includes("?") ? location.slice(location.indexOf("?")) : "";
+    const params = new URLSearchParams(qs);
+    const fromParam = params.get("from");
+    const toParam = params.get("to");
+    if (fromParam && /^\d{4}-\d{2}-\d{2}$/.test(fromParam)) setFrom(fromParam);
+    if (toParam && /^\d{4}-\d{2}-\d{2}$/.test(toParam)) setTo(toParam);
+  }, [location]);
 
   function load() {
     setLoading(true);
