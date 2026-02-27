@@ -79,7 +79,15 @@ export default function StaffTargetAllocation() {
           setCompanyLeads(String(company.totalLeads || 0));
           setIsLocked(company.isLocked === 1);
         }
-        setLeaders(leaderList);
+        const companyZero =
+          company && Number(company.totalBudget) === 0 && company.totalLeads === 0;
+        if (companyZero && leaderList.length > 0) {
+          setLeaders(
+            leaderList.map((r) => ({ ...r, assignedBudget: "0", assignedLeads: 0 }))
+          );
+        } else {
+          setLeaders(leaderList);
+        }
         setEmployees(employeeList);
       })
       .catch(() => toast({ title: "Failed to load targets", variant: "destructive" }))
@@ -137,6 +145,8 @@ export default function StaffTargetAllocation() {
   async function saveCompany() {
     if (!isAdmin) return;
     setSaving(true);
+    const budget = parseFloat(companyBudget) || 0;
+    const leads = parseInt(companyLeads, 10) || 0;
     try {
       await staffJson("/staff/targets/company", {
         method: "POST",
@@ -144,11 +154,31 @@ export default function StaffTargetAllocation() {
         body: JSON.stringify({
           month,
           year,
-          totalBudget: parseFloat(companyBudget) || 0,
-          totalLeads: parseInt(companyLeads, 10) || 0,
+          totalBudget: budget,
+          totalLeads: leads,
         }),
       });
-      toast({ title: "Company target saved" });
+      if (budget === 0 && leads === 0 && leaders.length > 0) {
+        await staffJson("/staff/targets/leaders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            month,
+            year,
+            leaderTargets: leaders.map((l) => ({
+              userId: l.userId,
+              assignedBudget: 0,
+              assignedLeads: 0,
+            })),
+          }),
+        });
+        setLeaders((prev) =>
+          prev.map((r) => ({ ...r, assignedBudget: "0", assignedLeads: 0 }))
+        );
+        toast({ title: "Company target and leader allocations cleared" });
+      } else {
+        toast({ title: "Company target saved" });
+      }
     } catch (e) {
       toast({ title: e instanceof Error ? e.message : "Failed", variant: "destructive" });
     } finally {
