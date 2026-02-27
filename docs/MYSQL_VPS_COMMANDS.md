@@ -2,6 +2,8 @@
 
 Run these on your VPS (MySQL client or shell). Replace `YOUR_SECURE_PASSWORD` and `expressfinloans` if you use different names.
 
+**If you see `Unknown column 'tenure' in 'field list'`:** Your `leads` table is missing the tenure column. Run: `ALTER TABLE leads ADD COLUMN tenure VARCHAR(50) NULL AFTER company_logged;` (see “Tenure column” section below for full block.)
+
 ---
 
 ## 1. Log in to MySQL as root

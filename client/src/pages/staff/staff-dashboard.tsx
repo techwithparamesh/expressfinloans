@@ -167,11 +167,6 @@ export default function StaffDashboard() {
     }).finally(() => setReportsLoading(false));
   }, [user?.role, reportMonth, data?.adminKpi]);
 
-  if (loading) return <p className="text-slate-500">Loading…</p>;
-  if (!data) return <p className="text-slate-500">Failed to load dashboard.</p>;
-
-  const present = data.attendanceToday.filter((a) => a.status === "present").length;
-
   const filteredTargetAchievementRows = useMemo(() => {
     const q = targetAchievementSearch.trim().toLowerCase();
     if (!q) return targetAchievementRows;
@@ -194,6 +189,10 @@ export default function StaffDashboard() {
     );
   }, [conveyanceRows, conveyanceSearch, conveyanceTeamLeadsOnly]);
 
+  if (loading) return <p className="text-slate-500">Loading…</p>;
+  if (!data) return <p className="text-slate-500">Failed to load dashboard.</p>;
+
+  const present = data.attendanceToday.filter((a) => a.status === "present").length;
   const displayName = user?.fullName || user?.username || "Admin";
   const roleLabel = user?.role === "team_lead" ? "Team Lead" : "Admin";
 
