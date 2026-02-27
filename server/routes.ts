@@ -1871,8 +1871,14 @@ export async function registerRoutes(
       const rangeStart = new Date(monthStart).getTime();
       const rangeEnd = new Date(monthEnd).getTime();
       const rows: { employeeId: string; employeeNumber: string; name: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number }[] = [];
+      const leadRows: { employeeNumber: string; employeeName: string; date: string; customerName: string; dateOfBirth: string; customerPhone: string; customerEmail: string; location: string; loanType: string; subLoanType: string; incomeType: string; amount: string; cibil: string; status: string; loanDisbursed: string; loanSanctionedAt: string; loanDisbursedAt: string; notes: string; payoutPercent: string; payoutAmount: string; paymentStatus: string }[] = [];
+      const insuranceRows: { employeeNumber: string; employeeName: string; date: string; customerName: string; contactNum: string; mailId: string; location: string; insuranceType: string; insuranceSubtype: string; premiumQuoted: string; premiumCollected: string; status: string; notes: string }[] = [];
+      const attendanceRows: { employeeNumber: string; employeeName: string; date: string; loginAt: string; logoutAt: string; status: string; loginLocation: string; leadsCount: number }[] = [];
+      const leaveRows: { employeeNumber: string; employeeName: string; leaveType: string; startDate: string; endDate: string; reason: string; status: string }[] = [];
       for (const u of filtered) {
         const uid = u.id;
+        const empNum = (u as any).employeeNumber ?? "";
+        const empName = (u as any).fullName?.trim() || u.username || "";
         const att = await storage.getAttendanceLogsByEmployee(uid, monthStart, monthEnd);
         const daysPresent = att.filter((a) => (a.status || "").toLowerCase() === "present").length;
         const leadsList = await storage.getLeadsByEmployee(uid, monthStart, monthEnd);
@@ -1890,18 +1896,83 @@ export async function registerRoutes(
         }
         rows.push({
           employeeId: uid,
-          employeeNumber: (u as any).employeeNumber ?? "",
-          name: (u as any).fullName?.trim() || u.username || "",
+          employeeNumber: empNum,
+          name: empName,
           daysPresent,
           leadsCount: leadsList.length,
           insuranceLeadsCount: insList.length,
           leaveDays,
         });
+        for (const l of leadsList) {
+          leadRows.push({
+            employeeNumber: empNum,
+            employeeName: empName,
+            date: String(l.date ?? ""),
+            customerName: String(l.customerName ?? ""),
+            dateOfBirth: String(l.dateOfBirth ?? ""),
+            customerPhone: String(l.customerPhone ?? ""),
+            customerEmail: String(l.customerEmail ?? ""),
+            location: String(l.location ?? ""),
+            loanType: String(l.loanType ?? ""),
+            subLoanType: String(l.subLoanType ?? ""),
+            incomeType: String(l.incomeType ?? ""),
+            amount: String(l.amount ?? ""),
+            cibil: String(l.cibil ?? ""),
+            status: String(l.status ?? ""),
+            loanDisbursed: String(l.loanDisbursed ?? ""),
+            loanSanctionedAt: l.loanSanctionedAt ? String(l.loanSanctionedAt) : "",
+            loanDisbursedAt: l.loanDisbursedAt ? String(l.loanDisbursedAt) : "",
+            notes: String(l.notes ?? ""),
+            payoutPercent: String(l.payoutPercent ?? ""),
+            payoutAmount: String(l.payoutAmount ?? ""),
+            paymentStatus: String(l.paymentStatus ?? ""),
+          });
+        }
+        for (const i of insList) {
+          insuranceRows.push({
+            employeeNumber: empNum,
+            employeeName: empName,
+            date: String(i.date ?? ""),
+            customerName: String(i.customerName ?? ""),
+            contactNum: String(i.contactNum ?? ""),
+            mailId: String(i.mailId ?? ""),
+            location: String(i.location ?? ""),
+            insuranceType: String(i.insuranceType ?? ""),
+            insuranceSubtype: String(i.insuranceSubtype ?? ""),
+            premiumQuoted: String(i.premiumQuoted ?? ""),
+            premiumCollected: String(i.premiumCollected ?? ""),
+            status: String(i.status ?? ""),
+            notes: String(i.notes ?? ""),
+          });
+        }
+        for (const a of att) {
+          attendanceRows.push({
+            employeeNumber: empNum,
+            employeeName: empName,
+            date: String(a.date ?? ""),
+            loginAt: a.loginAt ? new Date(a.loginAt).toLocaleString() : "",
+            logoutAt: a.logoutAt ? new Date(a.logoutAt).toLocaleString() : "",
+            status: String(a.status ?? ""),
+            loginLocation: String(a.loginLocation ?? ""),
+            leadsCount: Number(a.leadsCount) || 0,
+          });
+        }
+        for (const lv of leaveList) {
+          leaveRows.push({
+            employeeNumber: empNum,
+            employeeName: empName,
+            leaveType: String(lv.leaveType ?? ""),
+            startDate: String(lv.startDate ?? ""),
+            endDate: String(lv.endDate ?? ""),
+            reason: String(lv.reason ?? ""),
+            status: String(lv.status ?? ""),
+          });
+        }
       }
       if (format === "xlsx") {
         const workbook = new ExcelJS.Workbook();
-        const sheet = workbook.addWorksheet("Monthly Report");
-        sheet.columns = [
+        const summarySheet = workbook.addWorksheet("Summary");
+        summarySheet.columns = [
           { header: "Employee ID", key: "employeeNumber", width: 14 },
           { header: "Name", key: "name", width: 24 },
           { header: "Days Present", key: "daysPresent", width: 14 },
@@ -1909,8 +1980,77 @@ export async function registerRoutes(
           { header: "Insurance Leads", key: "insuranceLeadsCount", width: 16 },
           { header: "Leave Days", key: "leaveDays", width: 12 },
         ];
-        sheet.addRows(rows);
-        sheet.getRow(1).font = { bold: true };
+        summarySheet.addRows(rows);
+        summarySheet.getRow(1).font = { bold: true };
+        const leadsSheet = workbook.addWorksheet("Leads");
+        leadsSheet.columns = [
+          { header: "Employee ID", key: "employeeNumber", width: 12 },
+          { header: "Employee Name", key: "employeeName", width: 18 },
+          { header: "Date", key: "date", width: 12 },
+          { header: "Customer Name", key: "customerName", width: 20 },
+          { header: "DOB", key: "dateOfBirth", width: 12 },
+          { header: "Phone", key: "customerPhone", width: 14 },
+          { header: "Email", key: "customerEmail", width: 22 },
+          { header: "Location", key: "location", width: 18 },
+          { header: "Loan Type", key: "loanType", width: 14 },
+          { header: "Sub Type", key: "subLoanType", width: 12 },
+          { header: "Income Type", key: "incomeType", width: 12 },
+          { header: "Amount", key: "amount", width: 12 },
+          { header: "CIBIL", key: "cibil", width: 8 },
+          { header: "Status", key: "status", width: 10 },
+          { header: "Loan Disbursed", key: "loanDisbursed", width: 14 },
+          { header: "Sanctioned At", key: "loanSanctionedAt", width: 12 },
+          { header: "Disbursed At", key: "loanDisbursedAt", width: 12 },
+          { header: "Notes", key: "notes", width: 24 },
+          { header: "Payout %", key: "payoutPercent", width: 10 },
+          { header: "Payout Amount", key: "payoutAmount", width: 12 },
+          { header: "Payment Status", key: "paymentStatus", width: 12 },
+        ];
+        leadsSheet.addRows(leadRows);
+        leadsSheet.getRow(1).font = { bold: true };
+        const insuranceSheet = workbook.addWorksheet("Insurance Leads");
+        insuranceSheet.columns = [
+          { header: "Employee ID", key: "employeeNumber", width: 12 },
+          { header: "Employee Name", key: "employeeName", width: 18 },
+          { header: "Date", key: "date", width: 12 },
+          { header: "Customer Name", key: "customerName", width: 20 },
+          { header: "Contact", key: "contactNum", width: 14 },
+          { header: "Email", key: "mailId", width: 22 },
+          { header: "Location", key: "location", width: 18 },
+          { header: "Insurance Type", key: "insuranceType", width: 14 },
+          { header: "Subtype", key: "insuranceSubtype", width: 12 },
+          { header: "Premium Quoted", key: "premiumQuoted", width: 14 },
+          { header: "Premium Collected", key: "premiumCollected", width: 14 },
+          { header: "Status", key: "status", width: 10 },
+          { header: "Notes", key: "notes", width: 24 },
+        ];
+        insuranceSheet.addRows(insuranceRows);
+        insuranceSheet.getRow(1).font = { bold: true };
+        const attendanceSheet = workbook.addWorksheet("Attendance");
+        attendanceSheet.columns = [
+          { header: "Employee ID", key: "employeeNumber", width: 12 },
+          { header: "Employee Name", key: "employeeName", width: 18 },
+          { header: "Date", key: "date", width: 12 },
+          { header: "Login At", key: "loginAt", width: 20 },
+          { header: "Logout At", key: "logoutAt", width: 20 },
+          { header: "Status", key: "status", width: 12 },
+          { header: "Login Location", key: "loginLocation", width: 24 },
+          { header: "Leads Count", key: "leadsCount", width: 10 },
+        ];
+        attendanceSheet.addRows(attendanceRows);
+        attendanceSheet.getRow(1).font = { bold: true };
+        const leaveSheet = workbook.addWorksheet("Leave");
+        leaveSheet.columns = [
+          { header: "Employee ID", key: "employeeNumber", width: 12 },
+          { header: "Employee Name", key: "employeeName", width: 18 },
+          { header: "Leave Type", key: "leaveType", width: 12 },
+          { header: "Start Date", key: "startDate", width: 12 },
+          { header: "End Date", key: "endDate", width: 12 },
+          { header: "Reason", key: "reason", width: 24 },
+          { header: "Status", key: "status", width: 10 },
+        ];
+        leaveSheet.addRows(leaveRows);
+        leaveSheet.getRow(1).font = { bold: true };
         res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         res.setHeader("Content-Disposition", `attachment; filename="monthly-report-${fromParam && toParam ? `${fromParam}-${toParam}` : monthStart}.xlsx"`);
         const buffer = await workbook.xlsx.writeBuffer();
@@ -1920,29 +2060,105 @@ export async function registerRoutes(
       if (format === "pdf") {
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", `attachment; filename="monthly-report-${fromParam && toParam ? `${fromParam}-${toParam}` : monthStart}.pdf"`);
-        const doc = new PDFDocument({ margin: 50 });
+        const doc = new PDFDocument({ margin: 40, size: "A4" });
         doc.pipe(res);
-        doc.fontSize(16).text(`Monthly Report – ${monthLabel}`, { align: "center" });
-        doc.moveDown();
-        doc.fontSize(10);
-        const tableTop = doc.y;
-        doc.text("Employee ID", 50, tableTop);
-        doc.text("Name", 120, tableTop);
-        doc.text("Present", 260, tableTop);
-        doc.text("Leads", 320, tableTop);
-        doc.text("Ins. Leads", 380, tableTop);
-        doc.text("Leave", 450, tableTop);
+        const PAGE_HEIGHT = 842;
+        const MARGIN = 40;
+        const ROW_HEIGHT = 14;
+        const smallFont = 8;
+        doc.fontSize(16).text(`Full Report – ${monthLabel}`, { align: "center" });
         doc.moveDown(0.5);
-        let y = doc.y;
-        for (const r of rows) {
-          doc.text(r.employeeNumber, 50, y);
-          doc.text(r.name.slice(0, 22), 120, y);
-          doc.text(String(r.daysPresent), 260, y);
-          doc.text(String(r.leadsCount), 320, y);
-          doc.text(String(r.insuranceLeadsCount), 380, y);
-          doc.text(String(r.leaveDays), 450, y);
-          y += 20;
+        doc.fontSize(10).text("Summary", { continued: false });
+        doc.fontSize(smallFont);
+        const summaryHeaders = ["Emp ID", "Name", "Present", "Leads", "Ins", "Leave"];
+        const summaryCols = [50, 100, 180, 230, 270, 320];
+        let y = doc.y + 6;
+        doc.font("Helvetica-Bold");
+        for (let i = 0; i < summaryHeaders.length; i++) {
+          doc.text(summaryHeaders[i], summaryCols[i], y);
         }
+        doc.font("Helvetica");
+        y += ROW_HEIGHT;
+        for (const r of rows) {
+          if (y > PAGE_HEIGHT - MARGIN - ROW_HEIGHT) {
+            doc.addPage();
+            y = MARGIN;
+            doc.font("Helvetica-Bold");
+            for (let i = 0; i < summaryHeaders.length; i++) doc.text(summaryHeaders[i], summaryCols[i], y);
+            doc.font("Helvetica");
+            y += ROW_HEIGHT;
+          }
+          doc.text((r.employeeNumber || "").slice(0, 8), summaryCols[0], y);
+          doc.text((r.name || "").slice(0, 18), summaryCols[1], y);
+          doc.text(String(r.daysPresent), summaryCols[2], y);
+          doc.text(String(r.leadsCount), summaryCols[3], y);
+          doc.text(String(r.insuranceLeadsCount), summaryCols[4], y);
+          doc.text(String(r.leaveDays), summaryCols[5], y);
+          y += ROW_HEIGHT;
+        }
+        doc.moveDown(1);
+        y = doc.y + 4;
+        function drawTable(
+          title: string,
+          headers: string[],
+          colWidths: number[],
+          dataRows: Record<string, string | number>[],
+          keyOrder: string[]
+        ) {
+          if (y > MARGIN + 40) { doc.addPage(); y = MARGIN; }
+          doc.fontSize(10).text(title, { continued: false });
+          y += 6;
+          doc.fontSize(smallFont);
+          doc.font("Helvetica-Bold");
+          let x = MARGIN;
+          for (let i = 0; i < headers.length; i++) {
+            doc.text(headers[i].slice(0, 20), x, y);
+            x += colWidths[i];
+          }
+          doc.font("Helvetica");
+          y += ROW_HEIGHT;
+          for (const row of dataRows) {
+            if (y > PAGE_HEIGHT - MARGIN - ROW_HEIGHT) {
+              doc.addPage();
+              y = MARGIN;
+              doc.font("Helvetica-Bold");
+              x = MARGIN;
+              for (let i = 0; i < headers.length; i++) {
+                doc.text(headers[i].slice(0, 20), x, y);
+                x += colWidths[i];
+              }
+              doc.font("Helvetica");
+              y += ROW_HEIGHT;
+            }
+            x = MARGIN;
+            for (let i = 0; i < keyOrder.length; i++) {
+              const val = row[keyOrder[i]];
+              const str = val !== undefined && val !== null ? String(val).slice(0, 18) : "";
+              doc.text(str, x, y);
+              x += colWidths[i];
+            }
+            y += ROW_HEIGHT;
+          }
+          doc.y = y;
+          doc.moveDown(0.5);
+          y = doc.y + 4;
+        }
+        const leadHeaders = ["Emp ID", "Name", "Date", "Customer", "Phone", "Loan Type", "Amount", "Status"];
+        const leadKeys = ["employeeNumber", "employeeName", "date", "customerName", "customerPhone", "loanType", "amount", "status"];
+        const leadWidths = [38, 50, 42, 55, 48, 42, 42, 38];
+        drawTable("Leads", leadHeaders, leadWidths, leadRows, leadKeys);
+        const insHeaders = ["Emp ID", "Name", "Date", "Customer", "Contact", "Type", "Premium", "Status"];
+        const insKeys = ["employeeNumber", "employeeName", "date", "customerName", "contactNum", "insuranceType", "premiumCollected", "status"];
+        const insWidths = [38, 50, 42, 55, 48, 42, 42, 38];
+        drawTable("Insurance Leads", insHeaders, insWidths, insuranceRows, insKeys);
+        const attHeaders = ["Emp ID", "Name", "Date", "Login", "Logout", "Status", "Leads"];
+        const attKeys = ["employeeNumber", "employeeName", "date", "loginAt", "logoutAt", "status", "leadsCount"];
+        const attWidths = [40, 55, 42, 58, 58, 42, 32];
+        drawTable("Attendance", attHeaders, attWidths, attendanceRows, attKeys);
+        const leaveHeaders = ["Emp ID", "Name", "Type", "Start", "End", "Reason", "Status"];
+        const leaveKeys = ["employeeNumber", "employeeName", "leaveType", "startDate", "endDate", "reason", "status"];
+        const leaveWidths = [40, 55, 40, 42, 42, 70, 38];
+        drawTable("Leave", leaveHeaders, leaveWidths, leaveRows, leaveKeys);
         doc.end();
         return;
       }
