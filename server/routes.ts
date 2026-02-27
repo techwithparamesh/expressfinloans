@@ -18,6 +18,21 @@ function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Get list of { month, year } (month 1-12) between fromDate and toDate (YYYY-MM-DD). */
+function getMonthsInRange(fromDate: string, toDate: string): { month: number; year: number }[] {
+  const out: { month: number; year: number }[] = [];
+  const from = new Date(fromDate);
+  const to = new Date(toDate);
+  const startY = from.getFullYear(), startM = from.getMonth() + 1;
+  const endY = to.getFullYear(), endM = to.getMonth() + 1;
+  for (let y = startY; y <= endY; y++) {
+    const mStart = y === startY ? startM : 1;
+    const mEnd = y === endY ? endM : 12;
+    for (let m = mStart; m <= mEnd; m++) out.push({ month: m, year: y });
+  }
+  return out;
+}
+
 /** Validate date string YYYY-MM-DD and age between 18 and 70. Returns error message or null. */
 function validateDateOfBirthAndAge(dobStr: string | null | undefined): string | null {
   if (dobStr == null || dobStr === "") return null;
@@ -1569,55 +1584,97 @@ export async function registerRoutes(
     }
   });
 
-  // --- Staff: admin reports (month = YYYY-MM, defaults to current month) ---
+  // --- Staff: admin reports (month = YYYY-MM, or from & to = YYYY-MM-DD for custom range) ---
   app.get("/api/staff/reports/target-achievement", requireAuth, requireAdmin, async (req, res, next) => {
     try {
       const monthParam = (req.query.month as string)?.trim();
-      const now = new Date();
-      const year = monthParam && /^\d{4}-\d{2}$/.test(monthParam)
-        ? parseInt(monthParam.slice(0, 4), 10)
-        : now.getFullYear();
-      const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam)
-        ? parseInt(monthParam.slice(5, 7), 10)
-        : now.getMonth() + 1;
-      const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
-      const lastDay = new Date(year, month, 0).getDate();
-      const monthEnd = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      const fromParam = (req.query.from as string)?.trim();
+      const toParam = (req.query.to as string)?.trim();
+      const useRange = fromParam && toParam && /^\d{4}-\d{2}-\d{2}$/.test(fromParam) && /^\d{4}-\d{2}-\d{2}$/.test(toParam) && fromParam <= toParam;
+      let monthStart: string, monthEnd: string, monthLabel: string;
+      let year: number, month: number;
+      if (useRange) {
+        monthStart = fromParam;
+        monthEnd = toParam;
+        monthLabel = `${fromParam} to ${toParam}`;
+        year = 0;
+        month = 0;
+      } else {
+        const now = new Date();
+        year = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? parseInt(monthParam.slice(0, 4), 10) : now.getFullYear();
+        month = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? parseInt(monthParam.slice(5, 7), 10) : now.getMonth() + 1;
+        monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
+        const lastDay = new Date(year, month, 0).getDate();
+        monthEnd = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+        monthLabel = new Date(year, month - 1, 1).toLocaleString("default", { month: "long", year: "numeric" });
+      }
       const employees = await storage.listEmployees();
       const byId: Record<string, { name: string; number: string }> = {};
       for (const u of employees) {
-        byId[u.id] = {
-          name: (u as any).fullName?.trim() || u.username || u.id,
-          number: (u as any).employeeNumber ?? "",
-        };
+        byId[u.id] = { name: (u as any).fullName?.trim() || u.username || u.id, number: (u as any).employeeNumber ?? "" };
       }
       const DEFAULT_MONTHLY_TARGET_LEADS = 20;
-      const targetsThisMonth = await storage.getMonthlyTargetsByMonth(month, year);
-      const targetByUser = new Map(targetsThisMonth.map((t) => [t.userId, t]));
       const rows: { employeeId: string; employeeName: string; employeeNumber: string; monthlyTarget: number; assignedBudget: number; achievedLeads: number; achievedBudget: number; achievementPct: number; leadsConverted: number }[] = [];
-      for (const emp of employees) {
-        const mt = targetByUser.get(emp.id);
-        const targetLeads = mt ? mt.assignedLeads : (Number((emp as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
-        const assignedBudget = mt ? parseFloat(String(mt.assignedBudget).replace(/,/g, "")) || 0 : 0;
-        const { achievedBudget, achievedLeads } = await storage.getAchievedBudgetAndLeads(emp.id, month, year);
-        const achievementPct = targetLeads > 0 ? Math.round((achievedLeads / targetLeads) * 100) : 0;
-        const empLeads = await storage.getLeadsByEmployee(emp.id, monthStart, monthEnd);
-        const leadsConverted = empLeads.filter(
-          (l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned"
-        ).length;
-        rows.push({
-          employeeId: emp.id,
-          employeeName: byId[emp.id]?.name ?? emp.id,
-          employeeNumber: byId[emp.id]?.number ?? "",
-          monthlyTarget: targetLeads,
-          assignedBudget,
-          achievedLeads,
-          achievedBudget,
-          achievementPct,
-          leadsConverted,
-        });
+      if (useRange) {
+        const monthsInRange = getMonthsInRange(monthStart, monthEnd);
+        for (const emp of employees) {
+          let targetLeads = 0;
+          let assignedBudget = 0;
+          for (const { month: m, year: y } of monthsInRange) {
+            const mt = await storage.getMonthlyTarget(emp.id, m, y);
+            targetLeads += mt ? mt.assignedLeads : (Number((emp as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+            assignedBudget += mt ? parseFloat(String(mt.assignedBudget).replace(/,/g, "")) || 0 : 0;
+          }
+          const empLeads = await storage.getLeadsByEmployee(emp.id, monthStart, monthEnd);
+          let achievedBudget = 0;
+          const disbursed = empLeads.filter((l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned");
+          for (const l of disbursed) {
+            const amt = (l as { loanDisbursed?: string; amount?: string }).loanDisbursed || (l as { amount?: string }).amount;
+            if (amt) {
+              const n = parseFloat(String(amt).replace(/,/g, ""));
+              if (!Number.isNaN(n)) achievedBudget += n;
+            }
+          }
+          const achievedLeads = empLeads.length;
+          const leadsConverted = disbursed.length;
+          const achievementPct = targetLeads > 0 ? Math.round((achievedLeads / targetLeads) * 100) : 0;
+          rows.push({
+            employeeId: emp.id,
+            employeeName: byId[emp.id]?.name ?? emp.id,
+            employeeNumber: byId[emp.id]?.number ?? "",
+            monthlyTarget: targetLeads,
+            assignedBudget,
+            achievedLeads,
+            achievedBudget,
+            achievementPct,
+            leadsConverted,
+          });
+        }
+      } else {
+        const targetsThisMonth = await storage.getMonthlyTargetsByMonth(month, year);
+        const targetByUser = new Map(targetsThisMonth.map((t) => [t.userId, t]));
+        for (const emp of employees) {
+          const mt = targetByUser.get(emp.id);
+          const targetLeads = mt ? mt.assignedLeads : (Number((emp as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+          const assignedBudget = mt ? parseFloat(String(mt.assignedBudget).replace(/,/g, "")) || 0 : 0;
+          const { achievedBudget, achievedLeads } = await storage.getAchievedBudgetAndLeads(emp.id, month, year);
+          const achievementPct = targetLeads > 0 ? Math.round((achievedLeads / targetLeads) * 100) : 0;
+          const empLeads = await storage.getLeadsByEmployee(emp.id, monthStart, monthEnd);
+          const leadsConverted = empLeads.filter((l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned").length;
+          rows.push({
+            employeeId: emp.id,
+            employeeName: byId[emp.id]?.name ?? emp.id,
+            employeeNumber: byId[emp.id]?.number ?? "",
+            monthlyTarget: targetLeads,
+            assignedBudget,
+            achievedLeads,
+            achievedBudget,
+            achievementPct,
+            leadsConverted,
+          });
+        }
       }
-      res.json({ month: `${year}-${String(month).padStart(2, "0")}`, monthLabel: new Date(year, month - 1, 1).toLocaleString("default", { month: "long", year: "numeric" }), rows });
+      res.json({ month: useRange ? undefined : `${year}-${String(month).padStart(2, "0")}`, monthLabel, rows });
     } catch (e) {
       next(e);
     }
@@ -1626,20 +1683,29 @@ export async function registerRoutes(
   app.get("/api/staff/reports/conveyance", requireAuth, requireAdmin, async (req, res, next) => {
     try {
       const monthParam = (req.query.month as string)?.trim();
-      const now = new Date();
-      const year = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? parseInt(monthParam.slice(0, 4), 10) : now.getFullYear();
-      const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? parseInt(monthParam.slice(5, 7), 10) : now.getMonth() + 1;
-      const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
-      const lastDay = new Date(year, month, 0).getDate();
-      const monthEnd = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      const fromParam = (req.query.from as string)?.trim();
+      const toParam = (req.query.to as string)?.trim();
+      const useRange = fromParam && toParam && /^\d{4}-\d{2}-\d{2}$/.test(fromParam) && /^\d{4}-\d{2}-\d{2}$/.test(toParam) && fromParam <= toParam;
+      let monthStart: string, monthEnd: string, monthLabel: string;
+      if (useRange) {
+        monthStart = fromParam;
+        monthEnd = toParam;
+        monthLabel = `${fromParam} to ${toParam}`;
+      } else {
+        const now = new Date();
+        const year = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? parseInt(monthParam.slice(0, 4), 10) : now.getFullYear();
+        const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? parseInt(monthParam.slice(5, 7), 10) : now.getMonth() + 1;
+        monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
+        const lastDay = new Date(year, month, 0).getDate();
+        monthEnd = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+        monthLabel = new Date(year, month - 1, 1).toLocaleString("default", { month: "long", year: "numeric" });
+      }
       const employees = await storage.listEmployees();
       const byId: Record<string, { name: string; number: string }> = {};
       for (const u of employees) {
         byId[u.id] = { name: (u as any).fullName?.trim() || u.username || u.id, number: (u as any).employeeNumber ?? "" };
       }
       const DEFAULT_MONTHLY_TARGET_LEADS = 20;
-      const targetsThisMonth = await storage.getMonthlyTargetsByMonth(month, year);
-      const targetByUser = new Map(targetsThisMonth.map((t) => [t.userId, t]));
       const teamLeads = await storage.listTeamLeads();
       const rows: { employeeId: string; employeeName: string; employeeNumber: string; isTeamLead: boolean; teamLeadsThisMonth: number; achievementPct: number; jointVisits: number; conveyancePct: number }[] = [];
       for (const emp of employees) {
@@ -1651,12 +1717,27 @@ export async function registerRoutes(
         if (isTeamLead) {
           const teamMembers = await storage.listEmployees({ teamLeadId: emp.id });
           let overallTarget = 0;
-          for (const m of teamMembers) {
-            const mt = targetByUser.get(m.id);
-            const t = mt ? mt.assignedLeads : (Number((m as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
-            overallTarget += t;
-            const leads = await storage.getLeadsByEmployee(m.id, monthStart, monthEnd);
-            teamLeadsThisMonth += leads.length;
+          if (useRange) {
+            const monthsInRange = getMonthsInRange(monthStart, monthEnd);
+            for (const m of teamMembers) {
+              for (const { month: mo, year: y } of monthsInRange) {
+                const mt = await storage.getMonthlyTarget(m.id, mo, y);
+                overallTarget += mt ? mt.assignedLeads : (Number((m as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+              }
+              const leads = await storage.getLeadsByEmployee(m.id, monthStart, monthEnd);
+              teamLeadsThisMonth += leads.length;
+            }
+          } else {
+            const year = parseInt(monthStart.slice(0, 4), 10);
+            const month = parseInt(monthStart.slice(5, 7), 10);
+            const targetsThisMonth = await storage.getMonthlyTargetsByMonth(month, year);
+            const targetByUser = new Map(targetsThisMonth.map((t) => [t.userId, t]));
+            for (const m of teamMembers) {
+              const mt = targetByUser.get(m.id);
+              overallTarget += mt ? mt.assignedLeads : (Number((m as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+              const leads = await storage.getLeadsByEmployee(m.id, monthStart, monthEnd);
+              teamLeadsThisMonth += leads.length;
+            }
           }
           achievementPct = overallTarget > 0 ? Math.round((teamLeadsThisMonth / overallTarget) * 100) : 0;
           jointVisits = await storage.getJointVisitsCount(emp.id, monthStart, monthEnd);
@@ -1676,7 +1757,7 @@ export async function registerRoutes(
           conveyancePct,
         });
       }
-      res.json({ month: `${year}-${String(month).padStart(2, "0")}`, monthLabel: new Date(year, month - 1, 1).toLocaleString("default", { month: "long", year: "numeric" }), rows });
+      res.json({ month: useRange ? undefined : monthStart.slice(0, 7), monthLabel, rows });
     } catch (e) {
       next(e);
     }
@@ -1685,12 +1766,22 @@ export async function registerRoutes(
   app.get("/api/staff/reports/expenditure", requireAuth, requireAdmin, async (req, res, next) => {
     try {
       const monthParam = (req.query.month as string)?.trim();
-      const now = new Date();
-      const year = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? parseInt(monthParam.slice(0, 4), 10) : now.getFullYear();
-      const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? parseInt(monthParam.slice(5, 7), 10) : now.getMonth() + 1;
-      const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
-      const lastDay = new Date(year, month, 0).getDate();
-      const monthEnd = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      const fromParam = (req.query.from as string)?.trim();
+      const toParam = (req.query.to as string)?.trim();
+      let monthStart: string, monthEnd: string, monthLabel: string;
+      if (fromParam && toParam && /^\d{4}-\d{2}-\d{2}$/.test(fromParam) && /^\d{4}-\d{2}-\d{2}$/.test(toParam) && fromParam <= toParam) {
+        monthStart = fromParam;
+        monthEnd = toParam;
+        monthLabel = `${fromParam} to ${toParam}`;
+      } else {
+        const now = new Date();
+        const year = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? parseInt(monthParam.slice(0, 4), 10) : now.getFullYear();
+        const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? parseInt(monthParam.slice(5, 7), 10) : now.getMonth() + 1;
+        monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
+        const lastDay = new Date(year, month, 0).getDate();
+        monthEnd = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+        monthLabel = new Date(year, month - 1, 1).toLocaleString("default", { month: "long", year: "numeric" });
+      }
       const leadsMtd = await storage.getAllLeads({ fromDate: monthStart, toDate: monthEnd });
       const disbursedMtd = leadsMtd.filter(
         (l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned"
@@ -1713,8 +1804,8 @@ export async function registerRoutes(
         }
       }
       res.json({
-        month: `${year}-${String(month).padStart(2, "0")}`,
-        monthLabel: new Date(year, month - 1, 1).toLocaleString("default", { month: "long", year: "numeric" }),
+        month: monthStart.slice(0, 7),
+        monthLabel,
         loans,
         miscellaneous,
         total: loans + miscellaneous,
@@ -1729,20 +1820,34 @@ export async function registerRoutes(
     try {
       const format = (req.query.format as string)?.toLowerCase();
       const monthParam = (req.query.month as string)?.trim();
+      const fromParam = (req.query.from as string)?.trim();
+      const toParam = (req.query.to as string)?.trim();
       const employeeId = (req.query.employeeId as string) || undefined;
       if (!format || !["xlsx", "pdf"].includes(format)) {
         return res.status(400).json({ message: "Query param format must be xlsx or pdf" });
       }
-      let year: number; let month: number;
-      if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
+      let monthStart: string;
+      let monthEnd: string;
+      let monthLabel: string;
+      if (fromParam && toParam && /^\d{4}-\d{2}-\d{2}$/.test(fromParam) && /^\d{4}-\d{2}-\d{2}$/.test(toParam) && fromParam <= toParam) {
+        monthStart = fromParam;
+        monthEnd = toParam;
+        monthLabel = `${fromParam} to ${toParam}`;
+      } else if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
         const [y, m] = monthParam.split("-").map(Number);
-        year = y; month = m - 1;
+        const year = y;
+        const month = m - 1;
+        monthStart = new Date(year, month, 1).toISOString().slice(0, 10);
+        monthEnd = new Date(year, month + 1, 0).toISOString().slice(0, 10);
+        monthLabel = new Date(year, month, 1).toLocaleString("default", { month: "long", year: "numeric" });
       } else {
         const now = new Date();
-        year = now.getFullYear(); month = now.getMonth();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        monthStart = new Date(year, month, 1).toISOString().slice(0, 10);
+        monthEnd = new Date(year, month + 1, 0).toISOString().slice(0, 10);
+        monthLabel = new Date(year, month, 1).toLocaleString("default", { month: "long", year: "numeric" });
       }
-      const monthStart = new Date(year, month, 1).toISOString().slice(0, 10);
-      const monthEnd = new Date(year, month + 1, 0).toISOString().slice(0, 10);
       const visibleIds = await getVisibleEmployeeIds(req);
       const employees = visibleIds === null
         ? await storage.listEmployees()
@@ -1750,7 +1855,8 @@ export async function registerRoutes(
       const filtered = employeeId && (visibleIds === null || visibleIds.includes(employeeId))
         ? employees.filter((u) => u.id === employeeId)
         : employees;
-      const monthLabel = new Date(year, month, 1).toLocaleString("default", { month: "long", year: "numeric" });
+      const rangeStart = new Date(monthStart).getTime();
+      const rangeEnd = new Date(monthEnd).getTime();
       const rows: { employeeId: string; employeeNumber: string; name: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number }[] = [];
       for (const u of filtered) {
         const uid = u.id;
@@ -1764,11 +1870,9 @@ export async function registerRoutes(
         for (const lv of approvedLeave) {
           const start = new Date(String(lv.startDate));
           const end = new Date(String(lv.endDate));
-          const msStart = new Date(year, month, 1).getTime();
-          const msEnd = new Date(year, month + 1, 0).getTime();
           for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
             const t = d.getTime();
-            if (t >= msStart && t <= msEnd) leaveDays++;
+            if (t >= rangeStart && t <= rangeEnd) leaveDays++;
           }
         }
         rows.push({
@@ -1795,14 +1899,14 @@ export async function registerRoutes(
         sheet.addRows(rows);
         sheet.getRow(1).font = { bold: true };
         res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        res.setHeader("Content-Disposition", `attachment; filename="monthly-report-${monthParam || `${year}-${String(month + 1).padStart(2, "0")}`}.xlsx"`);
+        res.setHeader("Content-Disposition", `attachment; filename="monthly-report-${fromParam && toParam ? `${fromParam}-${toParam}` : monthStart}.xlsx"`);
         const buffer = await workbook.xlsx.writeBuffer();
         res.send(Buffer.from(buffer));
         return;
       }
       if (format === "pdf") {
         res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", `attachment; filename="monthly-report-${monthParam || `${year}-${String(month + 1).padStart(2, "0")}`}.pdf"`);
+        res.setHeader("Content-Disposition", `attachment; filename="monthly-report-${fromParam && toParam ? `${fromParam}-${toParam}` : monthStart}.pdf"`);
         const doc = new PDFDocument({ margin: 50 });
         doc.pipe(res);
         doc.fontSize(16).text(`Monthly Report – ${monthLabel}`, { align: "center" });

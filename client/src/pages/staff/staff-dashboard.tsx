@@ -2,11 +2,10 @@ import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
 import { getAuthMe, staffJson } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
 import { useMonthlyTargetPopup, useConveyancePolicyPopup } from "./staff-layout";
-import { Users, Calendar, FileText, CheckCircle, Download, Target, TrendingUp, Percent, DollarSign, Car, Activity, Search, CalendarRange } from "lucide-react";
+import { Users, Calendar, FileText, CheckCircle, Download, Target, TrendingUp, Percent, DollarSign, Car, Activity, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -122,12 +121,20 @@ export default function StaffDashboard() {
   const [conveyanceRows, setConveyanceRows] = useState<ConveyanceRow[]>([]);
   const [expenditureData, setExpenditureData] = useState<ExpenditureData | null>(null);
   const [reportsLoading, setReportsLoading] = useState(false);
-  const [customFrom, setCustomFrom] = useState(() => {
+  const [exportRangeMode, setExportRangeMode] = useState<"month" | "custom">("month");
+  const [exportFrom, setExportFrom] = useState(() => {
     const d = new Date();
     d.setDate(1);
     return d.toISOString().slice(0, 10);
   });
-  const [customTo, setCustomTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [exportTo, setExportTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [reportsRangeMode, setReportsRangeMode] = useState<"month" | "custom">("month");
+  const [reportsFrom, setReportsFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [reportsTo, setReportsTo] = useState(() => new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
     getAuthMe().then((res) => setUser(res?.user ?? null));
@@ -151,28 +158,33 @@ export default function StaffDashboard() {
 
   useEffect(() => {
     if (!user || user.role !== "admin") return;
-    const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
-    if (reportMonth === currentMonth && data?.adminKpi) {
-      setTargetAchievementRows(data.allEmployeeTargetAchievement ?? []);
-      setConveyanceRows(data.conveyanceReport ?? []);
-      setExpenditureData(data.expenditure ?? null);
-      setReportMonthLabel(data.adminKpi.monthLabel);
-      return;
+    if (reportsRangeMode === "month") {
+      const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+      if (reportMonth === currentMonth && data?.adminKpi) {
+        setTargetAchievementRows(data.allEmployeeTargetAchievement ?? []);
+        setConveyanceRows(data.conveyanceReport ?? []);
+        setExpenditureData(data.expenditure ?? null);
+        setReportMonthLabel(data.adminKpi.monthLabel);
+        return;
+      }
+      if (reportMonth === currentMonth) return;
     }
-    if (reportMonth === currentMonth) return;
     setReportsLoading(true);
+    const params = reportsRangeMode === "month"
+      ? `month=${reportMonth}`
+      : `from=${reportsFrom}&to=${reportsTo}`;
     Promise.all([
-      staffJson<{ month: string; monthLabel: string; rows: TargetAchievementRow[] }>(`/staff/reports/target-achievement?month=${reportMonth}`).catch(() => ({ month: reportMonth, monthLabel: "", rows: [] })),
-      staffJson<{ month: string; monthLabel: string; rows: ConveyanceRow[] }>(`/staff/reports/conveyance?month=${reportMonth}`).catch(() => ({ month: reportMonth, monthLabel: "", rows: [] })),
-      staffJson<{ month: string; monthLabel: string; loans: number; miscellaneous: number; total: number }>(`/staff/reports/expenditure?month=${reportMonth}`).catch(() => null),
+      staffJson<{ month?: string; monthLabel: string; rows: TargetAchievementRow[] }>(`/staff/reports/target-achievement?${params}`).catch(() => ({ monthLabel: "", rows: [] })),
+      staffJson<{ month?: string; monthLabel: string; rows: ConveyanceRow[] }>(`/staff/reports/conveyance?${params}`).catch(() => ({ monthLabel: "", rows: [] })),
+      staffJson<{ month?: string; monthLabel: string; loans: number; miscellaneous: number; total: number }>(`/staff/reports/expenditure?${params}`).catch(() => null),
     ]).then(([ta, conv, exp]) => {
       setTargetAchievementRows(ta.rows ?? []);
       setConveyanceRows(conv.rows ?? []);
-      setReportMonthLabel(ta.monthLabel || conv.monthLabel || "");
+      setReportMonthLabel(ta.monthLabel || conv.monthLabel || (reportsRangeMode === "custom" ? `${reportsFrom} to ${reportsTo}` : ""));
       if (exp) setExpenditureData({ ...exp, monthLabel: exp.monthLabel || "" });
       else setExpenditureData(null);
     }).finally(() => setReportsLoading(false));
-  }, [user?.role, reportMonth, data?.adminKpi]);
+  }, [user?.role, reportsRangeMode, reportMonth, reportsFrom, reportsTo, data?.adminKpi]);
 
   const filteredTargetAchievementRows = useMemo(() => {
     const q = targetAchievementSearch.trim().toLowerCase();
@@ -206,14 +218,23 @@ export default function StaffDashboard() {
   async function handleExport(format: "xlsx" | "pdf") {
     setExporting(format);
     try {
-      const url = `/api/staff/export/monthly?format=${format}&month=${exportMonth}`;
+      const params = new URLSearchParams({ format });
+      if (exportRangeMode === "month") {
+        params.set("month", exportMonth);
+      } else {
+        params.set("from", exportFrom);
+        params.set("to", exportTo);
+      }
+      const url = `/api/staff/export/monthly?${params.toString()}`;
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
       const ext = format === "xlsx" ? "xlsx" : "pdf";
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `monthly-report-${exportMonth}.${ext}`;
+      a.download = exportRangeMode === "month"
+        ? `monthly-report-${exportMonth}.${ext}`
+        : `report-${exportFrom}-to-${exportTo}.${ext}`;
       a.click();
       URL.revokeObjectURL(a.href);
     } catch {
@@ -338,26 +359,77 @@ export default function StaffDashboard() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-slate-800">Reports</h2>
-              <p className="text-sm text-slate-600">Target vs achievement, conveyance and expenditure by month.</p>
+              <p className="text-sm text-slate-600">Target vs achievement, conveyance and expenditure. Choose by month or custom date range.</p>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-4">
               {openConveyancePolicyPopup && (
                 <Button variant="outline" size="sm" onClick={openConveyancePolicyPopup}>
                   Conveyance policy
                 </Button>
               )}
-              <div className="flex items-center gap-2">
-                <Label htmlFor="report-month" className="text-sm text-slate-600 shrink-0">Month</Label>
-                <Input
-                  id="report-month"
-                  type="month"
-                  value={reportMonth}
-                  onChange={(e) => setReportMonth(e.target.value)}
-                  className="min-w-[180px] h-10 px-3 text-base [color-scheme:light]"
-                  style={{ colorScheme: "light" }}
-                  aria-label="Select month for reports"
-                />
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    id="reports-mode-month"
+                    name="reports-mode"
+                    checked={reportsRangeMode === "month"}
+                    onChange={() => setReportsRangeMode("month")}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="reports-mode-month" className="cursor-pointer font-normal text-sm">Month</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    id="reports-mode-custom"
+                    name="reports-mode"
+                    checked={reportsRangeMode === "custom"}
+                    onChange={() => setReportsRangeMode("custom")}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="reports-mode-custom" className="cursor-pointer font-normal text-sm">Custom dates</Label>
+                </div>
               </div>
+              {reportsRangeMode === "month" ? (
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="report-month" className="text-sm text-slate-600 shrink-0">Month</Label>
+                  <Input
+                    id="report-month"
+                    type="month"
+                    value={reportMonth}
+                    onChange={(e) => setReportMonth(e.target.value)}
+                    className="min-w-[180px] h-10 px-3 text-base [color-scheme:light]"
+                    style={{ colorScheme: "light" }}
+                    aria-label="Select month for reports"
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="reports-from" className="text-sm text-slate-600 shrink-0">From</Label>
+                    <Input
+                      id="reports-from"
+                      type="date"
+                      value={reportsFrom}
+                      onChange={(e) => setReportsFrom(e.target.value)}
+                      className="min-w-[140px] h-10 text-base [color-scheme:light]"
+                      style={{ colorScheme: "light" }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="reports-to" className="text-sm text-slate-600 shrink-0">To</Label>
+                    <Input
+                      id="reports-to"
+                      type="date"
+                      value={reportsTo}
+                      onChange={(e) => setReportsTo(e.target.value)}
+                      className="min-w-[140px] h-10 text-base [color-scheme:light]"
+                      style={{ colorScheme: "light" }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           {reportsLoading && (
@@ -649,75 +721,86 @@ export default function StaffDashboard() {
             <Download className="h-5 w-5" />
             Export monthly data
           </CardTitle>
-          <CardDescription>Download employee monthly data (attendance, leads, leave) in Excel or PDF.</CardDescription>
+          <CardDescription>Download employee data (attendance, leads, leave) in Excel or PDF. Choose by month or custom date range.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap items-end gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="export-month">Month</Label>
-            <div className="relative flex items-center overflow-visible">
-              <Calendar className="absolute left-3 h-4 w-4 text-slate-500 pointer-events-none" aria-hidden />
-              <Input
-                id="export-month"
-                type="month"
-                value={exportMonth}
-                onChange={(e) => setExportMonth(e.target.value)}
-                className="min-w-[180px] h-10 pl-10 pr-4 py-2.5 text-base [color-scheme:light]"
-                style={{ colorScheme: "light" }}
-                aria-label="Select month for export"
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <input
+                type="radio"
+                id="export-mode-month"
+                name="export-mode"
+                checked={exportRangeMode === "month"}
+                onChange={() => setExportRangeMode("month")}
+                className="h-4 w-4"
               />
+              <Label htmlFor="export-mode-month" className="cursor-pointer font-normal">By month</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="radio"
+                id="export-mode-custom"
+                name="export-mode"
+                checked={exportRangeMode === "custom"}
+                onChange={() => setExportRangeMode("custom")}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="export-mode-custom" className="cursor-pointer font-normal">Custom dates</Label>
             </div>
           </div>
-          <Button onClick={() => handleExport("xlsx")} disabled={!!exporting} variant="outline">
-            {exporting === "xlsx" ? "Exporting…" : "Download Excel"}
-          </Button>
-          <Button onClick={() => handleExport("pdf")} disabled={!!exporting}>
-            {exporting === "pdf" ? "Exporting…" : "Download PDF"}
-          </Button>
+          {exportRangeMode === "month" ? (
+            <div className="space-y-2">
+              <Label htmlFor="export-month">Month</Label>
+              <div className="relative flex items-center overflow-visible">
+                <Calendar className="absolute left-3 h-4 w-4 text-slate-500 pointer-events-none" aria-hidden />
+                <Input
+                  id="export-month"
+                  type="month"
+                  value={exportMonth}
+                  onChange={(e) => setExportMonth(e.target.value)}
+                  className="min-w-[180px] h-10 pl-10 pr-4 py-2.5 text-base [color-scheme:light]"
+                  style={{ colorScheme: "light" }}
+                  aria-label="Select month for export"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="export-from">From date</Label>
+                <Input
+                  id="export-from"
+                  type="date"
+                  value={exportFrom}
+                  onChange={(e) => setExportFrom(e.target.value)}
+                  className="min-w-[160px] h-10 text-base [color-scheme:light]"
+                  style={{ colorScheme: "light" }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="export-to">To date</Label>
+                <Input
+                  id="export-to"
+                  type="date"
+                  value={exportTo}
+                  onChange={(e) => setExportTo(e.target.value)}
+                  className="min-w-[160px] h-10 text-base [color-scheme:light]"
+                  style={{ colorScheme: "light" }}
+                />
+              </div>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button onClick={() => handleExport("xlsx")} disabled={!!exporting} variant="outline">
+              {exporting === "xlsx" ? "Exporting…" : "Download Excel"}
+            </Button>
+            <Button onClick={() => handleExport("pdf")} disabled={!!exporting}>
+              {exporting === "pdf" ? "Exporting…" : "Download PDF"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
-      {(user?.role === "admin" || user?.role === "team_lead") && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CalendarRange className="h-5 w-5" />
-              Custom date range
-            </CardTitle>
-            <CardDescription>
-              Track employee attendance for specific dates. Choose From and To, then open Attendance to see logs for this range.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap items-end gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="custom-from">From date</Label>
-              <Input
-                id="custom-from"
-                type="date"
-                value={customFrom}
-                onChange={(e) => setCustomFrom(e.target.value)}
-                className="min-w-[160px] h-10 text-base [color-scheme:light]"
-                style={{ colorScheme: "light" }}
-                aria-label="From date"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="custom-to">To date</Label>
-              <Input
-                id="custom-to"
-                type="date"
-                value={customTo}
-                onChange={(e) => setCustomTo(e.target.value)}
-                className="min-w-[160px] h-10 text-base [color-scheme:light]"
-                style={{ colorScheme: "light" }}
-                aria-label="To date"
-              />
-            </div>
-            <Link href={`/staff/attendance?from=${customFrom}&to=${customTo}`}>
-              <Button type="button">View attendance for this range</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
