@@ -10,16 +10,21 @@ type Log = {
   date: string;
   loginAt: string | null;
   logoutAt: string | null;
-  loginLocation: string | null;
+  loginLocation?: string | null;
+  login_location?: string | null;
   leadsCount: number;
   status: string;
 };
+
+function getLoginLocation(log: Log): string | null {
+  return log.loginLocation ?? log.login_location ?? null;
+}
 
 /** Get current position if user allows; returns null on deny/error so server can fall back to IP. */
 function getCurrentPositionAsync(): Promise<{ latitude: number; longitude: number } | null> {
   if (!navigator?.geolocation) return Promise.resolve(null);
   return new Promise((resolve) => {
-    const timeout = setTimeout(() => resolve(null), 8000);
+    const timeout = setTimeout(() => resolve(null), 15000);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         clearTimeout(timeout);
@@ -29,7 +34,7 @@ function getCurrentPositionAsync(): Promise<{ latitude: number; longitude: numbe
         clearTimeout(timeout);
         resolve(null);
       },
-      { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
     );
   });
 }
@@ -60,10 +65,14 @@ export default function StaffMyAttendance() {
 
   useEffect(() => load(), []);
 
+  const [gettingLocation, setGettingLocation] = useState(false);
+
   async function doLogin() {
     setLoginLoading(true);
+    setGettingLocation(true);
     try {
       const coords = await getCurrentPositionAsync();
+      setGettingLocation(false);
       const body: { date: string; latitude?: number; longitude?: number } = { date: today };
       if (coords) {
         body.latitude = coords.latitude;
@@ -75,9 +84,10 @@ export default function StaffMyAttendance() {
         body: JSON.stringify(body),
       });
       setTodayLog(log);
-      toast({ title: "Logged in" });
+      toast({ title: coords ? "Logged in (location captured)" : "Logged in (location from IP)" });
       load();
     } catch (err) {
+      setGettingLocation(false);
       toast({ title: err instanceof Error ? err.message : "Failed", variant: "destructive" });
     } finally {
       setLoginLoading(false);
@@ -112,7 +122,7 @@ export default function StaffMyAttendance() {
             <Calendar className="h-5 w-5 shrink-0" />
             Today ({today})
           </CardTitle>
-          <CardDescription className="text-xs sm:text-sm">Mark login and logout. You need 2 or more leads to be marked present. Location is recorded when you tap Log in (from browser or IP).</CardDescription>
+          <CardDescription className="text-xs sm:text-sm">Mark login and logout. You need 2 or more leads to be marked present. When you tap Log in, allow location if prompted and wait until it finishes—location is then saved (or from IP if unavailable).</CardDescription>
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0 flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -123,7 +133,7 @@ export default function StaffMyAttendance() {
               className="min-h-[44px] min-w-[120px] touch-manipulation"
             >
               <LogIn className="h-4 w-4 mr-2 shrink-0" />
-              {loginLoading ? "Logging in…" : todayLog?.loginAt ? "Logged in" : "Log in"}
+              {gettingLocation ? "Getting location…" : loginLoading ? "Logging in…" : todayLog?.loginAt ? "Logged in" : "Log in"}
             </Button>
             <Button
               type="button"
@@ -144,7 +154,7 @@ export default function StaffMyAttendance() {
                 <span className="ml-4">Leads: {todayLog.leadsCount}</span>
                 <span className="ml-4">Status: {todayLog.status}</span>
               </div>
-              <p className="text-slate-500">Login location: {todayLog.loginLocation ?? "—"}</p>
+              <p className="text-slate-500">Login location: {getLoginLocation(todayLog) ?? "—"}</p>
               {todayLog.loginAt && todayLog.logoutAt && (
                 <p className="text-slate-500">You’ve already logged in and out for today. Buttons will be available again tomorrow.</p>
               )}
@@ -180,7 +190,7 @@ export default function StaffMyAttendance() {
                   </div>
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground shrink-0 w-[90px]">Location</span>
-                    <span className="text-right truncate min-w-0" title={l.loginLocation ?? undefined}>{l.loginLocation ?? "—"}</span>
+                    <span className="text-right truncate min-w-0" title={getLoginLocation(l) ?? undefined}>{getLoginLocation(l) ?? "—"}</span>
                   </div>
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground shrink-0 w-[90px]">Leads</span>
@@ -213,7 +223,7 @@ export default function StaffMyAttendance() {
                     <td className="py-2.5 pr-3" title={l.date}>{formatShortDate(l.date)}</td>
                     <td className="py-2.5 pr-3">{l.loginAt ? new Date(l.loginAt).toLocaleTimeString() : "—"}</td>
                     <td className="py-2.5 pr-3">{l.logoutAt ? new Date(l.logoutAt).toLocaleTimeString() : "—"}</td>
-                    <td className="py-2.5 pr-3 max-w-[200px] truncate" title={l.loginLocation ?? undefined}>{l.loginLocation ?? "—"}</td>
+                    <td className="py-2.5 pr-3 max-w-[200px] truncate" title={getLoginLocation(l) ?? undefined}>{getLoginLocation(l) ?? "—"}</td>
                     <td className="py-2.5 pr-3">{l.leadsCount}</td>
                     <td className="py-2.5 pr-3">{l.status}</td>
                   </tr>

@@ -242,10 +242,10 @@ export class DrizzleStorage implements IStorage {
     const existing = await this.getAttendanceLog(employeeId, dateStr);
     const now = new Date();
     const locationFields = {
-      loginLocation: options?.loginLocation ?? undefined,
-      loginIp: options?.loginIp ?? undefined,
-      loginLat: options?.loginLat ?? undefined,
-      loginLng: options?.loginLng ?? undefined,
+      loginLocation: options?.loginLocation !== undefined ? options.loginLocation : undefined,
+      loginIp: options?.loginIp !== undefined ? options.loginIp : undefined,
+      loginLat: options?.loginLat !== undefined ? options.loginLat : undefined,
+      loginLng: options?.loginLng !== undefined ? options.loginLng : undefined,
     };
     if (existing) {
       await db

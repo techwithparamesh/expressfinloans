@@ -131,10 +131,16 @@ export async function registerRoutes(
       if (hasCoords) {
         loginLat = String(lat);
         loginLng = String(lng);
-        loginLocation = await reverseGeocode(lat, lng);
+        try {
+          loginLocation = await reverseGeocode(lat, lng);
+        } catch {
+          loginLocation = null;
+        }
         if (!loginLocation) loginLocation = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
       } else {
-        loginLocation = await getLocationFromIp(clientIp);
+        const isLocalhost = !clientIp || clientIp === "::1" || clientIp === "127.0.0.1" || clientIp.startsWith("127.");
+        loginLocation = isLocalhost ? "Local" : await getLocationFromIp(clientIp);
+        if (!loginLocation && clientIp) loginLocation = `IP: ${clientIp}`;
       }
 
       const log = await storage.setAttendanceLogin(userId, dateStr, {
@@ -143,7 +149,11 @@ export async function registerRoutes(
         loginLat: loginLat || null,
         loginLng: loginLng || null,
       });
-      res.json(log);
+      const row = log as Record<string, unknown>;
+      res.json({
+        ...row,
+        loginLocation: row.loginLocation ?? row.login_location ?? (loginLocation || null),
+      });
     } catch (e) {
       next(e);
     }
