@@ -1,21 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { getAuthMe, staffJson } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
 import { useMonthlyTargetPopup, useConveyancePolicyPopup } from "./staff-layout";
-import { Users, Calendar, FileText, CheckCircle, Filter, Download, Target, TrendingUp, Percent, DollarSign, Car, Activity } from "lucide-react";
+import { Users, Calendar, FileText, CheckCircle, Download, Target, TrendingUp, Percent, DollarSign, Car, Activity, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Bar, BarChart, XAxis, YAxis } from "recharts";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type TeamMemberSummary = {
   employeeId: string;
@@ -111,8 +103,10 @@ export default function StaffDashboard() {
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const { openMonthlyTargetPopup } = useMonthlyTargetPopup() ?? {};
   const { openConveyancePolicyPopup } = useConveyancePolicyPopup() ?? {};
-  const [staffChartFilter, setStaffChartFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
+  const [targetAchievementSearch, setTargetAchievementSearch] = useState("");
+  const [conveyanceSearch, setConveyanceSearch] = useState("");
+  const [conveyanceTeamLeadsOnly, setConveyanceTeamLeadsOnly] = useState(false);
   const [exportMonth, setExportMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -178,29 +172,27 @@ export default function StaffDashboard() {
 
   const present = data.attendanceToday.filter((a) => a.status === "present").length;
 
-  // Merge all employees with lead counts (include 0 for those with no leads); fallback to dashboard data if employees list empty
-  const countByEmployee = new Map(
-    (data.leadsByEmployee ?? []).map((e) => [e.employeeId, e.count])
-  );
-  const chartDataAll =
-    employees.length > 0
-      ? employees.map((e) => ({
-          employeeId: e.id,
-          label: `${e.employeeNumber ?? "—"} · ${e.fullName || e.username}`,
-          count: countByEmployee.get(e.id) ?? 0,
-        }))
-      : (data.leadsByEmployee ?? []).map((e) => ({
-          employeeId: e.employeeId,
-          label: `${e.employeeNumber || "—"} · ${e.employeeName || e.employeeId}`,
-          count: e.count,
-        }));
-  const chartDataFiltered =
-    staffChartFilter === "all"
-      ? chartDataAll
-      : chartDataAll.filter((r) => r.employeeId === staffChartFilter);
-  const hasChartData = chartDataAll.length > 0;
-  const chartHeight =
-    chartDataFiltered.length <= 2 ? 160 : Math.min(400, Math.max(240, chartDataFiltered.length * 48));
+  const filteredTargetAchievementRows = useMemo(() => {
+    const q = targetAchievementSearch.trim().toLowerCase();
+    if (!q) return targetAchievementRows;
+    return targetAchievementRows.filter(
+      (r) =>
+        (r.employeeName || "").toLowerCase().includes(q) ||
+        (r.employeeNumber || "").toLowerCase().includes(q)
+    );
+  }, [targetAchievementRows, targetAchievementSearch]);
+
+  const filteredConveyanceRows = useMemo(() => {
+    let rows = conveyanceRows;
+    if (conveyanceTeamLeadsOnly) rows = rows.filter((r) => r.isTeamLead);
+    const q = conveyanceSearch.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(
+      (r) =>
+        (r.employeeName || "").toLowerCase().includes(q) ||
+        (r.employeeNumber || "").toLowerCase().includes(q)
+    );
+  }, [conveyanceRows, conveyanceSearch, conveyanceTeamLeadsOnly]);
 
   const displayName = user?.fullName || user?.username || "Admin";
   const roleLabel = user?.role === "team_lead" ? "Team Lead" : "Admin";
@@ -370,14 +362,29 @@ export default function StaffDashboard() {
       {user?.role === "admin" && !reportsLoading && (
         <>
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                Every employee target vs achievement
-              </CardTitle>
-              <CardDescription>
-                {reportMonthLabel || reportMonth} – Target, achieved leads, achieved budget and achievement %.
-              </CardDescription>
+            <CardHeader className="space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Every employee target vs achievement
+                  </CardTitle>
+                  <CardDescription>
+                    {reportMonthLabel || reportMonth} – Target, achieved leads, achieved budget and achievement %.
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Search className="h-4 w-4 text-slate-500" aria-hidden />
+                  <Input
+                    type="search"
+                    placeholder="Filter by name or ID..."
+                    value={targetAchievementSearch}
+                    onChange={(e) => setTargetAchievementSearch(e.target.value)}
+                    className="w-full sm:w-[200px] h-9"
+                    aria-label="Filter target vs achievement by employee name or ID"
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="rounded-md border overflow-x-auto">
@@ -395,12 +402,14 @@ export default function StaffDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {targetAchievementRows.length === 0 ? (
+                    {filteredTargetAchievementRows.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-6 text-center text-slate-500">No data for this month.</td>
+                        <td colSpan={8} className="py-6 text-center text-slate-500">
+                          {targetAchievementRows.length === 0 ? "No data for this month." : "No employees match the filter."}
+                        </td>
                       </tr>
                     ) : (
-                      targetAchievementRows.map((r) => (
+                      filteredTargetAchievementRows.map((r) => (
                         <tr key={r.employeeId} className="border-b last:border-0 hover:bg-slate-50/50">
                           <td className="p-3 font-medium">{r.employeeNumber || "—"}</td>
                           <td className="p-3">{r.employeeName}</td>
@@ -420,14 +429,39 @@ export default function StaffDashboard() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Car className="h-5 w-5" />
-                Conveyance report
-              </CardTitle>
-              <CardDescription>
-                {reportMonthLabel || reportMonth} – Team lead conveyance eligibility (joint visits &amp; team achievement).
-              </CardDescription>
+            <CardHeader className="space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Car className="h-5 w-5" />
+                    Conveyance report
+                  </CardTitle>
+                  <CardDescription>
+                    {reportMonthLabel || reportMonth} – Team lead conveyance eligibility (joint visits &amp; team achievement).
+                  </CardDescription>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Search className="h-4 w-4 text-slate-500" aria-hidden />
+                    <Input
+                      type="search"
+                      placeholder="Filter by name or ID..."
+                      value={conveyanceSearch}
+                      onChange={(e) => setConveyanceSearch(e.target.value)}
+                      className="w-full sm:w-[200px] h-9"
+                      aria-label="Filter conveyance report by employee name or ID"
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                    <Checkbox
+                      checked={conveyanceTeamLeadsOnly}
+                      onCheckedChange={(v) => setConveyanceTeamLeadsOnly(v === true)}
+                      aria-label="Show team leads only"
+                    />
+                    Team leads only
+                  </label>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="rounded-md border overflow-x-auto">
@@ -444,12 +478,14 @@ export default function StaffDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {conveyanceRows.length === 0 ? (
+                    {filteredConveyanceRows.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-6 text-center text-slate-500">No data.</td>
+                        <td colSpan={7} className="py-6 text-center text-slate-500">
+                          {conveyanceRows.length === 0 ? "No data." : "No employees match the filter."}
+                        </td>
                       </tr>
                     ) : (
-                      conveyanceRows.map((r) => (
+                      filteredConveyanceRows.map((r) => (
                         <tr key={r.employeeId} className="border-b last:border-0 hover:bg-slate-50/50">
                           <td className="p-3 font-medium">{r.employeeNumber || "—"}</td>
                           <td className="p-3">{r.employeeName}</td>
@@ -629,74 +665,6 @@ export default function StaffDashboard() {
           <Button onClick={() => handleExport("pdf")} disabled={!!exporting}>
             {exporting === "pdf" ? "Exporting…" : "Download PDF"}
           </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="space-y-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle>Leads by staff</CardTitle>
-              <CardDescription>
-                Lead count per employee. Last 30 days.
-                {(user?.role === "admin" || user?.role === "team_lead") && " Filter by employee to track individual performance."}
-              </CardDescription>
-            </div>
-            {(user?.role === "admin" || user?.role === "team_lead") && (
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-slate-500 shrink-0" />
-                <Label htmlFor="staff-chart-filter" className="text-sm text-slate-600">
-                  Track by employee:
-                </Label>
-                <Select
-                  value={staffChartFilter}
-                  onValueChange={setStaffChartFilter}
-                >
-                  <SelectTrigger id="staff-chart-filter" className="w-[220px]">
-                    <SelectValue placeholder="All staff" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All staff</SelectItem>
-                    {employees.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>
-                        {e.employeeNumber ?? "—"} · {e.fullName || e.username}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {hasChartData ? (
-            <ChartContainer
-              config={{ count: { label: "Leads" }, label: { label: "Employee" } }}
-              className="w-full"
-              style={{ height: chartHeight }}
-            >
-              <BarChart
-                data={chartDataFiltered.map((r) => ({ name: r.label, count: r.count }))}
-                layout="vertical"
-                margin={{ left: 8, right: 24, top: 8, bottom: 8 }}
-              >
-                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={200}
-                  tick={{ fontSize: 12 }}
-                  tickLine={false}
-                  axisLine={false}
-                  interval={0}
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="count" fill="#16a34a" radius={[0, 4, 4, 0]} name="Leads" />
-              </BarChart>
-            </ChartContainer>
-          ) : (
-            <p className="text-sm text-slate-500 py-8 text-center">No employees or no leads in the last 30 days.</p>
-          )}
         </CardContent>
       </Card>
 
