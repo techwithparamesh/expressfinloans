@@ -338,100 +338,168 @@ export default function StaffMyLeads() {
               <TabsTrigger value="insurance" className="text-xs sm:text-sm">Insurance leads</TabsTrigger>
             </TabsList>
             <TabsContent value="loan" className="mt-4 min-w-0">
-              <div className="w-full min-w-0 overflow-x-auto overflow-y-visible -mx-4 px-4 sm:mx-0 sm:px-0" style={{ WebkitOverflowScrolling: "touch" }}>
-                <table className="text-sm border-collapse" style={{ tableLayout: "fixed", minWidth: "692px" }}>
-                  <colgroup>
-                    <col className="w-[82px] sm:w-[88px]" />
-                    <col className="w-[90px]" />
-                    <col className="w-[72px]" />
-                    <col className="w-[88px]" />
-                    <col className="w-[84px] sm:w-[90px]" />
-                    <col className="w-[68px] sm:w-[72px]" />
-                    <col className="w-[80px]" />
-                    <col className="w-[56px]" />
-                    <col className="w-[72px]" />
-                  </colgroup>
+              {/* Mobile: card list so each value sits under its label */}
+              <div className="space-y-3 md:hidden">
+                {leads.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4">No loan leads this month.</p>
+                ) : (
+                  leads.map((l) => (
+                    <div key={l.id} className="rounded-lg border bg-card p-3 space-y-2 text-sm">
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[100px]">Date</span>
+                        <span className="text-right font-medium truncate min-w-0">{l.date ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[100px]">Customer</span>
+                        <span className="text-right truncate min-w-0">{l.customerName ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[100px]">DOB</span>
+                        <span className="text-right">{l.dateOfBirth ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[100px]">Contact</span>
+                        <span className="text-right">{l.customerPhone ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[100px]">Loan type</span>
+                        <span className="text-right">{l.loanType ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[100px]">Sub type</span>
+                        <span className="text-right">{l.subLoanType ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[100px]">Amount</span>
+                        <span className="text-right tabular-nums">{l.amount ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[100px]">Tenure</span>
+                        <span className="text-right">{l.tenure ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[100px]">Status</span>
+                        <span className="text-right font-medium">{l.status ?? "—"}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              {/* Desktop: table */}
+              <div className="hidden md:block w-full min-w-0 overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Date</th>
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Customer</th>
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">DOB</th>
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Contact</th>
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Loan type</th>
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Sub type</th>
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Amount</th>
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Tenure</th>
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Status</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Date</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Customer</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">DOB</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Contact</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Loan type</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Sub type</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Amount</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Tenure</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {leads.map((l) => (
                       <tr key={l.id} className="border-b">
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.date}</td>
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap max-w-[90px] truncate" title={l.customerName ?? undefined}>{l.customerName ?? "—"}</td>
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.dateOfBirth ?? "—"}</td>
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.customerPhone ?? "—"}</td>
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.loanType ?? "—"}</td>
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.subLoanType ?? "—"}</td>
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap tabular-nums">{l.amount ?? "—"}</td>
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.tenure ?? "—"}</td>
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.status}</td>
+                        <td className="py-2.5 pr-3">{l.date}</td>
+                        <td className="py-2.5 pr-3">{l.customerName ?? "—"}</td>
+                        <td className="py-2.5 pr-3">{l.dateOfBirth ?? "—"}</td>
+                        <td className="py-2.5 pr-3">{l.customerPhone ?? "—"}</td>
+                        <td className="py-2.5 pr-3">{l.loanType ?? "—"}</td>
+                        <td className="py-2.5 pr-3">{l.subLoanType ?? "—"}</td>
+                        <td className="py-2.5 pr-3 tabular-nums">{l.amount ?? "—"}</td>
+                        <td className="py-2.5 pr-3">{l.tenure ?? "—"}</td>
+                        <td className="py-2.5 pr-3">{l.status}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              {leads.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-2 sm:hidden">Swipe horizontally to see all columns.</p>
-              )}
             </TabsContent>
             <TabsContent value="insurance" className="mt-4 min-w-0">
-              <div className="w-full min-w-0 overflow-x-auto overflow-y-visible -mx-4 px-4 sm:mx-0 sm:px-0" style={{ WebkitOverflowScrolling: "touch" }}>
-                <table className="text-sm border-collapse" style={{ tableLayout: "fixed", minWidth: "784px" }}>
-                  <colgroup>
-                    <col className="w-[82px] sm:w-[88px]" />
-                    <col className="w-[90px]" />
-                    <col className="w-[88px]" />
-                    <col className="w-[100px]" />
-                    <col className="w-[92px] sm:w-[100px]" />
-                    <col className="w-[100px]" />
-                    <col className="w-[72px]" />
-                    <col className="w-[88px] sm:w-[96px]" />
-                    <col className="w-[72px]" />
-                  </colgroup>
+              {/* Mobile: card list so each value sits under its label */}
+              <div className="space-y-3 md:hidden">
+                {insuranceLeads.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4">No insurance leads this month.</p>
+                ) : (
+                  insuranceLeads.map((l) => (
+                    <div key={l.id} className="rounded-lg border bg-card p-3 space-y-2 text-sm">
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[110px]">Date</span>
+                        <span className="text-right font-medium truncate min-w-0">{l.date ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[110px]">Customer</span>
+                        <span className="text-right truncate min-w-0">{l.customerName ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[110px]">Contact</span>
+                        <span className="text-right">{l.contactNum ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[110px]">Insurance type</span>
+                        <span className="text-right">{l.insuranceType ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[110px]">Premium quoted</span>
+                        <span className="text-right tabular-nums">{l.premiumQuoted ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[110px]">Premium collected</span>
+                        <span className="text-right tabular-nums">{l.premiumCollected ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[110px]">Difference</span>
+                        <span className="text-right tabular-nums">{l.difference ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[110px]">Misc. Expenses</span>
+                        <span className="text-right truncate min-w-0">{l.miscellaneousExpenses ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[110px]">Status</span>
+                        <span className="text-right font-medium">{l.status ?? "—"}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              {/* Desktop: table */}
+              <div className="hidden md:block w-full min-w-0 overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Date</th>
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Customer</th>
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Contact</th>
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Insurance type</th>
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Premium quoted</th>
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Premium collected</th>
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Difference</th>
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Misc. Expenses</th>
-                      <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Status</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Date</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Customer</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Contact</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Insurance type</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Premium quoted</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Premium collected</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Difference</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Misc. Expenses</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {insuranceLeads.map((l) => (
                       <tr key={l.id} className="border-b">
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.date}</td>
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap max-w-[90px] truncate" title={l.customerName ?? undefined}>{l.customerName ?? "—"}</td>
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.contactNum ?? "—"}</td>
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.insuranceType ?? "—"}</td>
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap tabular-nums">{l.premiumQuoted ?? "—"}</td>
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap tabular-nums">{l.premiumCollected ?? "—"}</td>
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap tabular-nums">{l.difference ?? "—"}</td>
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.miscellaneousExpenses ?? "—"}</td>
-                        <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.status}</td>
+                        <td className="py-2.5 pr-3">{l.date}</td>
+                        <td className="py-2.5 pr-3">{l.customerName ?? "—"}</td>
+                        <td className="py-2.5 pr-3">{l.contactNum ?? "—"}</td>
+                        <td className="py-2.5 pr-3">{l.insuranceType ?? "—"}</td>
+                        <td className="py-2.5 pr-3 tabular-nums">{l.premiumQuoted ?? "—"}</td>
+                        <td className="py-2.5 pr-3 tabular-nums">{l.premiumCollected ?? "—"}</td>
+                        <td className="py-2.5 pr-3 tabular-nums">{l.difference ?? "—"}</td>
+                        <td className="py-2.5 pr-3">{l.miscellaneousExpenses ?? "—"}</td>
+                        <td className="py-2.5 pr-3">{l.status}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              {insuranceLeads.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-2 sm:hidden">Swipe horizontally to see all columns.</p>
-              )}
             </TabsContent>
           </Tabs>
         </CardContent>

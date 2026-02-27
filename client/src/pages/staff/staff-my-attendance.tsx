@@ -159,43 +159,68 @@ export default function StaffMyAttendance() {
           <CardDescription className="text-xs sm:text-sm">Recent attendance.</CardDescription>
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-          <div className="w-full min-w-0 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0" style={{ WebkitOverflowScrolling: "touch" }}>
-            <table className="text-sm border-collapse" style={{ tableLayout: "fixed", minWidth: "480px" }}>
-              <colgroup>
-                <col className="w-[64px]" />
-                <col className="w-[70px]" />
-                <col className="w-[70px]" />
-                <col className="w-[120px] sm:w-[140px]" />
-                <col className="w-[48px]" />
-                <col className="w-[72px]" />
-              </colgroup>
+          {/* Mobile: card list so each value sits under its label */}
+          <div className="space-y-3 md:hidden">
+            {logs.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">No attendance records.</p>
+            ) : (
+              logs.map((l) => (
+                <div key={l.id} className="rounded-lg border bg-card p-3 space-y-2 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground shrink-0 w-[90px]">Date</span>
+                    <span className="text-right font-medium">{formatShortDate(l.date)}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground shrink-0 w-[90px]">Login</span>
+                    <span className="text-right">{l.loginAt ? new Date(l.loginAt).toLocaleTimeString() : "—"}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground shrink-0 w-[90px]">Logout</span>
+                    <span className="text-right">{l.logoutAt ? new Date(l.logoutAt).toLocaleTimeString() : "—"}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground shrink-0 w-[90px]">Location</span>
+                    <span className="text-right truncate min-w-0" title={l.loginLocation ?? undefined}>{l.loginLocation ?? "—"}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground shrink-0 w-[90px]">Leads</span>
+                    <span className="text-right">{l.leadsCount}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground shrink-0 w-[90px]">Status</span>
+                    <span className="text-right font-medium">{l.status}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          {/* Desktop: table */}
+          <div className="hidden md:block w-full min-w-0 overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Date</th>
-                  <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Login</th>
-                  <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Logout</th>
-                  <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Location</th>
-                  <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Leads</th>
-                  <th className="text-left py-2.5 pr-2 text-muted-foreground font-medium text-xs sm:text-sm whitespace-nowrap">Status</th>
+                  <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Date</th>
+                  <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Login</th>
+                  <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Logout</th>
+                  <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Location</th>
+                  <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Leads</th>
+                  <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {logs.map((l) => (
                   <tr key={l.id} className="border-b">
-                    <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap" title={l.date}>{formatShortDate(l.date)}</td>
-                    <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.loginAt ? new Date(l.loginAt).toLocaleTimeString() : "—"}</td>
-                    <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.logoutAt ? new Date(l.logoutAt).toLocaleTimeString() : "—"}</td>
-                    <td className="py-2.5 pr-2 text-xs sm:text-sm max-w-[120px] sm:max-w-[140px] truncate whitespace-nowrap" title={l.loginLocation ?? undefined}>{l.loginLocation ?? "—"}</td>
-                    <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.leadsCount}</td>
-                    <td className="py-2.5 pr-2 text-xs sm:text-sm whitespace-nowrap">{l.status}</td>
+                    <td className="py-2.5 pr-3" title={l.date}>{formatShortDate(l.date)}</td>
+                    <td className="py-2.5 pr-3">{l.loginAt ? new Date(l.loginAt).toLocaleTimeString() : "—"}</td>
+                    <td className="py-2.5 pr-3">{l.logoutAt ? new Date(l.logoutAt).toLocaleTimeString() : "—"}</td>
+                    <td className="py-2.5 pr-3 max-w-[200px] truncate" title={l.loginLocation ?? undefined}>{l.loginLocation ?? "—"}</td>
+                    <td className="py-2.5 pr-3">{l.leadsCount}</td>
+                    <td className="py-2.5 pr-3">{l.status}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {logs.length > 0 && (
-            <p className="text-xs text-muted-foreground mt-2 sm:hidden">Swipe horizontally to see all columns.</p>
-          )}
         </CardContent>
       </Card>
     </div>
