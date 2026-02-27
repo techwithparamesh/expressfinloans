@@ -156,7 +156,7 @@ export default function StaffLayout({
     ...(isAdmin || isTeamLead ? [{ href: path(basePath, "/leads"), label: "Loan leads", icon: FileText }] : []),
     ...(isAdmin || isTeamLead ? [{ href: path(basePath, "/insurance-leads"), label: "Insurance leads", icon: Shield }] : []),
     ...(isAdmin || isTeamLead ? [{ href: path(basePath, "/leave-requests"), label: "Leave requests", icon: CalendarCheck }] : []),
-    ...(isEmployee ? [{ href: path(basePath, "/my-leads"), label: "My leads", icon: ClipboardList }] : []),
+    ...(isEmployee || isTeamLead ? [{ href: path(basePath, "/my-leads"), label: "My leads", icon: ClipboardList }] : []),
     ...(isEmployee ? [{ href: path(basePath, "/my-attendance"), label: "My attendance", icon: Calendar }] : []),
     ...(isEmployee ? [{ href: path(basePath, "/my-leave"), label: "My leave", icon: CalendarCheck }] : []),
     { href: path(basePath, "/profile"), label: "Profile", icon: User },
