@@ -211,6 +211,23 @@ export default function StaffTargetAllocation() {
       prev.map((r) => (r.userId === userId ? { ...r, [field]: value } : r))
     );
   };
+
+  function distributeEquallyToLeaders() {
+    const budget = parseFloat(companyBudget) || 0;
+    const leads = parseInt(companyLeads, 10) || 0;
+    const n = leaders.length;
+    if (n === 0) return;
+    const budgetPerLeader = budget / n;
+    const leadsPerLeader = Math.floor(leads / n);
+    const remainderLeads = leads - leadsPerLeader * n;
+    setLeaders((prev) =>
+      prev.map((r, i) => ({
+        ...r,
+        assignedBudget: budgetPerLeader.toFixed(2),
+        assignedLeads: leadsPerLeader + (i < remainderLeads ? 1 : 0),
+      }))
+    );
+  }
   const updateEmployee = (userId: string, field: "assignedBudget" | "assignedLeads", value: string | number) => {
     setEmployees((prev) =>
       prev.map((r) => (r.userId === userId ? { ...r, [field]: value } : r))
@@ -310,6 +327,20 @@ export default function StaffTargetAllocation() {
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={distributeEquallyToLeaders}
+                disabled={!!isLocked || leaders.length === 0}
+              >
+                Distribute equally to all leaders
+              </Button>
+              <span className="text-sm text-slate-500">
+                Splits total budget (₹) and total leads from Step 1 equally among {leaders.length} leader{leaders.length !== 1 ? "s" : ""}. Edit any value below if needed, then Save.
+              </span>
+            </div>
             {leaders.map((l) => (
               <div key={l.userId} className="flex flex-wrap items-center gap-2 border-b pb-2">
                 <span className="font-medium min-w-[140px]">{l.fullName || l.username}</span>
