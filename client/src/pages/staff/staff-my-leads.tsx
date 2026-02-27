@@ -317,9 +317,9 @@ export default function StaffMyLeads() {
   if (loading) return <p className="text-slate-500">Loading…</p>;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">My leads</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl sm:text-2xl font-bold">My leads</h1>
         <Button onClick={openDialog}>
           <Plus className="h-4 w-4 mr-2" />
           Lead form
@@ -338,33 +338,33 @@ export default function StaffMyLeads() {
               <TabsTrigger value="insurance">Insurance leads</TabsTrigger>
             </TabsList>
             <TabsContent value="loan" className="mt-4">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
+                <table className="w-full text-sm min-w-[720px]">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2">Date</th>
-                      <th className="text-left py-2">Customer</th>
-                      <th className="text-left py-2">DOB</th>
-                      <th className="text-left py-2">Contact</th>
-                      <th className="text-left py-2">Loan type</th>
-                      <th className="text-left py-2">Sub type</th>
-                      <th className="text-left py-2">Amount</th>
-                      <th className="text-left py-2">Tenure</th>
-                      <th className="text-left py-2">Status</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[88px]">Date</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[90px]">Customer</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[72px]">DOB</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[88px]">Contact</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[80px]">Loan type</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[72px]">Sub type</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[72px]">Amount</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[56px]">Tenure</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[72px]">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {leads.map((l) => (
                       <tr key={l.id} className="border-b">
-                        <td className="py-2">{l.date}</td>
-                        <td className="py-2">{l.customerName ?? "—"}</td>
-                        <td className="py-2">{l.dateOfBirth ?? "—"}</td>
-                        <td className="py-2">{l.customerPhone ?? "—"}</td>
-                        <td className="py-2">{l.loanType ?? "—"}</td>
-                        <td className="py-2">{l.subLoanType ?? "—"}</td>
-                        <td className="py-2">{l.amount ?? "—"}</td>
-                        <td className="py-2">{l.tenure ?? "—"}</td>
-                        <td className="py-2">{l.status}</td>
+                        <td className="py-2 whitespace-nowrap">{l.date}</td>
+                        <td className="py-2 whitespace-nowrap max-w-[120px] truncate" title={l.customerName ?? undefined}>{l.customerName ?? "—"}</td>
+                        <td className="py-2 whitespace-nowrap">{l.dateOfBirth ?? "—"}</td>
+                        <td className="py-2 whitespace-nowrap">{l.customerPhone ?? "—"}</td>
+                        <td className="py-2 whitespace-nowrap">{l.loanType ?? "—"}</td>
+                        <td className="py-2 whitespace-nowrap">{l.subLoanType ?? "—"}</td>
+                        <td className="py-2 whitespace-nowrap">{l.amount ?? "—"}</td>
+                        <td className="py-2 whitespace-nowrap">{l.tenure ?? "—"}</td>
+                        <td className="py-2 whitespace-nowrap">{l.status}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -372,33 +372,33 @@ export default function StaffMyLeads() {
               </div>
             </TabsContent>
             <TabsContent value="insurance" className="mt-4">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
+                <table className="w-full text-sm min-w-[760px]">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2">Date</th>
-                      <th className="text-left py-2">Customer</th>
-                      <th className="text-left py-2">Contact</th>
-                      <th className="text-left py-2">Insurance type</th>
-                      <th className="text-left py-2">Premium quoted</th>
-                      <th className="text-left py-2">Premium collected</th>
-                      <th className="text-left py-2">Difference</th>
-                      <th className="text-left py-2">Misc. Expenses</th>
-                      <th className="text-left py-2">Status</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[88px]">Date</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[90px]">Customer</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[88px]">Contact</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[100px]">Insurance type</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[80px]">Premium quoted</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[90px]">Premium collected</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[72px]">Difference</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[80px]">Misc. Expenses</th>
+                      <th className="text-left py-2 whitespace-nowrap min-w-[72px]">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {insuranceLeads.map((l) => (
                       <tr key={l.id} className="border-b">
-                        <td className="py-2">{l.date}</td>
-                        <td className="py-2">{l.customerName ?? "—"}</td>
-                        <td className="py-2">{l.contactNum ?? "—"}</td>
-                        <td className="py-2">{l.insuranceType ?? "—"}</td>
-                        <td className="py-2">{l.premiumQuoted ?? "—"}</td>
-                        <td className="py-2">{l.premiumCollected ?? "—"}</td>
-                        <td className="py-2">{l.difference ?? "—"}</td>
-                        <td className="py-2">{l.miscellaneousExpenses ?? "—"}</td>
-                        <td className="py-2">{l.status}</td>
+                        <td className="py-2 whitespace-nowrap">{l.date}</td>
+                        <td className="py-2 whitespace-nowrap max-w-[120px] truncate" title={l.customerName ?? undefined}>{l.customerName ?? "—"}</td>
+                        <td className="py-2 whitespace-nowrap">{l.contactNum ?? "—"}</td>
+                        <td className="py-2 whitespace-nowrap">{l.insuranceType ?? "—"}</td>
+                        <td className="py-2 whitespace-nowrap">{l.premiumQuoted ?? "—"}</td>
+                        <td className="py-2 whitespace-nowrap">{l.premiumCollected ?? "—"}</td>
+                        <td className="py-2 whitespace-nowrap">{l.difference ?? "—"}</td>
+                        <td className="py-2 whitespace-nowrap">{l.miscellaneousExpenses ?? "—"}</td>
+                        <td className="py-2 whitespace-nowrap">{l.status}</td>
                       </tr>
                     ))}
                   </tbody>

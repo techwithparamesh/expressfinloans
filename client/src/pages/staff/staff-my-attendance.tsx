@@ -159,27 +159,27 @@ export default function StaffMyAttendance() {
           <CardDescription>Recent attendance.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
+            <table className="w-full text-sm min-w-[520px]">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-2">Date</th>
-                  <th className="text-left py-2">Login</th>
-                  <th className="text-left py-2">Logout</th>
-                  <th className="text-left py-2">Location</th>
-                  <th className="text-left py-2">Leads</th>
-                  <th className="text-left py-2">Status</th>
+                  <th className="text-left py-2 whitespace-nowrap min-w-[64px]">Date</th>
+                  <th className="text-left py-2 whitespace-nowrap min-w-[70px]">Login</th>
+                  <th className="text-left py-2 whitespace-nowrap min-w-[70px]">Logout</th>
+                  <th className="text-left py-2 whitespace-nowrap min-w-[100px]">Location</th>
+                  <th className="text-left py-2 whitespace-nowrap min-w-[48px]">Leads</th>
+                  <th className="text-left py-2 whitespace-nowrap min-w-[72px]">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {logs.map((l) => (
                   <tr key={l.id} className="border-b">
-                    <td className="py-2">{l.date}</td>
-                    <td className="py-2">{l.loginAt ? new Date(l.loginAt).toLocaleTimeString() : "—"}</td>
-                    <td className="py-2">{l.logoutAt ? new Date(l.logoutAt).toLocaleTimeString() : "—"}</td>
-                    <td className="py-2 max-w-[200px] truncate" title={l.loginLocation ?? undefined}>{l.loginLocation ?? "—"}</td>
-                    <td className="py-2">{l.leadsCount}</td>
-                    <td className="py-2">{l.status}</td>
+                    <td className="py-2 whitespace-nowrap" title={l.date}>{formatShortDate(l.date)}</td>
+                    <td className="py-2 whitespace-nowrap">{l.loginAt ? new Date(l.loginAt).toLocaleTimeString() : "—"}</td>
+                    <td className="py-2 whitespace-nowrap">{l.logoutAt ? new Date(l.logoutAt).toLocaleTimeString() : "—"}</td>
+                    <td className="py-2 max-w-[180px] truncate whitespace-nowrap" title={l.loginLocation ?? undefined}>{l.loginLocation ?? "—"}</td>
+                    <td className="py-2 whitespace-nowrap">{l.leadsCount}</td>
+                    <td className="py-2 whitespace-nowrap">{l.status}</td>
                   </tr>
                 ))}
               </tbody>
@@ -195,4 +195,12 @@ function getMonthStart(): string {
   const d = new Date();
   d.setDate(1);
   return d.toISOString().slice(0, 10);
+}
+
+/** Format date string (YYYY-MM-DD or ISO) to short form for mobile table. */
+function formatShortDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }

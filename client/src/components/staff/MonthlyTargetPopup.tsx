@@ -59,50 +59,51 @@ export default function MonthlyTargetPopup({ open, onOpenChange, onOpenConveyanc
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{subtitle}</DialogDescription>
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] max-w-lg p-4 sm:p-6 flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
+          <DialogTitle className="text-base sm:text-lg">{title}</DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">{subtitle}</DialogDescription>
         </DialogHeader>
         {data && (
-          <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-md border bg-muted/50 p-3">
-                <p className="text-muted-foreground">{isTeamLead ? "Overall target" : "Month Target"}</p>
-                <p className="text-lg font-semibold">{data.monthTarget}</p>
+          <>
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-3 sm:space-y-4 py-2 -mx-1 px-1">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 text-sm">
+                <div className="rounded-md border bg-muted/50 p-2 sm:p-3">
+                  <p className="text-muted-foreground text-xs sm:text-sm">{isTeamLead ? "Overall target" : "Month Target"}</p>
+                  <p className="text-base sm:text-lg font-semibold">{data.monthTarget}</p>
+                </div>
+                <div className="rounded-md border bg-muted/50 p-2 sm:p-3">
+                  <p className="text-muted-foreground text-xs sm:text-sm">Achievement</p>
+                  <p className="text-base sm:text-lg font-semibold">{data.achievement}</p>
+                </div>
+                <div className="rounded-md border bg-muted/50 p-2 sm:p-3">
+                  <p className="text-muted-foreground text-xs sm:text-sm">Achievement %</p>
+                  <p className="text-base sm:text-lg font-semibold">{data.achievementPct}%</p>
+                </div>
+                <div className="rounded-md border bg-muted/50 p-2 sm:p-3">
+                  <p className="text-muted-foreground text-xs sm:text-sm">{isTeamLead ? "Team leads generated" : "Overall Leads Generated"}</p>
+                  <p className="text-base sm:text-lg font-semibold">{data.overallLeadsGenerated}</p>
+                </div>
+                <div className="rounded-md border bg-muted/50 p-2 sm:p-3">
+                  <p className="text-muted-foreground text-xs sm:text-sm">Leads Converted</p>
+                  <p className="text-base sm:text-lg font-semibold">{data.leadsConverted}</p>
+                </div>
+                <div className="rounded-md border bg-muted/50 p-2 sm:p-3">
+                  <p className="text-muted-foreground text-xs sm:text-sm">Leads Open</p>
+                  <p className="text-base sm:text-lg font-semibold">{data.leadsOpen}</p>
+                </div>
+                <div className="col-span-2 rounded-md border bg-muted/50 p-2 sm:p-3">
+                  <p className="text-muted-foreground text-xs sm:text-sm">{isTeamLead ? "Team sanction amount" : "Leads Sanction Amount"}</p>
+                  <p className="text-base sm:text-lg font-semibold">
+                    ₹{data.sanctionAmount.toLocaleString("en-IN")}
+                  </p>
+                </div>
               </div>
-              <div className="rounded-md border bg-muted/50 p-3">
-                <p className="text-muted-foreground">Achievement</p>
-                <p className="text-lg font-semibold">{data.achievement}</p>
-              </div>
-              <div className="rounded-md border bg-muted/50 p-3">
-                <p className="text-muted-foreground">Achievement %</p>
-                <p className="text-lg font-semibold">{data.achievementPct}%</p>
-              </div>
-              <div className="rounded-md border bg-muted/50 p-3">
-                <p className="text-muted-foreground">{isTeamLead ? "Team leads generated" : "Overall Leads Generated"}</p>
-                <p className="text-lg font-semibold">{data.overallLeadsGenerated}</p>
-              </div>
-              <div className="rounded-md border bg-muted/50 p-3">
-                <p className="text-muted-foreground">Leads Converted</p>
-                <p className="text-lg font-semibold">{data.leadsConverted}</p>
-              </div>
-              <div className="rounded-md border bg-muted/50 p-3">
-                <p className="text-muted-foreground">Leads Open</p>
-                <p className="text-lg font-semibold">{data.leadsOpen}</p>
-              </div>
-              <div className="col-span-2 rounded-md border bg-muted/50 p-3">
-                <p className="text-muted-foreground">{isTeamLead ? "Team sanction amount" : "Leads Sanction Amount"}</p>
-                <p className="text-lg font-semibold">
-                  ₹{data.sanctionAmount.toLocaleString("en-IN")}
-                </p>
-              </div>
-            </div>
-            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-4">
-              <div>
-                <p className="font-medium text-foreground mb-2">How conveyance is calculated</p>
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 sm:p-4 space-y-3 sm:space-y-4">
+                <div>
+                  <p className="font-medium text-foreground mb-1.5 sm:mb-2 text-sm sm:text-base">How conveyance is calculated</p>
                 {isTeamLead ? (
-                  <div className="space-y-3 text-sm text-muted-foreground">
+                  <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
                     <p className="font-medium text-foreground text-xs uppercase tracking-wide">Step 1 — Eligibility (both required)</p>
                     <ul className="space-y-1 list-disc list-inside pl-0">
                       <li>At least <strong className="text-foreground">4</strong> joint visits with team members this month</li>
@@ -116,7 +117,7 @@ export default function MonthlyTargetPopup({ open, onOpenChange, onOpenConveyanc
                     </ul>
                   </div>
                 ) : (
-                  <div className="space-y-3 text-sm text-muted-foreground">
+                  <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-muted-foreground">
                     <p className="font-medium text-foreground text-xs uppercase tracking-wide">Step 1 — Eligibility</p>
                     <ul className="space-y-1 list-disc list-inside pl-0">
                       <li>At least <strong className="text-foreground">20</strong> leads recorded in CRM this month</li>
@@ -145,11 +146,12 @@ export default function MonthlyTargetPopup({ open, onOpenChange, onOpenConveyanc
                   Full Conveyance Policy
                 </Button>
               )}
+              </div>
             </div>
-            <div className="flex justify-end">
-              <Button onClick={() => onOpenChange(false)}>Close</Button>
+            <div className="flex-shrink-0 flex justify-end pt-3 sm:pt-4 border-t border-border mt-2">
+              <Button onClick={() => onOpenChange(false)} className="w-full sm:w-auto">Close</Button>
             </div>
-          </div>
+          </>
         )}
         {loading && !data && (
           <div className="py-4 text-center text-sm text-muted-foreground">Loading…</div>
