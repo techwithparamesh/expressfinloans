@@ -45,6 +45,13 @@ type Employee = {
 
 type TeamLead = { id: string; username: string; fullName: string | null };
 
+function roleLabel(role: string): string {
+  if (role === "team_lead") return "Team leader";
+  if (role === "employee") return "Employee";
+  if (role === "admin") return "Admin";
+  return role;
+}
+
 function fetchEmployees() {
   return staffJson<Employee[]>("/staff/employees").catch(() => []);
 }
@@ -249,7 +256,7 @@ export default function StaffEmployees() {
                       <td className="py-2 px-2 font-medium">{e.employeeNumber ?? "—"}</td>
                       <td className="py-2 px-2">{e.fullName ?? "—"}</td>
                       <td className="py-2 px-2">{e.username}</td>
-                      <td className="py-2 px-2">{e.role}</td>
+                      <td className="py-2 px-2">{roleLabel(e.role)}</td>
                       <td className="py-2 px-2">{e.teamLeadId ? (teamLeads.find((t) => t.id === e.teamLeadId)?.fullName || teamLeads.find((t) => t.id === e.teamLeadId)?.username || "—") : "—"}</td>
                       <td className="py-2 px-2">{e.monthlyLeadTarget ?? "—"}</td>
                       <td className="py-2 px-2">{e.email ?? "—"}</td>

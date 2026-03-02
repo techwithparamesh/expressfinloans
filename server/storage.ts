@@ -423,14 +423,17 @@ export class DrizzleStorage implements IStorage {
 
   async listEmployees(filters?: { teamLeadId?: string; unassignedOnly?: boolean }): Promise<User[]> {
     await guardDb();
-    const baseCondition = eq(users.role, "employee");
+    // With filters: only direct-report employees (for team lead's team or unassigned list)
+    const employeeOnly = eq(users.role, "employee");
     if (filters?.unassignedOnly) {
-      return db.select().from(users).where(and(baseCondition, isNull(users.teamLeadId))).orderBy(users.fullName, users.username);
+      return db.select().from(users).where(and(employeeOnly, isNull(users.teamLeadId))).orderBy(users.fullName, users.username);
     }
     if (filters?.teamLeadId) {
-      return db.select().from(users).where(and(baseCondition, eq(users.teamLeadId, filters.teamLeadId))).orderBy(users.fullName, users.username);
+      return db.select().from(users).where(and(employeeOnly, eq(users.teamLeadId, filters.teamLeadId))).orderBy(users.fullName, users.username);
     }
-    return db.select().from(users).where(baseCondition).orderBy(users.fullName, users.username);
+    // No filters (admin "all employees"): include both employees and team leaders (leaders are staff too)
+    const staffRoles = inArray(users.role, ["employee", "team_lead"]);
+    return db.select().from(users).where(staffRoles).orderBy(users.fullName, users.username);
   }
 
   async listTeamLeads(): Promise<User[]> {
