@@ -2045,9 +2045,16 @@ export async function registerRoutes(
         monthLabel = new Date(year, month, 1).toLocaleString("default", { month: "long", year: "numeric" });
       }
       const visibleIds = await getVisibleEmployeeIds(req);
-      const employees = visibleIds === null
+      const role = (req.user as any)?.role;
+      let employees: { id: string; username?: string; fullName?: string | null; employeeNumber?: string | null }[] = visibleIds === null
         ? await storage.listEmployees()
         : await storage.listEmployees({ teamLeadId: (req.user as any).id });
+      if (role === "team_lead") {
+        const me = await storage.getUser((req.user as any).id);
+        if (me && !employees.some((u) => u.id === me.id)) {
+          employees = [me as any, ...employees];
+        }
+      }
       const filtered = employeeId && (visibleIds === null || visibleIds.includes(employeeId))
         ? employees.filter((u) => u.id === employeeId)
         : employees;
@@ -2060,7 +2067,8 @@ export async function registerRoutes(
         if (v instanceof Date) return v.toISOString().slice(0, 10);
         return String(v).slice(0, 10);
       };
-      const rows: { employeeId: string; employeeNumber: string; name: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number }[] = [];
+      const roleLabel = (r: string) => (r === "team_lead" ? "Team leader" : r === "admin" ? "Admin" : "Employee");
+      const rows: { employeeId: string; employeeNumber: string; name: string; role: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number }[] = [];
       const leadRows: { employeeNumber: string; employeeName: string; date: string; customerName: string; dateOfBirth: string; customerPhone: string; customerEmail: string; location: string; loanType: string; subLoanType: string; incomeType: string; amount: string; cibil: string; status: string; loanDisbursed: string; loanSanctionedAt: string; loanDisbursedAt: string; notes: string; payoutPercent: string; payoutAmount: string; paymentStatus: string }[] = [];
       const insuranceRows: { employeeNumber: string; employeeName: string; date: string; customerName: string; contactNum: string; mailId: string; location: string; insuranceType: string; insuranceSubtype: string; premiumQuoted: string; premiumCollected: string; status: string; notes: string }[] = [];
       const attendanceRows: { employeeNumber: string; employeeName: string; date: string; loginAt: string; logoutAt: string; status: string; loginLocation: string; logoutLocation: string; leadsCount: number }[] = [];
@@ -2088,6 +2096,7 @@ export async function registerRoutes(
           employeeId: uid,
           employeeNumber: empNum,
           name: empName,
+          role: roleLabel((u as any).role ?? "employee"),
           daysPresent,
           leadsCount: leadsList.length,
           insuranceLeadsCount: insList.length,
@@ -2170,6 +2179,7 @@ export async function registerRoutes(
         summarySheet.columns = [
           { header: "Employee ID", key: "employeeNumber", width: 14 },
           { header: "Name", key: "name", width: 24 },
+          { header: "Role", key: "role", width: 14 },
           { header: "Days Present", key: "daysPresent", width: 14 },
           { header: "Loan Leads", key: "leadsCount", width: 12 },
           { header: "Insurance Leads", key: "insuranceLeadsCount", width: 16 },
@@ -2266,8 +2276,8 @@ export async function registerRoutes(
         doc.moveDown(0.5);
         doc.fontSize(10).text("Summary", { continued: false });
         doc.fontSize(smallFont);
-        const summaryHeaders = ["Emp ID", "Name", "Present", "Leads", "Ins", "Leave"];
-        const summaryCols = [50, 100, 180, 230, 270, 320];
+        const summaryHeaders = ["Emp ID", "Name", "Role", "Present", "Leads", "Ins", "Leave"];
+        const summaryCols = [50, 95, 145, 195, 245, 285, 330];
         let y = doc.y + 6;
         doc.font("Helvetica-Bold");
         for (let i = 0; i < summaryHeaders.length; i++) {
@@ -2285,11 +2295,12 @@ export async function registerRoutes(
             y += ROW_HEIGHT;
           }
           doc.text((r.employeeNumber || "").slice(0, 8), summaryCols[0], y);
-          doc.text((r.name || "").slice(0, 18), summaryCols[1], y);
-          doc.text(String(r.daysPresent), summaryCols[2], y);
-          doc.text(String(r.leadsCount), summaryCols[3], y);
-          doc.text(String(r.insuranceLeadsCount), summaryCols[4], y);
-          doc.text(String(r.leaveDays), summaryCols[5], y);
+          doc.text((r.name || "").slice(0, 12), summaryCols[1], y);
+          doc.text((r.role || "").slice(0, 10), summaryCols[2], y);
+          doc.text(String(r.daysPresent), summaryCols[3], y);
+          doc.text(String(r.leadsCount), summaryCols[4], y);
+          doc.text(String(r.insuranceLeadsCount), summaryCols[5], y);
+          doc.text(String(r.leaveDays), summaryCols[6], y);
           y += ROW_HEIGHT;
         }
         doc.moveDown(1);
