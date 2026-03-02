@@ -335,6 +335,19 @@ ALTER TABLE attendance_logs
   ADD COLUMN login_lng DECIMAL(10,7) NULL;
 ```
 
+**Attendance logout location (capture location when employee logs out):** To store where the employee logged out, run:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE attendance_logs
+  ADD COLUMN logout_location VARCHAR(500) NULL,
+  ADD COLUMN logout_lat DECIMAL(10,7) NULL,
+  ADD COLUMN logout_lng DECIMAL(10,7) NULL;
+```
+
+(Skip any column that already exists. If you get "Duplicate column", run one `ADD COLUMN` per line.)
+
 **Employee number (4-digit ID for staff):** To add the employee ID column used in attendance/leads (e.g. 1001, 1002), run:
 
 ```sql
@@ -413,6 +426,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
 | Insurance subtype “Other” manual entry (insurance_subtype_other) | **Insurance lead form (subtype “Other” – manual entry)** ALTER block above |
 | Miscellaneous Expenses (insurance lead) | **Insurance lead form (Miscellaneous Expenses)** ALTER block above |
 | Attendance login location (login_location, login_ip, login_lat, login_lng) | **Attendance login location** ALTER block above |
+| Attendance logout location (logout_location, logout_lat, logout_lng) | **Attendance logout location** ALTER block above |
 
 Use `DESCRIBE table_name;` (see **Common database commands** below) to see which columns you already have.
 

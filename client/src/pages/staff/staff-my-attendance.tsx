@@ -12,12 +12,18 @@ type Log = {
   logoutAt: string | null;
   loginLocation?: string | null;
   login_location?: string | null;
+  logoutLocation?: string | null;
+  logout_location?: string | null;
   leadsCount: number;
   status: string;
 };
 
 function getLoginLocation(log: Log): string | null {
   return log.loginLocation ?? log.login_location ?? null;
+}
+
+function getLogoutLocation(log: Log): string | null {
+  return log.logoutLocation ?? log.logout_location ?? null;
 }
 
 /** Get current position if user allows; returns null on deny/error so server can fall back to IP. */
@@ -66,6 +72,7 @@ export default function StaffMyAttendance() {
   useEffect(() => load(), []);
 
   const [gettingLocation, setGettingLocation] = useState(false);
+  const [gettingLogoutLocation, setGettingLogoutLocation] = useState(false);
 
   async function doLogin() {
     setLoginLoading(true);
@@ -96,16 +103,25 @@ export default function StaffMyAttendance() {
 
   async function doLogout() {
     setLogoutLoading(true);
+    setGettingLogoutLocation(true);
     try {
+      const coords = await getCurrentPositionAsync();
+      setGettingLogoutLocation(false);
+      const body: { date: string; latitude?: number; longitude?: number } = { date: today };
+      if (coords) {
+        body.latitude = coords.latitude;
+        body.longitude = coords.longitude;
+      }
       const log = await staffJson<Log>("/staff/attendance/logout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: today }),
+        body: JSON.stringify(body),
       });
       setTodayLog(log);
-      toast({ title: "Logged out" });
+      toast({ title: coords ? "Logged out (location captured)" : "Logged out (location from IP)" });
       load();
     } catch (err) {
+      setGettingLogoutLocation(false);
       toast({ title: err instanceof Error ? err.message : "Failed", variant: "destructive" });
     } finally {
       setLogoutLoading(false);
@@ -122,7 +138,7 @@ export default function StaffMyAttendance() {
             <Calendar className="h-5 w-5 shrink-0" />
             Today ({today})
           </CardTitle>
-          <CardDescription className="text-xs sm:text-sm">Mark login and logout. You need 2 or more leads to be marked present. When you tap Log in, allow location if prompted and wait until it finishes—location is then saved (or from IP if unavailable).</CardDescription>
+          <CardDescription className="text-xs sm:text-sm">Mark login and logout. You need 2 or more leads to be marked present. When you tap Log in or Log out, allow location if prompted and wait until it finishes—location is then saved (or from IP if unavailable).</CardDescription>
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0 flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -143,7 +159,7 @@ export default function StaffMyAttendance() {
               className="min-h-[44px] min-w-[120px] touch-manipulation"
             >
               <LogOut className="h-4 w-4 mr-2 shrink-0" />
-              {logoutLoading ? "Logging out…" : todayLog?.logoutAt ? "Logged out" : "Log out"}
+              {gettingLogoutLocation ? "Getting location…" : logoutLoading ? "Logging out…" : todayLog?.logoutAt ? "Logged out" : "Log out"}
             </Button>
           </div>
           {todayLog && (
@@ -155,6 +171,7 @@ export default function StaffMyAttendance() {
                 <span className="ml-4">Status: {todayLog.status}</span>
               </div>
               <p className="text-slate-500">Login location: {getLoginLocation(todayLog) ?? "—"}</p>
+              <p className="text-slate-500">Logout location: {getLogoutLocation(todayLog) ?? "—"}</p>
               {todayLog.loginAt && todayLog.logoutAt && (
                 <p className="text-slate-500">You’ve already logged in and out for today. Buttons will be available again tomorrow.</p>
               )}
@@ -189,8 +206,12 @@ export default function StaffMyAttendance() {
                     <span className="text-right">{l.logoutAt ? new Date(l.logoutAt).toLocaleTimeString() : "—"}</span>
                   </div>
                   <div className="flex justify-between gap-3">
-                    <span className="text-muted-foreground shrink-0 w-[90px]">Location</span>
+                    <span className="text-muted-foreground shrink-0 w-[90px]">Login loc</span>
                     <span className="text-right truncate min-w-0" title={getLoginLocation(l) ?? undefined}>{getLoginLocation(l) ?? "—"}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground shrink-0 w-[90px]">Logout loc</span>
+                    <span className="text-right truncate min-w-0" title={getLogoutLocation(l) ?? undefined}>{getLogoutLocation(l) ?? "—"}</span>
                   </div>
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground shrink-0 w-[90px]">Leads</span>
@@ -212,7 +233,8 @@ export default function StaffMyAttendance() {
                   <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Date</th>
                   <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Login</th>
                   <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Logout</th>
-                  <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Location</th>
+                  <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Login loc</th>
+                  <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Logout loc</th>
                   <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Leads</th>
                   <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Status</th>
                 </tr>
@@ -223,7 +245,8 @@ export default function StaffMyAttendance() {
                     <td className="py-2.5 pr-3" title={l.date}>{formatShortDate(l.date)}</td>
                     <td className="py-2.5 pr-3">{l.loginAt ? new Date(l.loginAt).toLocaleTimeString() : "—"}</td>
                     <td className="py-2.5 pr-3">{l.logoutAt ? new Date(l.logoutAt).toLocaleTimeString() : "—"}</td>
-                    <td className="py-2.5 pr-3 max-w-[200px] truncate" title={getLoginLocation(l) ?? undefined}>{getLoginLocation(l) ?? "—"}</td>
+                    <td className="py-2.5 pr-3 max-w-[180px] truncate" title={getLoginLocation(l) ?? undefined}>{getLoginLocation(l) ?? "—"}</td>
+                    <td className="py-2.5 pr-3 max-w-[180px] truncate" title={getLogoutLocation(l) ?? undefined}>{getLogoutLocation(l) ?? "—"}</td>
                     <td className="py-2.5 pr-3">{l.leadsCount}</td>
                     <td className="py-2.5 pr-3">{l.status}</td>
                   </tr>

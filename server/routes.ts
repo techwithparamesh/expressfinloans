@@ -163,8 +163,42 @@ export async function registerRoutes(
     try {
       const userId = (req.user as any).id;
       const dateStr = (req.body?.date as string) || todayStr();
-      const log = await storage.setAttendanceLogout(userId, dateStr);
-      res.json(log);
+      const body = req.body || {};
+      const clientIp = getClientIp(req);
+
+      let logoutLocation: string | null = null;
+      let logoutLat: string | null = null;
+      let logoutLng: string | null = null;
+
+      const lat = body.latitude != null ? Number(body.latitude) : NaN;
+      const lng = body.longitude != null ? Number(body.longitude) : NaN;
+      const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+
+      if (hasCoords) {
+        logoutLat = String(lat);
+        logoutLng = String(lng);
+        try {
+          logoutLocation = await reverseGeocode(lat, lng);
+        } catch {
+          logoutLocation = null;
+        }
+        if (!logoutLocation) logoutLocation = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      } else {
+        const isLocalhost = !clientIp || clientIp === "::1" || clientIp === "127.0.0.1" || clientIp.startsWith("127.");
+        logoutLocation = isLocalhost ? "Local" : await getLocationFromIp(clientIp);
+        if (!logoutLocation && clientIp) logoutLocation = `IP: ${clientIp}`;
+      }
+
+      const log = await storage.setAttendanceLogout(userId, dateStr, {
+        logoutLocation: logoutLocation || null,
+        logoutLat: logoutLat || null,
+        logoutLng: logoutLng || null,
+      });
+      const row = log as Record<string, unknown>;
+      res.json({
+        ...row,
+        logoutLocation: row.logoutLocation ?? row.logout_location ?? (logoutLocation || null),
+      });
     } catch (e) {
       next(e);
     }
@@ -1883,7 +1917,7 @@ export async function registerRoutes(
       const rows: { employeeId: string; employeeNumber: string; name: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number }[] = [];
       const leadRows: { employeeNumber: string; employeeName: string; date: string; customerName: string; dateOfBirth: string; customerPhone: string; customerEmail: string; location: string; loanType: string; subLoanType: string; incomeType: string; amount: string; cibil: string; status: string; loanDisbursed: string; loanSanctionedAt: string; loanDisbursedAt: string; notes: string; payoutPercent: string; payoutAmount: string; paymentStatus: string }[] = [];
       const insuranceRows: { employeeNumber: string; employeeName: string; date: string; customerName: string; contactNum: string; mailId: string; location: string; insuranceType: string; insuranceSubtype: string; premiumQuoted: string; premiumCollected: string; status: string; notes: string }[] = [];
-      const attendanceRows: { employeeNumber: string; employeeName: string; date: string; loginAt: string; logoutAt: string; status: string; loginLocation: string; leadsCount: number }[] = [];
+      const attendanceRows: { employeeNumber: string; employeeName: string; date: string; loginAt: string; logoutAt: string; status: string; loginLocation: string; logoutLocation: string; leadsCount: number }[] = [];
       const leaveRows: { employeeNumber: string; employeeName: string; leaveType: string; startDate: string; endDate: string; reason: string; status: string }[] = [];
       for (const u of filtered) {
         const uid = u.id;
@@ -1956,6 +1990,7 @@ export async function registerRoutes(
           });
         }
         for (const a of att) {
+          const aRow = a as Record<string, unknown>;
           attendanceRows.push({
             employeeNumber: empNum,
             employeeName: empName,
@@ -1964,6 +1999,7 @@ export async function registerRoutes(
             logoutAt: a.logoutAt ? new Date(a.logoutAt).toLocaleString() : "",
             status: String(a.status ?? ""),
             loginLocation: String(a.loginLocation ?? ""),
+            logoutLocation: String(aRow.logoutLocation ?? aRow.logout_location ?? ""),
             leadsCount: Number(a.leadsCount) || 0,
           });
         }
@@ -2045,6 +2081,7 @@ export async function registerRoutes(
           { header: "Logout At", key: "logoutAt", width: 20 },
           { header: "Status", key: "status", width: 12 },
           { header: "Login Location", key: "loginLocation", width: 24 },
+          { header: "Logout Location", key: "logoutLocation", width: 24 },
           { header: "Leads Count", key: "leadsCount", width: 10 },
         ];
         attendanceSheet.addRows(attendanceRows);
@@ -2161,9 +2198,9 @@ export async function registerRoutes(
         const insKeys = ["employeeNumber", "employeeName", "date", "customerName", "contactNum", "insuranceType", "premiumCollected", "status"];
         const insWidths = [38, 50, 42, 55, 48, 42, 42, 38];
         drawTable("Insurance Leads", insHeaders, insWidths, insuranceRows, insKeys);
-        const attHeaders = ["Emp ID", "Name", "Date", "Login", "Logout", "Status", "Leads"];
-        const attKeys = ["employeeNumber", "employeeName", "date", "loginAt", "logoutAt", "status", "leadsCount"];
-        const attWidths = [40, 55, 42, 58, 58, 42, 32];
+        const attHeaders = ["Emp ID", "Name", "Date", "Login", "Logout", "Login loc", "Logout loc", "Leads"];
+        const attKeys = ["employeeNumber", "employeeName", "date", "loginAt", "logoutAt", "loginLocation", "logoutLocation", "leadsCount"];
+        const attWidths = [36, 42, 38, 44, 44, 50, 50, 28];
         drawTable("Attendance", attHeaders, attWidths, attendanceRows, attKeys);
         const leaveHeaders = ["Emp ID", "Name", "Type", "Start", "End", "Reason", "Status"];
         const leaveKeys = ["employeeNumber", "employeeName", "leaveType", "startDate", "endDate", "reason", "status"];

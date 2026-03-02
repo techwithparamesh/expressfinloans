@@ -23,6 +23,8 @@ type Log = {
   loginAt: string | null;
   logoutAt: string | null;
   loginLocation: string | null;
+  logoutLocation?: string | null;
+  logout_location?: string | null;
   leadsCount: number;
   status: string;
 };
@@ -214,7 +216,8 @@ export default function StaffAttendance() {
                   <th className="text-left py-2 px-2 min-w-[96px]">Date</th>
                   <th className="text-left py-2 px-2 min-w-[70px]">Login</th>
                   <th className="text-left py-2 px-2 min-w-[70px]">Logout</th>
-                  <th className="text-left py-2 px-2 min-w-[160px]">Location</th>
+                  <th className="text-left py-2 px-2 min-w-[140px]">Login loc</th>
+                  <th className="text-left py-2 px-2 min-w-[140px]">Logout loc</th>
                   <th className="text-left py-2 px-2 min-w-[56px]">Leads</th>
                   <th className="text-left py-2 px-2 min-w-[88px]">Status</th>
                 </tr>
@@ -222,7 +225,7 @@ export default function StaffAttendance() {
               <tbody>
                 {filteredLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-500">
+                    <td colSpan={9} className="py-8 text-center text-slate-500">
                       {employeeId ? "No attendance for this staff in the selected date range." : "No attendance recorded for this date range."}
                     </td>
                   </tr>
@@ -234,7 +237,8 @@ export default function StaffAttendance() {
                       <td className="py-2 px-2 whitespace-nowrap">{l.date}</td>
                       <td className="py-2 px-2">{l.loginAt ? new Date(l.loginAt).toLocaleTimeString() : "—"}</td>
                       <td className="py-2 px-2">{l.logoutAt ? new Date(l.logoutAt).toLocaleTimeString() : "—"}</td>
-                      <td className="py-2 px-2 max-w-[200px] truncate" title={l.loginLocation ?? undefined}>{l.loginLocation ?? "—"}</td>
+                      <td className="py-2 px-2 max-w-[180px] truncate" title={l.loginLocation ?? undefined}>{l.loginLocation ?? "—"}</td>
+                      <td className="py-2 px-2 max-w-[180px] truncate" title={(l as any).logoutLocation ?? (l as any).logout_location ?? undefined}>{(l as any).logoutLocation ?? (l as any).logout_location ?? "—"}</td>
                       <td className="py-2 px-2">{l.leadsCount}</td>
                       <td className="py-2 px-2">{l.status}</td>
                     </tr>

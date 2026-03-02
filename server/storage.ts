@@ -46,7 +46,11 @@ export interface IStorage {
     dateStr: string,
     options?: { loginLocation?: string | null; loginIp?: string | null; loginLat?: string | null; loginLng?: string | null }
   ): Promise<AttendanceLog>;
-  setAttendanceLogout(employeeId: string, dateStr: string): Promise<AttendanceLog>;
+  setAttendanceLogout(
+    employeeId: string,
+    dateStr: string,
+    options?: { logoutLocation?: string | null; logoutLat?: string | null; logoutLng?: string | null }
+  ): Promise<AttendanceLog>;
   updateAttendanceFromLeadsCount(employeeId: string, dateStr: string, count: number): Promise<void>;
 
   createLead(data: InsertLead): Promise<Lead>;
@@ -218,6 +222,9 @@ export class DrizzleStorage implements IStorage {
           loginIp: data.loginIp ?? existing.loginIp,
           loginLat: data.loginLat ?? existing.loginLat,
           loginLng: data.loginLng ?? existing.loginLng,
+          logoutLocation: (data as any).logoutLocation ?? (existing as any).logoutLocation,
+          logoutLat: (data as any).logoutLat ?? (existing as any).logoutLat,
+          logoutLng: (data as any).logoutLng ?? (existing as any).logoutLng,
           leadsCount: data.leadsCount ?? existing.leadsCount,
           status: data.status ?? existing.status,
           updatedAt: new Date(),
@@ -266,14 +273,23 @@ export class DrizzleStorage implements IStorage {
     });
   }
 
-  async setAttendanceLogout(employeeId: string, dateStr: string): Promise<AttendanceLog> {
+  async setAttendanceLogout(
+    employeeId: string,
+    dateStr: string,
+    options?: { logoutLocation?: string | null; logoutLat?: string | null; logoutLng?: string | null }
+  ): Promise<AttendanceLog> {
     await guardDb();
     const existing = await this.getAttendanceLog(employeeId, dateStr);
     const now = new Date();
+    const logoutFields = {
+      logoutLocation: options?.logoutLocation !== undefined ? options.logoutLocation : undefined,
+      logoutLat: options?.logoutLat !== undefined ? options.logoutLat : undefined,
+      logoutLng: options?.logoutLng !== undefined ? options.logoutLng : undefined,
+    };
     if (existing) {
       await db
         .update(attendanceLogs)
-        .set({ logoutAt: now, updatedAt: now })
+        .set({ logoutAt: now, updatedAt: now, ...logoutFields })
         .where(eq(attendanceLogs.id, existing.id));
       const [updated] = await db.select().from(attendanceLogs).where(eq(attendanceLogs.id, existing.id)).limit(1);
       if (!updated) throw new Error("Failed to update logout");
@@ -285,6 +301,7 @@ export class DrizzleStorage implements IStorage {
       logoutAt: now,
       leadsCount: 0,
       status: "incomplete",
+      ...logoutFields,
     });
   }
 
