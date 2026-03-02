@@ -1637,6 +1637,59 @@ export async function registerRoutes(
             if (!Number.isNaN(n)) expenditureMisc += n;
           }
         }
+
+        // FTD Achieved: loans and insurance counts for FTD (today), MTD, YTD
+        const leadsFtd = leadsTodayFiltered;
+        const leadsMtdFiltered = filterByVisible(leadsMtd);
+        const leadsYtdFiltered = filterByVisible(leadsYtd);
+        const insuranceLeadsFtd = filterByVisible(await storage.getAllInsuranceLeads({ fromDate: today, toDate: today }));
+        const insuranceLeadsMtd = filterByVisible(insuranceLeadsMonth);
+        const insuranceLeadsYtd = filterByVisible(await storage.getAllInsuranceLeads({ fromDate: ytdStart, toDate: ytdEnd }));
+
+        const countLoans = (arr: { status?: string | null }[], status: string) =>
+          arr.filter((l) => (l.status || "").toLowerCase() === status.toLowerCase()).length;
+        const countIns = (
+          arr: { businessType?: string | null; insuranceType?: string | null; insuranceCategory?: string | null }[],
+          kind: "new" | "rollover" | "ownRenewal" | "nonMotor" | "life" | "health"
+        ) => {
+          if (kind === "new") return arr.filter((i) => (i.businessType || "").trim() === "New").length;
+          if (kind === "rollover") return arr.filter((i) => (i.businessType || "").trim() === "Rollover").length;
+          if (kind === "ownRenewal") return arr.filter((i) => (i.businessType || "").trim() === "Own Renewal").length;
+          if (kind === "nonMotor") return arr.filter((i) => (i.insuranceCategory || "").trim() === "Non-Motor").length;
+          if (kind === "life") return arr.filter((i) => (i.insuranceType || "").trim() === "Life").length;
+          if (kind === "health") return arr.filter((i) => (i.insuranceType || "").trim() === "Health").length;
+          return 0;
+        };
+
+        payload.ftdAchieved = {
+          loans: {
+            logged: { ftd: leadsFtd.length, mtd: leadsMtdFiltered.length, ytd: leadsYtdFiltered.length },
+            sanctioned: {
+              ftd: countLoans(leadsFtd, "sanctioned"),
+              mtd: countLoans(leadsMtdFiltered, "sanctioned"),
+              ytd: countLoans(leadsYtdFiltered, "sanctioned"),
+            },
+            disbursed: {
+              ftd: countLoans(leadsFtd, "disbursed"),
+              mtd: countLoans(leadsMtdFiltered, "disbursed"),
+              ytd: countLoans(leadsYtdFiltered, "disbursed"),
+            },
+            rejected: {
+              ftd: countLoans(leadsFtd, "rejected"),
+              mtd: countLoans(leadsMtdFiltered, "rejected"),
+              ytd: countLoans(leadsYtdFiltered, "rejected"),
+            },
+          },
+          insurance: {
+            new: { ftd: countIns(insuranceLeadsFtd, "new"), mtd: countIns(insuranceLeadsMtd, "new"), ytd: countIns(insuranceLeadsYtd, "new") },
+            rollover: { ftd: countIns(insuranceLeadsFtd, "rollover"), mtd: countIns(insuranceLeadsMtd, "rollover"), ytd: countIns(insuranceLeadsYtd, "rollover") },
+            ownRenewal: { ftd: countIns(insuranceLeadsFtd, "ownRenewal"), mtd: countIns(insuranceLeadsMtd, "ownRenewal"), ytd: countIns(insuranceLeadsYtd, "ownRenewal") },
+            nonMotor: { ftd: countIns(insuranceLeadsFtd, "nonMotor"), mtd: countIns(insuranceLeadsMtd, "nonMotor"), ytd: countIns(insuranceLeadsYtd, "nonMotor") },
+            life: { ftd: countIns(insuranceLeadsFtd, "life"), mtd: countIns(insuranceLeadsMtd, "life"), ytd: countIns(insuranceLeadsYtd, "life") },
+            health: { ftd: countIns(insuranceLeadsFtd, "health"), mtd: countIns(insuranceLeadsMtd, "health"), ytd: countIns(insuranceLeadsYtd, "health") },
+          },
+        };
+
         payload.adminKpi = {
           companyTargetYtd,
           companyAchievedYtd,

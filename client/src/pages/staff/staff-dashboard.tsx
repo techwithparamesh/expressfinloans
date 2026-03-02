@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { getAuthMe, staffJson } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
 import { useMonthlyTargetPopup, useConveyancePolicyPopup } from "./staff-layout";
-import { Users, Calendar, FileText, CheckCircle, Download, Target, TrendingUp, Percent, DollarSign, Car, Activity, Search } from "lucide-react";
+import { Calendar, Download, Target, TrendingUp, Percent, DollarSign, Car, Activity, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -57,6 +57,25 @@ type ExpenditureData = {
   monthLabel: string;
 };
 
+type FtdPeriod = { ftd: number; mtd: number; ytd: number };
+
+type FtdAchieved = {
+  loans: {
+    logged: FtdPeriod;
+    sanctioned: FtdPeriod;
+    disbursed: FtdPeriod;
+    rejected: FtdPeriod;
+  };
+  insurance: {
+    new: FtdPeriod;
+    rollover: FtdPeriod;
+    ownRenewal: FtdPeriod;
+    nonMotor: FtdPeriod;
+    life: FtdPeriod;
+    health: FtdPeriod;
+  };
+};
+
 type AttendanceRow = {
   employeeId: string;
   employeeName: string;
@@ -89,6 +108,7 @@ type Dashboard = {
   allEmployeeTargetAchievement?: TargetAchievementRow[];
   conveyanceReport?: ConveyanceRow[];
   expenditure?: ExpenditureData;
+  ftdAchieved?: FtdAchieved;
 };
 
 type EmployeeOption = {
@@ -212,7 +232,6 @@ export default function StaffDashboard() {
   if (loading) return <p className="text-slate-500">Loading…</p>;
   if (!data) return <p className="text-slate-500">Failed to load dashboard.</p>;
 
-  const present = data.attendanceToday.filter((a) => a.status === "present").length;
   const displayName = user?.fullName || user?.username || "Admin";
   const roleLabel = user?.role === "team_lead" ? "Team Lead" : "Admin";
 
@@ -251,46 +270,6 @@ export default function StaffDashboard() {
         <h1 className="text-2xl font-bold">Welcome, {displayName}</h1>
         <p className="text-slate-600 mt-0.5">{roleLabel} · Dashboard</p>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Employees</CardTitle>
-            <Users className="h-4 w-4 text-slate-500" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{data.employeeCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Present today</CardTitle>
-            <Calendar className="h-4 w-4 text-slate-500" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{present}</p>
-            <p className="text-xs text-slate-500">2 or more leads = present</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Leads today</CardTitle>
-            <FileText className="h-4 w-4 text-slate-500" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{data.leadsToday.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total closures</CardTitle>
-            <CheckCircle className="h-4 w-4 text-slate-500" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{data.totalClosures}</p>
-          </CardContent>
-        </Card>
-      </div>
-
       {user?.role === "admin" && data.adminKpi && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -353,6 +332,62 @@ export default function StaffDashboard() {
             </Card>
           </div>
         </>
+      )}
+
+      {user?.role === "admin" && data.ftdAchieved && (
+        <Card className="overflow-hidden">
+          <CardHeader className="bg-amber-50/80 border-b border-amber-100/80">
+            <CardTitle className="text-base font-semibold text-slate-800">FTD Achieved</CardTitle>
+            <CardDescription className="text-sm text-slate-600">
+              Loan and insurance performance by period — FTD (today), MTD (month-to-date), YTD (year-to-date)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="text-left py-3 px-4 font-medium text-slate-700 w-[180px]">Metric</th>
+                    <th className="text-right py-3 px-4 font-medium text-slate-700 tabular-nums">FTD</th>
+                    <th className="text-right py-3 px-4 font-medium text-slate-700 tabular-nums">MTD</th>
+                    <th className="text-right py-3 px-4 font-medium text-slate-700 tabular-nums">YTD</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-slate-100 bg-slate-50/50">
+                    <td colSpan={4} className="py-2 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Loans</td>
+                  </tr>
+                  {(["logged", "sanctioned", "disbursed", "rejected"] as const).map((key) => (
+                    <tr key={key} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                      <td className="py-2.5 px-4 text-slate-700 capitalize">{key === "logged" ? "Logged" : key}</td>
+                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved.loans[key].ftd}</td>
+                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved.loans[key].mtd}</td>
+                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved.loans[key].ytd}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-b border-slate-100 bg-slate-50/50">
+                    <td colSpan={4} className="py-2 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Insurance</td>
+                  </tr>
+                  {[
+                    { key: "new" as const, label: "New" },
+                    { key: "rollover" as const, label: "Rollover" },
+                    { key: "ownRenewal" as const, label: "Own Renewal" },
+                    { key: "nonMotor" as const, label: "Non Motor" },
+                    { key: "life" as const, label: "Life" },
+                    { key: "health" as const, label: "Health" },
+                  ].map(({ key, label }) => (
+                    <tr key={key} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                      <td className="py-2.5 px-4 text-slate-700">{label}</td>
+                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved.insurance[key].ftd}</td>
+                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved.insurance[key].mtd}</td>
+                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved.insurance[key].ytd}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {user?.role === "admin" && (
