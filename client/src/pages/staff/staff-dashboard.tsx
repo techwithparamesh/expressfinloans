@@ -284,36 +284,12 @@ export default function StaffDashboard() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">YTD Budget target</CardTitle>
-                <Target className="h-4 w-4 text-slate-500" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">
-                  {new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(data.adminKpi.companyTargetYtd)}
-                </p>
-                <p className="text-xs text-slate-500">Jan {new Date().getFullYear()} – current month</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">YTD Achieved</CardTitle>
-                <TrendingUp className="h-4 w-4 text-slate-500" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">
-                  {new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(data.adminKpi.companyAchievedYtd)}
-                </p>
-                <p className="text-xs text-slate-500">Disbursed / sanctioned</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">MTD Budget target</CardTitle>
                 <Target className="h-4 w-4 text-slate-500" />
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">
-                  {new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(data.adminKpi.companyTargetMtd)}
+                <p className="text-2xl font-bold tabular-nums">
+                  {new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(data.adminKpi.companyTargetMtd) || 0)}
                 </p>
                 <p className="text-xs text-slate-500">{data.adminKpi.monthLabel}</p>
               </CardContent>
@@ -324,10 +300,34 @@ export default function StaffDashboard() {
                 <TrendingUp className="h-4 w-4 text-slate-500" />
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">
-                  {new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(data.adminKpi.companyAchievedMtd)}
+                <p className="text-2xl font-bold tabular-nums">
+                  {new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(data.adminKpi.companyAchievedMtd) || 0)}
                 </p>
                 <p className="text-xs text-slate-500">{data.adminKpi.monthLabel}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">YTD Budget target</CardTitle>
+                <Target className="h-4 w-4 text-slate-500" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold tabular-nums">
+                  {new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(data.adminKpi.companyTargetYtd) || 0)}
+                </p>
+                <p className="text-xs text-slate-500">Jan {new Date().getFullYear()} – current month</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">YTD Achieved</CardTitle>
+                <TrendingUp className="h-4 w-4 text-slate-500" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold tabular-nums">
+                  {new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(data.adminKpi.companyAchievedYtd) || 0)}
+                </p>
+                <p className="text-xs text-slate-500">Disbursed / sanctioned</p>
               </CardContent>
             </Card>
           </div>

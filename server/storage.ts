@@ -95,6 +95,17 @@ async function guardDb() {
   if (!hasDb || !db) throw new Error("Database not configured (DATABASE_URL required for staff portal).");
 }
 
+/** Parse amount from string (handles currency symbols, commas). Returns 0 if invalid. */
+function parseLeadAmount(value: string | number | null | undefined): number {
+  if (value == null) return 0;
+  const s = String(value)
+    .replace(/[\s₹Rs.$]/gi, "")
+    .replace(/,/g, "")
+    .trim();
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export class DrizzleStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
     await guardDb();
@@ -675,11 +686,11 @@ export class DrizzleStorage implements IStorage {
       (l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned"
     );
     for (const l of disbursedOrSanctioned) {
-      const amt = (l as Lead).loanDisbursed || (l as Lead).amount;
-      if (amt) {
-        const n = parseFloat(String(amt).replace(/,/g, ""));
-        if (!Number.isNaN(n)) achievedBudget += n;
-      }
+      const amt =
+        (l as { loanDisbursed?: string | null }).loanDisbursed ??
+        (l as { loan_disbursed?: string | null }).loan_disbursed ??
+        (l as Lead).amount;
+      achievedBudget += parseLeadAmount(amt);
     }
     return { achievedBudget, achievedLeads: list.length };
   }

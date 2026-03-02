@@ -18,6 +18,26 @@ function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Parse amount from string (handles currency symbols, commas, spaces). Returns 0 if invalid. */
+function parseAmount(value: string | number | null | undefined): number {
+  if (value == null) return 0;
+  const s = String(value)
+    .replace(/[\s₹Rs.$]/gi, "")
+    .replace(/,/g, "")
+    .trim();
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Get disbursed/sanctioned amount from a lead (checks loanDisbursed, amount; supports camelCase and snake_case). */
+function getLeadAmount(lead: { loanDisbursed?: string | null; loan_disbursed?: string | null; amount?: string | null }): number {
+  const amt =
+    (lead as { loanDisbursed?: string | null }).loanDisbursed ??
+    (lead as { loan_disbursed?: string | null }).loan_disbursed ??
+    (lead as { amount?: string | null }).amount;
+  return parseAmount(amt);
+}
+
 /** Get list of { month, year } (month 1-12) between fromDate and toDate (YYYY-MM-DD). */
 function getMonthsInRange(fromDate: string, toDate: string): { month: number; year: number }[] {
   const out: { month: number; year: number }[] = [];
@@ -733,11 +753,7 @@ export async function registerRoutes(
           teamLeadsOpen += empLeads.filter((l) => (l.status || "").toLowerCase() === "open").length;
           empLeads.forEach((l) => {
             if ((l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned") {
-              const amt = (l as any).loanDisbursed || (l as any).amount;
-              if (amt) {
-                const n = parseFloat(String(amt).replace(/,/g, ""));
-                if (!Number.isNaN(n)) teamSanctionAmount += n;
-              }
+              teamSanctionAmount += getLeadAmount(l as any);
             }
           });
         }
@@ -772,11 +788,7 @@ export async function registerRoutes(
       let sanctionAmount = 0;
       leads.forEach((l) => {
         if ((l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned") {
-          const amt = l.loanDisbursed || l.amount;
-          if (amt) {
-            const n = parseFloat(String(amt).replace(/,/g, ""));
-            if (!Number.isNaN(n)) sanctionAmount += n;
-          }
+          sanctionAmount += getLeadAmount(l as any);
         }
       });
       const achievement = overallLeadsGenerated;
@@ -890,13 +902,13 @@ export async function registerRoutes(
       if (company && company.isLocked === 1) {
         return res.status(400).json({ message: "Targets are locked for this month" });
       }
-      const totalBudget = company ? parseFloat(String(company.totalBudget)) : 0;
+      const totalBudget = company ? parseAmount(company.totalBudget) : 0;
       const totalLeads = company?.totalLeads ?? 0;
       const leaderTargets = Array.isArray(body.leaderTargets) ? body.leaderTargets : [];
       let sumBudget = 0;
       let sumLeads = 0;
       for (const lt of leaderTargets) {
-        const b = parseFloat(String(lt.assignedBudget));
+        const b = parseAmount(lt.assignedBudget);
         const l = Number(lt.assignedLeads) || 0;
         if (!Number.isNaN(b)) sumBudget += b;
         sumLeads += l;
@@ -974,7 +986,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Valid month and year required" });
       }
       const leaderTarget = await storage.getMonthlyTarget(leaderId, month, year);
-      const leaderBudget = leaderTarget ? parseFloat(String(leaderTarget.assignedBudget)) : 0;
+      const leaderBudget = leaderTarget ? parseAmount(leaderTarget.assignedBudget) : 0;
       const leaderLeads = leaderTarget?.assignedLeads ?? 0;
       const company = await storage.getCompanyMonthlyTarget(month, year);
       if (company && company.isLocked === 1) {
@@ -984,8 +996,7 @@ export async function registerRoutes(
       let sumBudget = 0;
       let sumLeads = 0;
       for (const et of employeeTargets) {
-        const b = parseFloat(String(et.assignedBudget));
-        if (!Number.isNaN(b)) sumBudget += b;
+        sumBudget += parseAmount(et.assignedBudget);
         sumLeads += Number(et.assignedLeads) || 0;
       }
       const budgetMatch = Math.abs(sumBudget - leaderBudget) < 0.01;
@@ -1050,7 +1061,7 @@ export async function registerRoutes(
       }
       const target = await storage.getMonthlyTarget(userId, month, year);
       const { achievedBudget, achievedLeads } = await storage.getAchievedBudgetAndLeads(userId, month, year);
-      const assignedBudget = target ? parseFloat(String(target.assignedBudget)) : 0;
+      const assignedBudget = target ? parseAmount(target.assignedBudget) : 0;
       const achievementPct = assignedBudget > 0 ? Math.round((achievedBudget / assignedBudget) * 10000) / 100 : 0;
       await storage.upsertMonthlyPerformance({
         userId,
@@ -1453,7 +1464,7 @@ export async function registerRoutes(
         const leaderOwnTarget = await storage.getMonthlyTarget(teamLeadId, month, year);
         const leaderAssignedLeads = leaderOwnTarget ? leaderOwnTarget.assignedLeads : 0;
         const leaderAssignedBudget = leaderOwnTarget && leaderOwnTarget.assignedBudget
-          ? parseFloat(String(leaderOwnTarget.assignedBudget).replace(/,/g, "")) || 0
+          ? parseAmount(leaderOwnTarget.assignedBudget)
           : 0;
         let overallTarget = 0;
         const teamMembersSummary: { employeeId: string; employeeName: string; employeeNumber: string; monthlyTarget: number; leadsThisMonth: number; achievementPct: number; leadsConverted: number }[] = [];
@@ -1512,39 +1523,22 @@ export async function registerRoutes(
         let companyAchievedYtd = 0;
         for (let m = 1; m <= month; m++) {
           const ct = await storage.getCompanyMonthlyTarget(m, year);
-          if (ct?.totalBudget) {
-            const n = parseFloat(String(ct.totalBudget).replace(/,/g, ""));
-            if (!Number.isNaN(n)) companyTargetYtd += n;
-          }
+          if (ct?.totalBudget) companyTargetYtd += parseAmount(ct.totalBudget);
         }
         const leadsYtd = await storage.getAllLeads({ fromDate: ytdStart, toDate: ytdEnd });
         const disbursedYtd = leadsYtd.filter(
           (l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned"
         );
-        for (const l of disbursedYtd) {
-          const amt = (l as { loanDisbursed?: string; amount?: string }).loanDisbursed || (l as { amount?: string }).amount;
-          if (amt) {
-            const n = parseFloat(String(amt).replace(/,/g, ""));
-            if (!Number.isNaN(n)) companyAchievedYtd += n;
-          }
-        }
+        for (const l of disbursedYtd) companyAchievedYtd += getLeadAmount(l as any);
 
         const ctMtd = await storage.getCompanyMonthlyTarget(month, year);
-        const companyTargetMtd = ctMtd?.totalBudget
-          ? (parseFloat(String(ctMtd.totalBudget).replace(/,/g, "")) || 0)
-          : 0;
+        const companyTargetMtd = ctMtd?.totalBudget ? parseAmount(ctMtd.totalBudget) : 0;
         const leadsMtd = await storage.getAllLeads({ fromDate: monthStart, toDate: monthEnd });
         const disbursedMtd = leadsMtd.filter(
           (l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned"
         );
         let companyAchievedMtd = 0;
-        for (const l of disbursedMtd) {
-          const amt = (l as { loanDisbursed?: string; amount?: string }).loanDisbursed || (l as { amount?: string }).amount;
-          if (amt) {
-            const n = parseFloat(String(amt).replace(/,/g, ""));
-            if (!Number.isNaN(n)) companyAchievedMtd += n;
-          }
-        }
+        for (const l of disbursedMtd) companyAchievedMtd += getLeadAmount(l as any);
 
         const allEmployeeTargetAchievement: {
           employeeId: string;
@@ -1562,7 +1556,7 @@ export async function registerRoutes(
         for (const emp of employees) {
           const mt = targetByUser.get(emp.id);
           const targetLeads = mt ? mt.assignedLeads : (Number((emp as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
-          const assignedBudget = mt ? parseFloat(String(mt.assignedBudget).replace(/,/g, "")) || 0 : 0;
+          const assignedBudget = mt ? parseAmount(mt.assignedBudget) : 0;
           const { achievedBudget, achievedLeads } = await storage.getAchievedBudgetAndLeads(emp.id, month, year);
           const achievementPct = targetLeads > 0 ? Math.round((achievedLeads / targetLeads) * 100) : 0;
           const empLeads = await storage.getLeadsByEmployee(emp.id, monthStart, monthEnd);
@@ -1631,11 +1625,7 @@ export async function registerRoutes(
         const insuranceLeadsMonth = await storage.getAllInsuranceLeads({ fromDate: monthStart, toDate: monthEnd });
         let expenditureMisc = 0;
         for (const il of insuranceLeadsMonth) {
-          const v = (il as { miscellaneousExpenses?: string | null }).miscellaneousExpenses;
-          if (v) {
-            const n = parseFloat(String(v).replace(/,/g, ""));
-            if (!Number.isNaN(n)) expenditureMisc += n;
-          }
+          expenditureMisc += parseAmount((il as { miscellaneousExpenses?: string | null }).miscellaneousExpenses);
         }
 
         // FTD Achieved: loans and insurance counts for FTD (today), MTD, YTD
@@ -1768,18 +1758,12 @@ export async function registerRoutes(
           for (const { month: m, year: y } of monthsInRange) {
             const mt = await storage.getMonthlyTarget(emp.id, m, y);
             targetLeads += mt ? mt.assignedLeads : (Number((emp as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
-            assignedBudget += mt ? parseFloat(String(mt.assignedBudget).replace(/,/g, "")) || 0 : 0;
+            assignedBudget += mt ? parseAmount(mt.assignedBudget) : 0;
           }
           const empLeads = await storage.getLeadsByEmployee(emp.id, monthStart, monthEnd);
           let achievedBudget = 0;
           const disbursed = empLeads.filter((l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned");
-          for (const l of disbursed) {
-            const amt = (l as { loanDisbursed?: string; amount?: string }).loanDisbursed || (l as { amount?: string }).amount;
-            if (amt) {
-              const n = parseFloat(String(amt).replace(/,/g, ""));
-              if (!Number.isNaN(n)) achievedBudget += n;
-            }
-          }
+          for (const l of disbursed) achievedBudget += getLeadAmount(l as any);
           const achievedLeads = empLeads.length;
           const leadsConverted = disbursed.length;
           const achievementPct = targetLeads > 0 ? Math.round((achievedLeads / targetLeads) * 100) : 0;
@@ -1801,7 +1785,7 @@ export async function registerRoutes(
         for (const emp of employees) {
           const mt = targetByUser.get(emp.id);
           const targetLeads = mt ? mt.assignedLeads : (Number((emp as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
-          const assignedBudget = mt ? parseFloat(String(mt.assignedBudget).replace(/,/g, "")) || 0 : 0;
+          const assignedBudget = mt ? parseAmount(mt.assignedBudget) : 0;
           const { achievedBudget, achievedLeads } = await storage.getAchievedBudgetAndLeads(emp.id, month, year);
           const achievementPct = targetLeads > 0 ? Math.round((achievedLeads / targetLeads) * 100) : 0;
           const empLeads = await storage.getLeadsByEmployee(emp.id, monthStart, monthEnd);
@@ -1932,21 +1916,11 @@ export async function registerRoutes(
         (l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned"
       );
       let loans = 0;
-      for (const l of disbursedMtd) {
-        const amt = (l as { loanDisbursed?: string; amount?: string }).loanDisbursed || (l as { amount?: string }).amount;
-        if (amt) {
-          const n = parseFloat(String(amt).replace(/,/g, ""));
-          if (!Number.isNaN(n)) loans += n;
-        }
-      }
+      for (const l of disbursedMtd) loans += getLeadAmount(l as any);
       const insuranceLeadsMonth = await storage.getAllInsuranceLeads({ fromDate: monthStart, toDate: monthEnd });
       let miscellaneous = 0;
       for (const il of insuranceLeadsMonth) {
-        const v = (il as { miscellaneousExpenses?: string | null }).miscellaneousExpenses;
-        if (v) {
-          const n = parseFloat(String(v).replace(/,/g, ""));
-          if (!Number.isNaN(n)) miscellaneous += n;
-        }
+        miscellaneous += parseAmount((il as { miscellaneousExpenses?: string | null }).miscellaneousExpenses);
       }
       res.json({
         month: monthStart.slice(0, 7),
