@@ -32,6 +32,9 @@ import {
   BANKS_NBFCS,
   BANKS_LOGGED,
   INSURANCE_TYPES,
+  GENERAL_INSURANCE_SUBTYPES,
+  MOTOR_INSURANCE_OPTIONS,
+  NON_MOTOR_INSURANCE_OPTIONS,
   INSURANCE_TYPE_SUBTYPES,
   PROFILE_TYPES,
   BUSINESS_TYPES,
@@ -77,6 +80,8 @@ type InsuranceLead = {
   formLocation?: string | null;
   form_location?: string | null;
   insuranceType: string | null;
+  insuranceCategory?: string | null;
+  insurance_category?: string | null;
   insuranceSubtype: string | null;
   insuranceSubtypeOther: string | null;
   profileType: string | null;
@@ -174,6 +179,7 @@ const defaultInsuranceForm = () => ({
   mailId: "",
   location: "",
   insuranceType: "",
+  insuranceCategory: "",
   insuranceSubtype: "",
   insuranceSubtypeOther: "",
   profileType: "",
@@ -335,6 +341,7 @@ export default function StaffMyLeads() {
           mailId: insuranceForm.mailId || null,
           location: insuranceForm.location || null,
           insuranceType: insuranceForm.insuranceType || null,
+          insuranceCategory: insuranceForm.insuranceCategory || null,
           insuranceSubtype: insuranceForm.insuranceSubtype || null,
           insuranceSubtypeOther: insuranceForm.insuranceSubtypeOther?.trim() || null,
           profileType: insuranceForm.profileType || null,
@@ -1032,7 +1039,9 @@ export default function StaffMyLeads() {
                         setInsuranceForm((f) => ({
                           ...f,
                           insuranceType: v,
+                          insuranceCategory: "",
                           insuranceSubtype: "",
+                          insuranceSubtypeOther: "",
                         }))
                       }
                     >
@@ -1048,8 +1057,35 @@ export default function StaffMyLeads() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {insuranceForm.insuranceType === "General Insurance" && (
+                    <div className="space-y-1">
+                      <Label>Insurance Subtype</Label>
+                      <Select
+                        value={insuranceForm.insuranceCategory || undefined}
+                        onValueChange={(v) =>
+                          setInsuranceForm((f) => ({
+                            ...f,
+                            insuranceCategory: v,
+                            insuranceSubtype: "",
+                            insuranceSubtypeOther: "",
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {GENERAL_INSURANCE_SUBTYPES.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <div className="space-y-1">
-                    <Label>Insurance subtype</Label>
+                    <Label>Insurance Company</Label>
                     <Select
                       value={insuranceForm.insuranceSubtype || undefined}
                       onValueChange={(v) =>
@@ -1059,20 +1095,43 @@ export default function StaffMyLeads() {
                           insuranceSubtypeOther: v === "Other" || v === "Others" ? f.insuranceSubtypeOther : "",
                         }))
                       }
-                      disabled={!insuranceForm.insuranceType}
+                      disabled={
+                        !insuranceForm.insuranceType ||
+                        (insuranceForm.insuranceType === "General Insurance" && !insuranceForm.insuranceCategory)
+                      }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select type first" />
+                        <SelectValue
+                          placeholder={
+                            insuranceForm.insuranceType === "General Insurance"
+                              ? "Select subtype first"
+                              : "Select company"
+                          }
+                        />
                       </SelectTrigger>
                       <SelectContent>
-                        {insuranceForm.insuranceType &&
-                          INSURANCE_TYPE_SUBTYPES[
-                            insuranceForm.insuranceType as keyof typeof INSURANCE_TYPE_SUBTYPES
-                          ]?.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {s}
-                            </SelectItem>
-                          ))}
+                        {insuranceForm.insuranceType === "General Insurance" &&
+                        insuranceForm.insuranceCategory === "Motor"
+                          ? MOTOR_INSURANCE_OPTIONS.map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {s}
+                              </SelectItem>
+                            ))
+                          : insuranceForm.insuranceType === "General Insurance" &&
+                              insuranceForm.insuranceCategory === "Non-Motor"
+                            ? NON_MOTOR_INSURANCE_OPTIONS.map((s) => (
+                                <SelectItem key={s} value={s}>
+                                  {s}
+                                </SelectItem>
+                              ))
+                            : insuranceForm.insuranceType &&
+                              INSURANCE_TYPE_SUBTYPES[
+                                insuranceForm.insuranceType as keyof typeof INSURANCE_TYPE_SUBTYPES
+                              ]?.map((s) => (
+                                <SelectItem key={s} value={s}>
+                                  {s}
+                                </SelectItem>
+                              ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1081,7 +1140,7 @@ export default function StaffMyLeads() {
                   <div className="space-y-1">
                     <Label>Specify other</Label>
                     <Input
-                      placeholder="Enter subtype manually"
+                      placeholder="Enter company manually"
                       value={insuranceForm.insuranceSubtypeOther}
                       onChange={(e) =>
                         setInsuranceForm((f) => ({ ...f, insuranceSubtypeOther: e.target.value }))

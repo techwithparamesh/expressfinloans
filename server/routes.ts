@@ -487,6 +487,7 @@ export async function registerRoutes(
         mailId: body.mailId ?? null,
         location: body.location ?? null,
         insuranceType: body.insuranceType ?? null,
+        insuranceCategory: body.insuranceCategory ?? null,
         insuranceSubtype: body.insuranceSubtype ?? null,
         insuranceSubtypeOther: body.insuranceSubtypeOther ?? null,
         profileType: body.profileType ?? null,

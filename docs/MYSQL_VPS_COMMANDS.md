@@ -438,6 +438,14 @@ ALTER TABLE leads ADD COLUMN form_location VARCHAR(500) NULL;
 ALTER TABLE insurance_leads ADD COLUMN form_location VARCHAR(500) NULL;
 ```
 
+**Insurance Subtype (General Insurance: Motor / Non-Motor):** To store the category when insurance type is General Insurance:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE insurance_leads ADD COLUMN insurance_category VARCHAR(100) NULL;
+```
+
 Use `DESCRIBE table_name;` (see **Common database commands** below) to see which columns you already have.
 
 If you use **option A** (`npm run db:push`), Drizzle will apply these schema changes automatically.

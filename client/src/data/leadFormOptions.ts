@@ -133,7 +133,32 @@ export const BANKS_LOGGED = [
 /** Main insurance type (parent). */
 export const INSURANCE_TYPES = ["General Insurance", "Health", "Life"] as const;
 
-/** Subtypes (companies/providers) per insurance type. */
+/** When General Insurance is selected: Motor vs Non-Motor (Insurance Subtype). */
+export const GENERAL_INSURANCE_SUBTYPES = ["Motor", "Non-Motor"] as const;
+
+/** Options under Motor (Insurance Company when subtype = Motor). */
+export const MOTOR_INSURANCE_OPTIONS = [
+  "Car",
+  "Two Wheeler",
+  "Commercial Vehicle",
+  "Fleet",
+  "GAP",
+  "Other",
+] as const;
+
+/** Options under Non-Motor (Insurance Company when subtype = Non-Motor). */
+export const NON_MOTOR_INSURANCE_OPTIONS = [
+  "Fire",
+  "Health",
+  "Marine",
+  "Travel",
+  "Personal Accident",
+  "Liability",
+  "Engineering",
+  "Other",
+] as const;
+
+/** Subtypes (companies/providers) per insurance type. For General Insurance, use MOTOR_INSURANCE_OPTIONS / NON_MOTOR_INSURANCE_OPTIONS based on Insurance Subtype. */
 export const INSURANCE_TYPE_SUBTYPES: Record<(typeof INSURANCE_TYPES)[number], readonly string[]> = {
   "General Insurance": [
     "ICICI Lombard",
