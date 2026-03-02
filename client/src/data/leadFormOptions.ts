@@ -158,7 +158,7 @@ export const NON_MOTOR_INSURANCE_OPTIONS = [
   "Other",
 ] as const;
 
-/** Subtypes (companies/providers) per insurance type. For General Insurance, use MOTOR_INSURANCE_OPTIONS / NON_MOTOR_INSURANCE_OPTIONS based on Insurance Subtype. */
+/** Companies/providers per insurance type. Motor/Non-Motor options are shown on hover in Insurance Subtype (General Insurance only). */
 export const INSURANCE_TYPE_SUBTYPES: Record<(typeof INSURANCE_TYPES)[number], readonly string[]> = {
   "General Insurance": [
     "ICICI Lombard",

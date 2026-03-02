@@ -18,6 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { staffJson } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -1060,28 +1066,39 @@ export default function StaffMyLeads() {
                   {insuranceForm.insuranceType === "General Insurance" && (
                     <div className="space-y-1">
                       <Label>Insurance Subtype</Label>
-                      <Select
-                        value={insuranceForm.insuranceCategory || undefined}
-                        onValueChange={(v) =>
-                          setInsuranceForm((f) => ({
-                            ...f,
-                            insuranceCategory: v,
-                            insuranceSubtype: "",
-                            insuranceSubtypeOther: "",
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {GENERAL_INSURANCE_SUBTYPES.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {s}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <TooltipProvider delayDuration={300}>
+                        <Select
+                          value={insuranceForm.insuranceCategory || undefined}
+                          onValueChange={(v) =>
+                            setInsuranceForm((f) => ({
+                              ...f,
+                              insuranceCategory: v,
+                              insuranceSubtype: "",
+                              insuranceSubtypeOther: "",
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {GENERAL_INSURANCE_SUBTYPES.map((s) => (
+                              <Tooltip key={s}>
+                                <TooltipTrigger asChild>
+                                  <SelectItem value={s}>
+                                    {s}
+                                  </SelectItem>
+                                </TooltipTrigger>
+                                <TooltipContent side="right" className="max-w-[240px]">
+                                  {s === "Motor"
+                                    ? `Motor options: ${MOTOR_INSURANCE_OPTIONS.join(", ")}`
+                                    : `Non-Motor options: ${NON_MOTOR_INSURANCE_OPTIONS.join(", ")}`}
+                                </TooltipContent>
+                              </Tooltip>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TooltipProvider>
                     </div>
                   )}
                   <div className="space-y-1">
@@ -1110,32 +1127,28 @@ export default function StaffMyLeads() {
                         />
                       </SelectTrigger>
                       <SelectContent>
-                        {insuranceForm.insuranceType === "General Insurance" &&
-                        insuranceForm.insuranceCategory === "Motor"
-                          ? MOTOR_INSURANCE_OPTIONS.map((s) => (
-                              <SelectItem key={s} value={s}>
-                                {s}
-                              </SelectItem>
-                            ))
-                          : insuranceForm.insuranceType === "General Insurance" &&
-                              insuranceForm.insuranceCategory === "Non-Motor"
-                            ? NON_MOTOR_INSURANCE_OPTIONS.map((s) => (
-                                <SelectItem key={s} value={s}>
-                                  {s}
-                                </SelectItem>
-                              ))
-                            : insuranceForm.insuranceType &&
-                              INSURANCE_TYPE_SUBTYPES[
-                                insuranceForm.insuranceType as keyof typeof INSURANCE_TYPE_SUBTYPES
-                              ]?.map((s) => (
-                                <SelectItem key={s} value={s}>
-                                  {s}
-                                </SelectItem>
-                              ))}
+                        {insuranceForm.insuranceType &&
+                          INSURANCE_TYPE_SUBTYPES[
+                            insuranceForm.insuranceType as keyof typeof INSURANCE_TYPE_SUBTYPES
+                          ]?.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
+                {insuranceForm.insuranceType === "General Insurance" && insuranceForm.insuranceCategory === "Motor" && (
+                  <p className="text-xs text-muted-foreground">
+                    Motor options: {MOTOR_INSURANCE_OPTIONS.join(", ")}
+                  </p>
+                )}
+                {insuranceForm.insuranceType === "General Insurance" && insuranceForm.insuranceCategory === "Non-Motor" && (
+                  <p className="text-xs text-muted-foreground">
+                    Non-Motor options: {NON_MOTOR_INSURANCE_OPTIONS.join(", ")}
+                  </p>
+                )}
                 {(insuranceForm.insuranceSubtype === "Other" || insuranceForm.insuranceSubtype === "Others") && (
                   <div className="space-y-1">
                     <Label>Specify other</Label>
