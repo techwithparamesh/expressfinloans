@@ -428,6 +428,8 @@ CREATE TABLE IF NOT EXISTS leave_requests (
 | Attendance login location (login_location, login_ip, login_lat, login_lng) | **Attendance login location** ALTER block above |
 | Attendance logout location (logout_location, logout_lat, logout_lng) | **Attendance logout location** ALTER block above |
 | Lead form location (where employee generated the lead – form_location on leads and insurance_leads) | **Lead form location** ALTER block below |
+| Insurance product type (Motor/Non-Motor: Car, Two Wheeler, Fire, Health, etc.) | **Product type (Motor/Non-Motor options)** ALTER block below |
+| Vehicle number (Motor insurance) | **Vehicle number (Motor insurance)** ALTER block below |
 
 **Lead form location (where lead was generated):** To store the address/location where the employee opened the lead form (e.g. "Hyderabad, Telangana, India"):
 
@@ -444,6 +446,23 @@ ALTER TABLE insurance_leads ADD COLUMN form_location VARCHAR(500) NULL;
 USE expressfinloans;
 
 ALTER TABLE insurance_leads ADD COLUMN insurance_category VARCHAR(100) NULL;
+```
+
+**Product type (Motor/Non-Motor options – Car, Two Wheeler, Fire, Health, etc.):** To store the selected product type when General Insurance + Motor or Non-Motor is chosen:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE insurance_leads ADD COLUMN insurance_product_type VARCHAR(100) NULL AFTER insurance_category;
+ALTER TABLE insurance_leads ADD COLUMN insurance_product_type_other VARCHAR(255) NULL AFTER insurance_product_type;
+```
+
+**Vehicle number (Motor insurance):** To store vehicle registration number when General Insurance + Motor is selected:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE insurance_leads ADD COLUMN vehicle_number VARCHAR(50) NULL AFTER insurance_product_type_other;
 ```
 
 Use `DESCRIBE table_name;` (see **Common database commands** below) to see which columns you already have.

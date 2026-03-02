@@ -18,12 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { staffJson } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -88,6 +82,11 @@ type InsuranceLead = {
   insuranceType: string | null;
   insuranceCategory?: string | null;
   insurance_category?: string | null;
+  insuranceProductType?: string | null;
+  insurance_product_type?: string | null;
+  insuranceProductTypeOther?: string | null;
+  vehicleNumber?: string | null;
+  vehicle_number?: string | null;
   insuranceSubtype: string | null;
   insuranceSubtypeOther: string | null;
   profileType: string | null;
@@ -186,6 +185,9 @@ const defaultInsuranceForm = () => ({
   location: "",
   insuranceType: "",
   insuranceCategory: "",
+  insuranceProductType: "",
+  insuranceProductTypeOther: "",
+  vehicleNumber: "",
   insuranceSubtype: "",
   insuranceSubtypeOther: "",
   profileType: "",
@@ -273,6 +275,10 @@ export default function StaffMyLeads() {
     return (lead as Lead).formLocation ?? (lead as Lead).form_location ?? (lead as InsuranceLead).formLocation ?? (lead as InsuranceLead).form_location ?? null;
   }
 
+  function getVehicleNumberDisplay(lead: InsuranceLead): string | null {
+    return lead.vehicleNumber ?? lead.vehicle_number ?? null;
+  }
+
   async function handleLoanSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!loanForm.dateOfBirth?.trim()) {
@@ -348,6 +354,13 @@ export default function StaffMyLeads() {
           location: insuranceForm.location || null,
           insuranceType: insuranceForm.insuranceType || null,
           insuranceCategory: insuranceForm.insuranceCategory || null,
+          insuranceProductType: insuranceForm.insuranceProductType || null,
+          insuranceProductTypeOther: insuranceForm.insuranceProductTypeOther?.trim() || null,
+          vehicleNumber:
+            insuranceForm.insuranceType === "General Insurance" &&
+            insuranceForm.insuranceCategory === "Motor"
+              ? insuranceForm.vehicleNumber?.trim() || null
+              : null,
           insuranceSubtype: insuranceForm.insuranceSubtype || null,
           insuranceSubtypeOther: insuranceForm.insuranceSubtypeOther?.trim() || null,
           profileType: insuranceForm.profileType || null,
@@ -519,6 +532,12 @@ export default function StaffMyLeads() {
                         <span className="text-muted-foreground shrink-0 w-[110px]">Insurance type</span>
                         <span className="text-right">{l.insuranceType ?? "—"}</span>
                       </div>
+                      {getVehicleNumberDisplay(l) && (
+                        <div className="flex justify-between gap-3">
+                          <span className="text-muted-foreground shrink-0 w-[110px]">Vehicle number</span>
+                          <span className="text-right font-mono text-xs truncate">{getVehicleNumberDisplay(l)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between gap-3">
                         <span className="text-muted-foreground shrink-0 w-[110px]">Premium quoted</span>
                         <span className="text-right tabular-nums">{l.premiumQuoted ?? "—"}</span>
@@ -558,6 +577,7 @@ export default function StaffMyLeads() {
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Customer</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Contact</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Insurance type</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Vehicle no.</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Premium quoted</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Premium collected</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Difference</th>
@@ -573,6 +593,7 @@ export default function StaffMyLeads() {
                         <td className="py-2.5 pr-3">{l.customerName ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.contactNum ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.insuranceType ?? "—"}</td>
+                        <td className="py-2.5 pr-3 font-mono text-xs">{getVehicleNumberDisplay(l) ?? "—"}</td>
                         <td className="py-2.5 pr-3 tabular-nums">{l.premiumQuoted ?? "—"}</td>
                         <td className="py-2.5 pr-3 tabular-nums">{l.premiumCollected ?? "—"}</td>
                         <td className="py-2.5 pr-3 tabular-nums">{l.difference ?? "—"}</td>
@@ -1046,6 +1067,9 @@ export default function StaffMyLeads() {
                           ...f,
                           insuranceType: v,
                           insuranceCategory: "",
+                          insuranceProductType: "",
+                          insuranceProductTypeOther: "",
+                          vehicleNumber: "",
                           insuranceSubtype: "",
                           insuranceSubtypeOther: "",
                         }))
@@ -1066,39 +1090,78 @@ export default function StaffMyLeads() {
                   {insuranceForm.insuranceType === "General Insurance" && (
                     <div className="space-y-1">
                       <Label>Insurance Subtype</Label>
-                      <TooltipProvider delayDuration={300}>
-                        <Select
-                          value={insuranceForm.insuranceCategory || undefined}
-                          onValueChange={(v) =>
-                            setInsuranceForm((f) => ({
-                              ...f,
-                              insuranceCategory: v,
-                              insuranceSubtype: "",
-                              insuranceSubtypeOther: "",
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {GENERAL_INSURANCE_SUBTYPES.map((s) => (
-                              <Tooltip key={s}>
-                                <TooltipTrigger asChild>
-                                  <SelectItem value={s}>
-                                    {s}
-                                  </SelectItem>
-                                </TooltipTrigger>
-                                <TooltipContent side="right" className="max-w-[240px]">
-                                  {s === "Motor"
-                                    ? `Motor options: ${MOTOR_INSURANCE_OPTIONS.join(", ")}`
-                                    : `Non-Motor options: ${NON_MOTOR_INSURANCE_OPTIONS.join(", ")}`}
-                                </TooltipContent>
-                              </Tooltip>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TooltipProvider>
+                      <Select
+                        value={insuranceForm.insuranceCategory || undefined}
+                        onValueChange={(v) =>
+                          setInsuranceForm((f) => ({
+                            ...f,
+                            insuranceCategory: v,
+                            insuranceProductType: "",
+                            insuranceProductTypeOther: "",
+                            vehicleNumber: "",
+                            insuranceSubtype: "",
+                            insuranceSubtypeOther: "",
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {GENERAL_INSURANCE_SUBTYPES.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {insuranceForm.insuranceType === "General Insurance" &&
+                    (insuranceForm.insuranceCategory === "Motor" ||
+                      insuranceForm.insuranceCategory === "Non-Motor") && (
+                    <div className="space-y-1">
+                      <Label>
+                        {insuranceForm.insuranceCategory === "Motor" ? "Motor type" : "Non-Motor type"}
+                      </Label>
+                      <Select
+                        value={insuranceForm.insuranceProductType || undefined}
+                        onValueChange={(v) =>
+                          setInsuranceForm((f) => ({
+                            ...f,
+                            insuranceProductType: v,
+                            insuranceProductTypeOther:
+                              v === "Other" ? f.insuranceProductTypeOther : "",
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(insuranceForm.insuranceCategory === "Motor"
+                            ? MOTOR_INSURANCE_OPTIONS
+                            : NON_MOTOR_INSURANCE_OPTIONS
+                          ).map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {insuranceForm.insuranceType === "General Insurance" &&
+                    insuranceForm.insuranceCategory === "Motor" && (
+                    <div className="space-y-1 col-span-2">
+                      <Label>Vehicle number</Label>
+                      <Input
+                        placeholder="e.g. AP01AB1234"
+                        value={insuranceForm.vehicleNumber}
+                        onChange={(e) =>
+                          setInsuranceForm((f) => ({ ...f, vehicleNumber: e.target.value }))
+                        }
+                      />
                     </div>
                   )}
                   <div className="space-y-1">
@@ -1139,16 +1202,24 @@ export default function StaffMyLeads() {
                     </Select>
                   </div>
                 </div>
-                {insuranceForm.insuranceType === "General Insurance" && insuranceForm.insuranceCategory === "Motor" && (
-                  <p className="text-xs text-muted-foreground">
-                    Motor options: {MOTOR_INSURANCE_OPTIONS.join(", ")}
-                  </p>
-                )}
-                {insuranceForm.insuranceType === "General Insurance" && insuranceForm.insuranceCategory === "Non-Motor" && (
-                  <p className="text-xs text-muted-foreground">
-                    Non-Motor options: {NON_MOTOR_INSURANCE_OPTIONS.join(", ")}
-                  </p>
-                )}
+                {insuranceForm.insuranceType === "General Insurance" &&
+                  (insuranceForm.insuranceCategory === "Motor" ||
+                    insuranceForm.insuranceCategory === "Non-Motor") &&
+                  insuranceForm.insuranceProductType === "Other" && (
+                    <div className="space-y-1">
+                      <Label>Specify other (product type)</Label>
+                      <Input
+                        placeholder="Enter product type"
+                        value={insuranceForm.insuranceProductTypeOther}
+                        onChange={(e) =>
+                          setInsuranceForm((f) => ({
+                            ...f,
+                            insuranceProductTypeOther: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  )}
                 {(insuranceForm.insuranceSubtype === "Other" || insuranceForm.insuranceSubtype === "Others") && (
                   <div className="space-y-1">
                     <Label>Specify other</Label>
