@@ -291,7 +291,7 @@ export default function StaffDashboard() {
                 <p className="text-2xl font-bold">
                   {new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(data.adminKpi.companyTargetYtd)}
                 </p>
-                <p className="text-xs text-slate-500">Jan – current month</p>
+                <p className="text-xs text-slate-500">Jan {new Date().getFullYear()} – current month</p>
               </CardContent>
             </Card>
             <Card>

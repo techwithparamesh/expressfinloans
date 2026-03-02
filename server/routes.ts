@@ -1690,12 +1690,14 @@ export async function registerRoutes(
           },
         };
 
+        const monthName = now.toLocaleString("en-IN", { month: "long" });
+        const currentYear = now.getFullYear();
         payload.adminKpi = {
           companyTargetYtd,
           companyAchievedYtd,
           companyTargetMtd,
           companyAchievedMtd,
-          monthLabel: now.toLocaleString("default", { month: "long", year: "numeric" }),
+          monthLabel: `${monthName} ${currentYear}`,
         };
         payload.allEmployeeTargetAchievement = allEmployeeTargetAchievement;
         payload.conveyanceReport = conveyanceReport;
