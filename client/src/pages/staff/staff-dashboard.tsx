@@ -61,10 +61,13 @@ type FtdPeriod = { ftd: number; mtd: number; ytd: number };
 
 type FtdAchieved = {
   loans: {
-    logged: FtdPeriod;
+    open: FtdPeriod;
+    docCollected: FtdPeriod;
+    discrepancy: FtdPeriod;
     sanctioned: FtdPeriod;
     disbursed: FtdPeriod;
     rejected: FtdPeriod;
+    notInterested: FtdPeriod;
   };
   insurance: {
     new: FtdPeriod;
@@ -357,9 +360,17 @@ export default function StaffDashboard() {
                   <tr className="border-b border-slate-100 bg-slate-50/50">
                     <td colSpan={4} className="py-2 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Loans</td>
                   </tr>
-                  {(["logged", "sanctioned", "disbursed", "rejected"] as const).map((key) => (
+                  {[
+                    { key: "open" as const, label: "Open" },
+                    { key: "docCollected" as const, label: "Doc Collected" },
+                    { key: "discrepancy" as const, label: "Discrepancy" },
+                    { key: "sanctioned" as const, label: "Sanctioned" },
+                    { key: "disbursed" as const, label: "Disbursed" },
+                    { key: "rejected" as const, label: "Rejected" },
+                    { key: "notInterested" as const, label: "Not Interested" },
+                  ].map(({ key, label }) => (
                     <tr key={key} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                      <td className="py-2.5 px-4 text-slate-700 capitalize">{key === "logged" ? "Logged" : key}</td>
+                      <td className="py-2.5 px-4 text-slate-700">{label}</td>
                       <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved.loans[key].ftd}</td>
                       <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved.loans[key].mtd}</td>
                       <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved.loans[key].ytd}</td>

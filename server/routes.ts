@@ -1739,22 +1739,13 @@ export async function registerRoutes(
 
         payload.ftdAchieved = {
           loans: {
-            logged: { ftd: leadsFtd.length, mtd: leadsMtdFiltered.length, ytd: leadsYtdFiltered.length },
-            sanctioned: {
-              ftd: countLoans(leadsFtd, "sanctioned"),
-              mtd: countLoans(leadsMtdFiltered, "sanctioned"),
-              ytd: countLoans(leadsYtdFiltered, "sanctioned"),
-            },
-            disbursed: {
-              ftd: countLoans(leadsFtd, "disbursed"),
-              mtd: countLoans(leadsMtdFiltered, "disbursed"),
-              ytd: countLoans(leadsYtdFiltered, "disbursed"),
-            },
-            rejected: {
-              ftd: countLoans(leadsFtd, "rejected"),
-              mtd: countLoans(leadsMtdFiltered, "rejected"),
-              ytd: countLoans(leadsYtdFiltered, "rejected"),
-            },
+            open: { ftd: countLoans(leadsFtd, "open"), mtd: countLoans(leadsMtdFiltered, "open"), ytd: countLoans(leadsYtdFiltered, "open") },
+            docCollected: { ftd: countLoans(leadsFtd, "doc collected"), mtd: countLoans(leadsMtdFiltered, "doc collected"), ytd: countLoans(leadsYtdFiltered, "doc collected") },
+            discrepancy: { ftd: countLoans(leadsFtd, "discrepancy"), mtd: countLoans(leadsMtdFiltered, "discrepancy"), ytd: countLoans(leadsYtdFiltered, "discrepancy") },
+            sanctioned: { ftd: countLoans(leadsFtd, "sanctioned"), mtd: countLoans(leadsMtdFiltered, "sanctioned"), ytd: countLoans(leadsYtdFiltered, "sanctioned") },
+            disbursed: { ftd: countLoans(leadsFtd, "disbursed"), mtd: countLoans(leadsMtdFiltered, "disbursed"), ytd: countLoans(leadsYtdFiltered, "disbursed") },
+            rejected: { ftd: countLoans(leadsFtd, "rejected"), mtd: countLoans(leadsMtdFiltered, "rejected"), ytd: countLoans(leadsYtdFiltered, "rejected") },
+            notInterested: { ftd: countLoans(leadsFtd, "not interested"), mtd: countLoans(leadsMtdFiltered, "not interested"), ytd: countLoans(leadsYtdFiltered, "not interested") },
           },
           insurance: {
             new: { ftd: countIns(insuranceLeadsFtd, "new"), mtd: countIns(insuranceLeadsMtd, "new"), ytd: countIns(insuranceLeadsYtd, "new") },
