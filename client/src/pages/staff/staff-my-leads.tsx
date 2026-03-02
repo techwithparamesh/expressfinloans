@@ -93,6 +93,25 @@ type InsuranceLead = {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+/** Get current position if user allows; returns null on deny/error. Required before opening lead form. */
+function getCurrentPositionAsync(): Promise<{ latitude: number; longitude: number } | null> {
+  if (!navigator?.geolocation) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => resolve(null), 15000);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        clearTimeout(timeout);
+        resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      },
+      () => {
+        clearTimeout(timeout);
+        resolve(null);
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
+  });
+}
+
 /** Parse premium string to number; returns null if empty or invalid. */
 function parsePremium(value: string | null | undefined): number | null {
   if (value == null || String(value).trim() === "") return null;
@@ -177,6 +196,7 @@ export default function StaffMyLeads() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"choice" | "loan" | "insurance">("choice");
   const [saving, setSaving] = useState(false);
+  const [gettingLocationForForm, setGettingLocationForForm] = useState(false);
   const [loanForm, setLoanForm] = useState(defaultLoanForm);
   const [insuranceForm, setInsuranceForm] = useState(defaultInsuranceForm);
 
@@ -201,11 +221,25 @@ export default function StaffMyLeads() {
 
   useEffect(() => load(), []);
 
-  function openDialog() {
-    setStep("choice");
-    setLoanForm(defaultLoanForm());
-    setInsuranceForm(defaultInsuranceForm());
-    setOpen(true);
+  async function openDialog() {
+    setGettingLocationForForm(true);
+    try {
+      const coords = await getCurrentPositionAsync();
+      if (!coords) {
+        toast({
+          title: "Location required",
+          description: "Please allow location access to add a lead. The form will open only after location is captured.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setStep("choice");
+      setLoanForm(defaultLoanForm());
+      setInsuranceForm(defaultInsuranceForm());
+      setOpen(true);
+    } finally {
+      setGettingLocationForForm(false);
+    }
   }
 
   async function handleLoanSubmit(e: React.FormEvent) {
@@ -320,16 +354,16 @@ export default function StaffMyLeads() {
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl sm:text-2xl font-bold">My leads</h1>
-        <Button onClick={openDialog}>
-          <Plus className="h-4 w-4 mr-2" />
-          Lead form
+        <Button onClick={() => openDialog()} disabled={gettingLocationForForm}>
+          <Plus className="h-4 w-4 mr-2 shrink-0" />
+          {gettingLocationForForm ? "Getting location…" : "Lead form"}
         </Button>
       </div>
 
       <Card className="overflow-hidden">
         <CardHeader className="p-4 sm:p-6">
           <CardTitle className="text-base sm:text-lg">Leads this month</CardTitle>
-          <CardDescription className="text-xs sm:text-sm">Add 2 or more loan leads per day to be marked present.</CardDescription>
+          <CardDescription className="text-xs sm:text-sm">Add 2 or more loan leads per day to be marked present. Location is captured when you open the lead form; allow access when prompted.</CardDescription>
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
           <Tabs defaultValue="loan">
