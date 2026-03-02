@@ -686,7 +686,7 @@ export async function registerRoutes(
     try {
       const userId = (req.user as any).id;
       const body = req.body || {};
-      const leaveType = (body.leaveType as string)?.trim() || "personal";
+      const leaveType = (body.leaveType as string)?.trim() || "on_duty";
       const startDate = (body.startDate as string)?.trim();
       const endDate = (body.endDate as string)?.trim();
       const reason = (body.reason as string)?.trim() || null;
@@ -696,7 +696,7 @@ export async function registerRoutes(
       if (startDate > endDate) {
         return res.status(400).json({ message: "Start date must be before or equal to end date" });
       }
-      const validTypes = ["personal", "sick", "casual", "emergency", "other"];
+      const validTypes = ["on_duty", "missed_punch", "on_leave", "loss_of_pay", "personal", "sick", "casual", "emergency", "other"];
       if (!validTypes.includes(leaveType)) {
         return res.status(400).json({ message: "Invalid leave type" });
       }

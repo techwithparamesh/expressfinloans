@@ -15,6 +15,10 @@ import { useToast } from "@/hooks/use-toast";
 import { CalendarCheck } from "lucide-react";
 
 const LEAVE_TYPES = [
+  { value: "on_duty", label: "On Duty" },
+  { value: "missed_punch", label: "Missed Punch" },
+  { value: "on_leave", label: "On Leave" },
+  { value: "loss_of_pay", label: "Loss of Pay" },
   { value: "personal", label: "Personal leave" },
   { value: "sick", label: "Sick leave" },
   { value: "casual", label: "Casual leave" },
@@ -41,7 +45,7 @@ export default function StaffMyLeave() {
   const { toast } = useToast();
   const [list, setList] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [leaveType, setLeaveType] = useState<string>("personal");
+  const [leaveType, setLeaveType] = useState<string>("on_duty");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");

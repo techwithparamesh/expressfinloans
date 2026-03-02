@@ -15,10 +15,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Check, X } from "lucide-react";
 
 const LEAVE_TYPES: Record<string, string> = {
-  personal: "Personal",
-  sick: "Sick",
-  casual: "Casual",
-  emergency: "Emergency",
+  on_duty: "On Duty",
+  missed_punch: "Missed Punch",
+  on_leave: "On Leave",
+  loss_of_pay: "Loss of Pay",
+  personal: "Personal leave",
+  sick: "Sick leave",
+  casual: "Casual leave",
+  emergency: "Emergency leave",
   other: "Other",
 };
 

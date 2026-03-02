@@ -235,8 +235,18 @@ export const insertInsuranceLeadSchema = createInsertSchema(insuranceLeads).pick
 export type InsuranceLead = typeof insuranceLeads.$inferSelect;
 export type InsertInsuranceLead = z.infer<typeof insertInsuranceLeadSchema>;
 
-// Leave types for dropdown (personal, sick, casual, emergency, other)
-export const LEAVE_TYPES = ["personal", "sick", "casual", "emergency", "other"] as const;
+// Leave types for dropdown (attendance/leave options)
+export const LEAVE_TYPES = [
+  "on_duty",
+  "missed_punch",
+  "on_leave",
+  "loss_of_pay",
+  "personal",
+  "sick",
+  "casual",
+  "emergency",
+  "other",
+] as const;
 export type LeaveType = (typeof LEAVE_TYPES)[number];
 
 export const leaveRequests = mysqlTable("leave_requests", {
