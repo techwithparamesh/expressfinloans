@@ -474,6 +474,7 @@ USE expressfinloans;
 CREATE TABLE IF NOT EXISTS admin_expenses (
   id VARCHAR(36) PRIMARY KEY,
   purpose VARCHAR(100) NOT NULL,
+  purpose_other VARCHAR(255) NULL,
   address VARCHAR(500) NULL,
   month VARCHAR(7) NOT NULL,
   amount VARCHAR(50) NULL,
@@ -486,6 +487,12 @@ CREATE TABLE IF NOT EXISTS admin_expenses (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
+```
+
+If the table already exists without `purpose_other`, add it:
+
+```sql
+ALTER TABLE admin_expenses ADD COLUMN purpose_other VARCHAR(255) NULL AFTER purpose;
 ```
 
 Use `DESCRIBE table_name;` (see **Common database commands** below) to see which columns you already have.

@@ -274,6 +274,7 @@ export type AdminExpensePurpose = (typeof ADMIN_EXPENSE_PURPOSES)[number];
 export const adminExpenses = mysqlTable("admin_expenses", {
   id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
   purpose: varchar("purpose", { length: 100 }).notNull(),
+  purposeOther: varchar("purpose_other", { length: 255 }),
   address: varchar("address", { length: 500 }),
   month: varchar("month", { length: 7 }).notNull(), // YYYY-MM
   amount: varchar("amount", { length: 50 }),
@@ -288,6 +289,7 @@ export const adminExpenses = mysqlTable("admin_expenses", {
 
 export const insertAdminExpenseSchema = createInsertSchema(adminExpenses).pick({
   purpose: true,
+  purposeOther: true,
   address: true,
   month: true,
   amount: true,

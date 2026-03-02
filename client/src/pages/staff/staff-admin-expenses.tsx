@@ -34,9 +34,33 @@ import { Plus, Pencil, Trash2, Receipt } from "lucide-react";
 
 const PURPOSES = ["Rent", "Electricity Bill", "Water Bill", "Other"] as const;
 
+const MONTH_OPTIONS = [
+  "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12",
+] as const;
+const MONTH_LABELS: Record<string, string> = {
+  "01": "January", "02": "February", "03": "March", "04": "April", "05": "May", "06": "June",
+  "07": "July", "08": "August", "09": "September", "10": "October", "11": "November", "12": "December",
+};
+
+function getYearOptions() {
+  const y = new Date().getFullYear();
+  return [y + 1, y, y - 1, y - 2].map(String);
+}
+
+function formatMonthLabel(ym: string) {
+  if (!ym || ym.length < 7) return ym;
+  const [y, m] = ym.split("-");
+  const monthIdx = parseInt(m, 10) - 1;
+  if (Number.isNaN(monthIdx) || monthIdx < 0 || monthIdx > 11) return ym;
+  const name = MONTH_LABELS[m] || m;
+  return `${name} ${y}`;
+}
+
 type AdminExpense = {
   id: string;
   purpose: string;
+  purposeOther?: string | null;
+  purpose_other?: string | null;
   address: string | null;
   month: string;
   amount: string | null;
@@ -57,6 +81,7 @@ const currentMonth = () => {
 
 const defaultForm = (): Record<string, string> => ({
   purpose: "",
+  purposeOther: "",
   address: "",
   month: currentMonth(),
   amount: "",
@@ -100,7 +125,8 @@ export default function StaffAdminExpenses() {
     setEditId(row.id);
     setForm({
       purpose: row.purpose || "",
-      address: row.address ?? row.address ?? "",
+      purposeOther: row.purposeOther ?? row.purpose_other ?? "",
+      address: row.address ?? "",
       month: row.month || currentMonth(),
       amount: row.amount ?? "",
       paymentDate: (row.paymentDate ?? row.payment_date ?? "").toString().slice(0, 10),
@@ -117,6 +143,7 @@ export default function StaffAdminExpenses() {
     try {
       const body = {
         purpose: form.purpose.trim(),
+        purposeOther: form.purpose === "Other" ? (form.purposeOther.trim() || null) : null,
         month: form.month.trim().slice(0, 7),
         address: form.address.trim() || null,
         amount: form.amount.trim() || null,
@@ -186,12 +213,38 @@ export default function StaffAdminExpenses() {
         <CardContent className="flex flex-wrap gap-4">
           <div className="space-y-2">
             <Label>Month</Label>
-            <Input
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              className="w-[160px] [color-scheme:light]"
-            />
+            <div className="flex gap-2 items-center">
+              <Select
+                value={month ? month.slice(5, 7) : ""}
+                onValueChange={(mm) => setMonth(month ? `${month.slice(0, 4)}-${mm}` : `${new Date().getFullYear()}-${mm}`)}
+              >
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTH_OPTIONS.map((mm) => (
+                    <SelectItem key={mm} value={mm}>
+                      {MONTH_LABELS[mm]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={month ? month.slice(0, 4) : ""}
+                onValueChange={(yy) => setMonth(month ? `${yy}-${month.slice(5, 7)}` : `${yy}-${String(new Date().getMonth() + 1).padStart(2, "0")}`)}
+              >
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getYearOptions().map((y) => (
+                    <SelectItem key={y} value={y}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="space-y-2">
             <Label>Purpose</Label>
@@ -251,11 +304,13 @@ export default function StaffAdminExpenses() {
                 <tbody>
                   {list.map((row) => (
                     <tr key={row.id} className="border-b hover:bg-slate-50/50">
-                      <td className="py-2.5 px-3">{row.purpose}</td>
+                      <td className="py-2.5 px-3">
+                        {row.purpose === "Other" && (row.purposeOther ?? row.purpose_other) ? `Other: ${row.purposeOther ?? row.purpose_other}` : row.purpose}
+                      </td>
                       <td className="py-2.5 px-3 max-w-[180px] truncate" title={row.address ?? undefined}>
                         {row.address ?? "—"}
                       </td>
-                      <td className="py-2.5 px-3 whitespace-nowrap">{row.month}</td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">{formatMonthLabel(row.month)}</td>
                       <td className="py-2.5 px-3 text-right tabular-nums font-medium">
                         {row.amount != null && row.amount !== "" ? new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(String(row.amount).replace(/,/g, ""))) : "—"}
                       </td>
@@ -297,7 +352,7 @@ export default function StaffAdminExpenses() {
                 <Label>Purpose *</Label>
                 <Select
                   value={form.purpose || undefined}
-                  onValueChange={(v) => setForm((f) => ({ ...f, purpose: v }))}
+                  onValueChange={(v) => setForm((f) => ({ ...f, purpose: v, purposeOther: v === "Other" ? f.purposeOther : "" }))}
                   required
                 >
                   <SelectTrigger>
@@ -314,15 +369,52 @@ export default function StaffAdminExpenses() {
               </div>
               <div className="space-y-2">
                 <Label>Month *</Label>
-                <Input
-                  type="month"
-                  value={form.month}
-                  onChange={(e) => setForm((f) => ({ ...f, month: e.target.value }))}
-                  required
-                  className="[color-scheme:light]"
-                />
+                <div className="flex gap-2">
+                  <Select
+                    value={form.month ? form.month.slice(5, 7) : ""}
+                    onValueChange={(mm) => setForm((f) => ({ ...f, month: f.month ? `${f.month.slice(0, 4)}-${mm}` : `${new Date().getFullYear()}-${mm}` }))}
+                    required
+                  >
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MONTH_OPTIONS.map((mm) => (
+                        <SelectItem key={mm} value={mm}>
+                          {MONTH_LABELS[mm]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={form.month ? form.month.slice(0, 4) : ""}
+                    onValueChange={(yy) => setForm((f) => ({ ...f, month: f.month ? `${yy}-${f.month.slice(5, 7)}` : `${yy}-${String(new Date().getMonth() + 1).padStart(2, "0")}` }))}
+                    required
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue placeholder="Year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getYearOptions().map((y) => (
+                        <SelectItem key={y} value={y}>
+                          {y}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
+            {form.purpose === "Other" && (
+              <div className="space-y-2">
+                <Label>Specify other purpose</Label>
+                <Input
+                  value={form.purposeOther}
+                  onChange={(e) => setForm((f) => ({ ...f, purposeOther: e.target.value }))}
+                  placeholder="e.g. Internet, Stationery, Maintenance"
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Address</Label>
               <Input

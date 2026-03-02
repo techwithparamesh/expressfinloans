@@ -631,6 +631,7 @@ export async function registerRoutes(
       }
       const row = await storage.createAdminExpense({
         purpose,
+        purposeOther: (body.purposeOther as string)?.trim() || null,
         month,
         address: (body.address as string)?.trim() || null,
         amount: (body.amount as string)?.trim() || null,
@@ -654,6 +655,7 @@ export async function registerRoutes(
       const body = req.body || {};
       const data: Record<string, unknown> = {};
       if (body.purpose !== undefined) data.purpose = String(body.purpose).trim();
+      if (body.purposeOther !== undefined) data.purposeOther = body.purposeOther ? String(body.purposeOther).trim() : null;
       if (body.month !== undefined) data.month = String(body.month).trim().slice(0, 7);
       if (body.address !== undefined) data.address = body.address ? String(body.address).trim() : null;
       if (body.amount !== undefined) data.amount = body.amount ? String(body.amount).trim() : null;
