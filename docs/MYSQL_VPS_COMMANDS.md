@@ -430,6 +430,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
 | Lead form location (where employee generated the lead – form_location on leads and insurance_leads) | **Lead form location** ALTER block below |
 | Insurance product type (Motor/Non-Motor: Car, Two Wheeler, Fire, Health, etc.) | **Product type (Motor/Non-Motor options)** ALTER block below |
 | Vehicle number (Motor insurance) | **Vehicle number (Motor insurance)** ALTER block below |
+| Admin expenses (office ledger) | **Admin Expenses** CREATE TABLE block below |
 
 **Lead form location (where lead was generated):** To store the address/location where the employee opened the lead form (e.g. "Hyderabad, Telangana, India"):
 
@@ -463,6 +464,28 @@ ALTER TABLE insurance_leads ADD COLUMN insurance_product_type_other VARCHAR(255)
 USE expressfinloans;
 
 ALTER TABLE insurance_leads ADD COLUMN vehicle_number VARCHAR(50) NULL AFTER insurance_product_type_other;
+```
+
+**Admin Expenses (office ledger – Rent, Electricity, Water, Other):** To track admin expenses with purpose, address, month, amount, payment date, transaction detail, bank name, and remarks:
+
+```sql
+USE expressfinloans;
+
+CREATE TABLE IF NOT EXISTS admin_expenses (
+  id VARCHAR(36) PRIMARY KEY,
+  purpose VARCHAR(100) NOT NULL,
+  address VARCHAR(500) NULL,
+  month VARCHAR(7) NOT NULL,
+  amount VARCHAR(50) NULL,
+  payment_date DATE NULL,
+  transaction_detail VARCHAR(500) NULL,
+  bank_name VARCHAR(255) NULL,
+  remarks TEXT NULL,
+  created_by VARCHAR(36) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+);
 ```
 
 Use `DESCRIBE table_name;` (see **Common database commands** below) to see which columns you already have.

@@ -595,6 +595,90 @@ export async function registerRoutes(
     }
   });
 
+  // --- Staff: admin expenses (admin only) ---
+  app.get("/api/staff/admin-expenses", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const month = (req.query.month as string)?.trim() || undefined;
+      const purpose = (req.query.purpose as string)?.trim() || undefined;
+      const list = await storage.getAdminExpenses({ month, purpose });
+      res.json(list);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/admin-expenses/:id", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const row = await storage.getAdminExpense(req.params.id);
+      if (!row) return res.status(404).json({ message: "Admin expense not found" });
+      res.json(row);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.post("/api/staff/admin-expenses", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const userId = (req.user as any).id;
+      const body = req.body || {};
+      const purpose = (body.purpose as string)?.trim();
+      const month = (body.month as string)?.trim();
+      if (!purpose || !month) {
+        return res.status(400).json({ message: "Purpose and month are required" });
+      }
+      if (!/^\d{4}-\d{2}$/.test(month)) {
+        return res.status(400).json({ message: "Month must be YYYY-MM" });
+      }
+      const row = await storage.createAdminExpense({
+        purpose,
+        month,
+        address: (body.address as string)?.trim() || null,
+        amount: (body.amount as string)?.trim() || null,
+        paymentDate: (body.paymentDate as string)?.trim()?.slice(0, 10) || null,
+        transactionDetail: (body.transactionDetail as string)?.trim() || null,
+        bankName: (body.bankName as string)?.trim() || null,
+        remarks: (body.remarks as string)?.trim() || null,
+        createdBy: userId,
+      } as any);
+      res.status(201).json(row);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.patch("/api/staff/admin-expenses/:id", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const id = req.params.id;
+      const existing = await storage.getAdminExpense(id);
+      if (!existing) return res.status(404).json({ message: "Admin expense not found" });
+      const body = req.body || {};
+      const data: Record<string, unknown> = {};
+      if (body.purpose !== undefined) data.purpose = String(body.purpose).trim();
+      if (body.month !== undefined) data.month = String(body.month).trim().slice(0, 7);
+      if (body.address !== undefined) data.address = body.address ? String(body.address).trim() : null;
+      if (body.amount !== undefined) data.amount = body.amount ? String(body.amount).trim() : null;
+      if (body.paymentDate !== undefined) data.paymentDate = body.paymentDate ? String(body.paymentDate).trim().slice(0, 10) : null;
+      if (body.transactionDetail !== undefined) data.transactionDetail = body.transactionDetail ? String(body.transactionDetail).trim() : null;
+      if (body.bankName !== undefined) data.bankName = body.bankName ? String(body.bankName).trim() : null;
+      if (body.remarks !== undefined) data.remarks = body.remarks ? String(body.remarks).trim() : null;
+      const updated = await storage.updateAdminExpense(id, data as any);
+      res.json(updated);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.delete("/api/staff/admin-expenses/:id", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const row = await storage.getAdminExpense(req.params.id);
+      if (!row) return res.status(404).json({ message: "Admin expense not found" });
+      await storage.deleteAdminExpense(req.params.id);
+      res.status(204).send();
+    } catch (e) {
+      next(e);
+    }
+  });
+
   // --- Staff: leave requests ---
   app.post("/api/staff/leave", requireAuth, async (req, res, next) => {
     try {

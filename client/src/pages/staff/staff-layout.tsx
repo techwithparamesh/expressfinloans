@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   Target,
+  Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -150,6 +151,7 @@ export default function StaffLayout({
     ...(isAdmin || isTeamLead ? [{ href: path(basePath, "/dashboard"), label: "Dashboard", icon: LayoutDashboard }] : []),
     ...(isEmployee ? [{ href: path(basePath, "/my-dashboard"), label: "My dashboard", icon: LayoutDashboard }] : []),
     ...(isAdmin ? [{ href: path(basePath, "/employees"), label: "Employees", icon: Users }] : []),
+    ...(isAdmin ? [{ href: path(basePath, "/admin-expenses"), label: "Admin expenses", icon: Receipt }] : []),
     ...(isTeamLead ? [{ href: path(basePath, "/my-team"), label: "My team", icon: Users }] : []),
     ...(isAdmin || isTeamLead ? [{ href: path(basePath, "/target-allocation"), label: "Target allocation", icon: Target }] : []),
     ...(isAdmin || isTeamLead ? [{ href: path(basePath, "/attendance"), label: "Attendance", icon: Calendar }] : []),

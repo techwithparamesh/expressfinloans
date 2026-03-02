@@ -9,6 +9,8 @@ import {
   type InsertInsuranceLead,
   type LeaveRequest,
   type InsertLeaveRequest,
+  type AdminExpense,
+  type InsertAdminExpense,
   type CompanyMonthlyTarget,
   type MonthlyTarget,
   type MonthlyPerformance,
@@ -18,6 +20,7 @@ import {
   leads,
   insuranceLeads,
   leaveRequests,
+  adminExpenses,
   companyMonthlyTarget,
   monthlyTargets,
   monthlyPerformance,
@@ -75,6 +78,12 @@ export interface IStorage {
   getLeaveRequestsByEmployee(employeeId: string, fromDate?: string, toDate?: string): Promise<LeaveRequest[]>;
   getLeaveRequestsForApproval(employeeIds: string[], filters?: { status?: string; fromDate?: string; toDate?: string }): Promise<LeaveRequest[]>;
   updateLeaveRequest(id: string, data: Partial<Pick<LeaveRequest, "status" | "approvedById" | "approvedAt">>): Promise<LeaveRequest | undefined>;
+
+  getAdminExpenses(filters?: { month?: string; purpose?: string }): Promise<AdminExpense[]>;
+  getAdminExpense(id: string): Promise<AdminExpense | undefined>;
+  createAdminExpense(data: InsertAdminExpense): Promise<AdminExpense>;
+  updateAdminExpense(id: string, data: Partial<InsertAdminExpense>): Promise<AdminExpense | undefined>;
+  deleteAdminExpense(id: string): Promise<void>;
 
   /** Joint visits count for team lead in date range (for conveyance). Returns 0 until joint visits are logged in CRM. */
   getJointVisitsCount(teamLeadId: string, fromDate: string, toDate: string): Promise<number>;
@@ -503,6 +512,43 @@ export class DrizzleStorage implements IStorage {
     await db.delete(insuranceLeads).where(eq(insuranceLeads.id, id));
   }
 
+  async getAdminExpenses(filters?: { month?: string; purpose?: string }): Promise<AdminExpense[]> {
+    await guardDb();
+    const conditions = [];
+    if (filters?.month) conditions.push(eq(adminExpenses.month, filters.month));
+    if (filters?.purpose) conditions.push(eq(adminExpenses.purpose, filters.purpose));
+    const query = conditions.length
+      ? db.select().from(adminExpenses).where(and(...conditions)).orderBy(desc(adminExpenses.month), desc(adminExpenses.createdAt))
+      : db.select().from(adminExpenses).orderBy(desc(adminExpenses.month), desc(adminExpenses.createdAt));
+    return query;
+  }
+
+  async getAdminExpense(id: string): Promise<AdminExpense | undefined> {
+    await guardDb();
+    const [r] = await db.select().from(adminExpenses).where(eq(adminExpenses.id, id)).limit(1);
+    return r;
+  }
+
+  async createAdminExpense(data: InsertAdminExpense): Promise<AdminExpense> {
+    await guardDb();
+    const id = crypto.randomUUID();
+    await db.insert(adminExpenses).values({ ...data, id } as any);
+    const row = await this.getAdminExpense(id);
+    if (!row) throw new Error("Failed to create admin expense");
+    return row;
+  }
+
+  async updateAdminExpense(id: string, data: Partial<InsertAdminExpense>): Promise<AdminExpense | undefined> {
+    await guardDb();
+    await db.update(adminExpenses).set({ ...data, updatedAt: new Date() }).where(eq(adminExpenses.id, id));
+    return this.getAdminExpense(id);
+  }
+
+  async deleteAdminExpense(id: string): Promise<void> {
+    await guardDb();
+    await db.delete(adminExpenses).where(eq(adminExpenses.id, id));
+  }
+
   async createLeaveRequest(data: InsertLeaveRequest): Promise<LeaveRequest> {
     await guardDb();
     const id = crypto.randomUUID();
@@ -906,6 +952,25 @@ class NoDbStorage implements IStorage {
     return undefined;
   }
   async deleteInsuranceLead() {
+    this.guard();
+  }
+  async getAdminExpenses() {
+    this.guard();
+    return [];
+  }
+  async getAdminExpense() {
+    this.guard();
+    return undefined;
+  }
+  async createAdminExpense() {
+    this.guard();
+    throw new Error("Not implemented");
+  }
+  async updateAdminExpense() {
+    this.guard();
+    return undefined;
+  }
+  async deleteAdminExpense() {
     this.guard();
   }
   async getJointVisitsCount() {
