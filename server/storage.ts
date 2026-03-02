@@ -570,8 +570,13 @@ export class DrizzleStorage implements IStorage {
   async getLeaveRequestsByEmployee(employeeId: string, fromDate?: string, toDate?: string): Promise<LeaveRequest[]> {
     await guardDb();
     const conditions = [eq(leaveRequests.employeeId, employeeId)];
-    if (fromDate) conditions.push(gte(leaveRequests.startDate, fromDate));
-    if (toDate) conditions.push(lte(leaveRequests.endDate, toDate));
+    if (fromDate && toDate) {
+      conditions.push(lte(leaveRequests.startDate, toDate));
+      conditions.push(gte(leaveRequests.endDate, fromDate));
+    } else {
+      if (fromDate) conditions.push(gte(leaveRequests.startDate, fromDate));
+      if (toDate) conditions.push(lte(leaveRequests.endDate, toDate));
+    }
     return db
       .select()
       .from(leaveRequests)

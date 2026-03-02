@@ -2053,6 +2053,13 @@ export async function registerRoutes(
         : employees;
       const rangeStart = new Date(monthStart).getTime();
       const rangeEnd = new Date(monthEnd).getTime();
+      /** Normalize date to YYYY-MM-DD for consistent export and correct range comparison. */
+      const toDateStr = (v: unknown): string => {
+        if (v == null) return "";
+        if (typeof v === "string") return v.slice(0, 10);
+        if (v instanceof Date) return v.toISOString().slice(0, 10);
+        return String(v).slice(0, 10);
+      };
       const rows: { employeeId: string; employeeNumber: string; name: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number }[] = [];
       const leadRows: { employeeNumber: string; employeeName: string; date: string; customerName: string; dateOfBirth: string; customerPhone: string; customerEmail: string; location: string; loanType: string; subLoanType: string; incomeType: string; amount: string; cibil: string; status: string; loanDisbursed: string; loanSanctionedAt: string; loanDisbursedAt: string; notes: string; payoutPercent: string; payoutAmount: string; paymentStatus: string }[] = [];
       const insuranceRows: { employeeNumber: string; employeeName: string; date: string; customerName: string; contactNum: string; mailId: string; location: string; insuranceType: string; insuranceSubtype: string; premiumQuoted: string; premiumCollected: string; status: string; notes: string }[] = [];
@@ -2063,7 +2070,7 @@ export async function registerRoutes(
         const empNum = (u as any).employeeNumber ?? "";
         const empName = (u as any).fullName?.trim() || u.username || "";
         const att = await storage.getAttendanceLogsByEmployee(uid, monthStart, monthEnd);
-        const daysPresent = att.filter((a) => (a.status || "").toLowerCase() === "present").length;
+        const daysPresent = att.length;
         const leadsList = await storage.getLeadsByEmployee(uid, monthStart, monthEnd);
         const insList = await storage.getInsuranceLeadsByEmployee(uid, monthStart, monthEnd);
         const leaveList = await storage.getLeaveRequestsByEmployee(uid, monthStart, monthEnd);
@@ -2087,45 +2094,47 @@ export async function registerRoutes(
           leaveDays,
         });
         for (const l of leadsList) {
+          const lAny = l as Record<string, unknown>;
           leadRows.push({
             employeeNumber: empNum,
             employeeName: empName,
-            date: String(l.date ?? ""),
-            customerName: String(l.customerName ?? ""),
-            dateOfBirth: String(l.dateOfBirth ?? ""),
-            customerPhone: String(l.customerPhone ?? ""),
-            customerEmail: String(l.customerEmail ?? ""),
-            location: String(l.location ?? ""),
-            loanType: String(l.loanType ?? ""),
-            subLoanType: String(l.subLoanType ?? ""),
-            incomeType: String(l.incomeType ?? ""),
-            amount: String(l.amount ?? ""),
-            cibil: String(l.cibil ?? ""),
-            status: String(l.status ?? ""),
-            loanDisbursed: String(l.loanDisbursed ?? ""),
-            loanSanctionedAt: l.loanSanctionedAt ? String(l.loanSanctionedAt) : "",
-            loanDisbursedAt: l.loanDisbursedAt ? String(l.loanDisbursedAt) : "",
-            notes: String(l.notes ?? ""),
-            payoutPercent: String(l.payoutPercent ?? ""),
-            payoutAmount: String(l.payoutAmount ?? ""),
-            paymentStatus: String(l.paymentStatus ?? ""),
+            date: toDateStr(lAny.date ?? l.date),
+            customerName: String(lAny.customerName ?? l.customerName ?? ""),
+            dateOfBirth: toDateStr(lAny.dateOfBirth ?? l.dateOfBirth),
+            customerPhone: String(lAny.customerPhone ?? l.customerPhone ?? ""),
+            customerEmail: String(lAny.customerEmail ?? l.customerEmail ?? ""),
+            location: String(lAny.location ?? l.location ?? ""),
+            loanType: String(lAny.loanType ?? l.loanType ?? ""),
+            subLoanType: String(lAny.subLoanType ?? l.subLoanType ?? ""),
+            incomeType: String(lAny.incomeType ?? l.incomeType ?? ""),
+            amount: String(lAny.amount ?? l.amount ?? ""),
+            cibil: String(lAny.cibil ?? l.cibil ?? ""),
+            status: String(lAny.status ?? l.status ?? ""),
+            loanDisbursed: String(lAny.loanDisbursed ?? l.loanDisbursed ?? ""),
+            loanSanctionedAt: toDateStr(lAny.loanSanctionedAt ?? l.loanSanctionedAt),
+            loanDisbursedAt: toDateStr(lAny.loanDisbursedAt ?? l.loanDisbursedAt),
+            notes: String(lAny.notes ?? l.notes ?? ""),
+            payoutPercent: String(lAny.payoutPercent ?? l.payoutPercent ?? ""),
+            payoutAmount: String(lAny.payoutAmount ?? l.payoutAmount ?? ""),
+            paymentStatus: String(lAny.paymentStatus ?? l.paymentStatus ?? ""),
           });
         }
         for (const i of insList) {
+          const iAny = i as Record<string, unknown>;
           insuranceRows.push({
             employeeNumber: empNum,
             employeeName: empName,
-            date: String(i.date ?? ""),
-            customerName: String(i.customerName ?? ""),
-            contactNum: String(i.contactNum ?? ""),
-            mailId: String(i.mailId ?? ""),
-            location: String(i.location ?? ""),
-            insuranceType: String(i.insuranceType ?? ""),
-            insuranceSubtype: String(i.insuranceSubtype ?? ""),
-            premiumQuoted: String(i.premiumQuoted ?? ""),
-            premiumCollected: String(i.premiumCollected ?? ""),
-            status: String(i.status ?? ""),
-            notes: String(i.notes ?? ""),
+            date: toDateStr(iAny.date ?? i.date),
+            customerName: String(iAny.customerName ?? i.customerName ?? ""),
+            contactNum: String(iAny.contactNum ?? i.contactNum ?? ""),
+            mailId: String(iAny.mailId ?? i.mailId ?? ""),
+            location: String(iAny.location ?? i.location ?? ""),
+            insuranceType: String(iAny.insuranceType ?? i.insuranceType ?? ""),
+            insuranceSubtype: String(iAny.insuranceSubtype ?? i.insuranceSubtype ?? ""),
+            premiumQuoted: String(iAny.premiumQuoted ?? i.premiumQuoted ?? ""),
+            premiumCollected: String(iAny.premiumCollected ?? i.premiumCollected ?? ""),
+            status: String(iAny.status ?? i.status ?? ""),
+            notes: String(iAny.notes ?? i.notes ?? ""),
           });
         }
         for (const a of att) {
@@ -2133,24 +2142,25 @@ export async function registerRoutes(
           attendanceRows.push({
             employeeNumber: empNum,
             employeeName: empName,
-            date: String(a.date ?? ""),
+            date: toDateStr(aRow.date ?? a.date),
             loginAt: a.loginAt ? new Date(a.loginAt).toLocaleString() : "",
             logoutAt: a.logoutAt ? new Date(a.logoutAt).toLocaleString() : "",
-            status: String(a.status ?? ""),
-            loginLocation: String(a.loginLocation ?? ""),
+            status: String(aRow.status ?? a.status ?? ""),
+            loginLocation: String(aRow.loginLocation ?? a.loginLocation ?? ""),
             logoutLocation: String(aRow.logoutLocation ?? aRow.logout_location ?? ""),
-            leadsCount: Number(a.leadsCount) || 0,
+            leadsCount: Number(aRow.leadsCount ?? a.leadsCount) || 0,
           });
         }
         for (const lv of leaveList) {
+          const lvAny = lv as Record<string, unknown>;
           leaveRows.push({
             employeeNumber: empNum,
             employeeName: empName,
-            leaveType: String(lv.leaveType ?? ""),
-            startDate: String(lv.startDate ?? ""),
-            endDate: String(lv.endDate ?? ""),
-            reason: String(lv.reason ?? ""),
-            status: String(lv.status ?? ""),
+            leaveType: String(lvAny.leaveType ?? lv.leaveType ?? ""),
+            startDate: toDateStr(lvAny.startDate ?? lv.startDate),
+            endDate: toDateStr(lvAny.endDate ?? lv.endDate),
+            reason: String(lvAny.reason ?? lv.reason ?? ""),
+            status: String(lvAny.status ?? lv.status ?? ""),
           });
         }
       }
