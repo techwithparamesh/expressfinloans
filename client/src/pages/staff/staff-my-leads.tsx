@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { staffJson } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useMyDashboardInvalidate } from "./staff-layout";
-import { Plus, ArrowLeft, FileText, Shield } from "lucide-react";
+import { Plus, ArrowLeft, FileText, Shield, MapPin } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
   LOAN_TYPES,
@@ -197,6 +197,7 @@ export default function StaffMyLeads() {
   const [step, setStep] = useState<"choice" | "loan" | "insurance">("choice");
   const [saving, setSaving] = useState(false);
   const [gettingLocationForForm, setGettingLocationForForm] = useState(false);
+  const [capturedFormLocation, setCapturedFormLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [loanForm, setLoanForm] = useState(defaultLoanForm);
   const [insuranceForm, setInsuranceForm] = useState(defaultInsuranceForm);
 
@@ -233,6 +234,7 @@ export default function StaffMyLeads() {
         });
         return;
       }
+      setCapturedFormLocation(coords);
       setStep("choice");
       setLoanForm(defaultLoanForm());
       setInsuranceForm(defaultInsuranceForm());
@@ -539,7 +541,13 @@ export default function StaffMyLeads() {
         </CardContent>
       </Card>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(open) => {
+          setOpen(open);
+          if (!open) setCapturedFormLocation(null);
+        }}
+      >
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           {step === "choice" && (
             <>
@@ -547,6 +555,14 @@ export default function StaffMyLeads() {
                 <DialogTitle>Lead form</DialogTitle>
                 <DialogDescription>Choose the type of lead to add.</DialogDescription>
               </DialogHeader>
+              {capturedFormLocation && (
+                <div className="flex items-start gap-2 rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                  <MapPin className="h-4 w-4 shrink-0 mt-0.5 text-slate-500" />
+                  <span>
+                    <strong>Location captured:</strong> {capturedFormLocation.latitude.toFixed(5)}, {capturedFormLocation.longitude.toFixed(5)}
+                  </span>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4 py-4">
                 <Button
                   type="button"
@@ -581,6 +597,12 @@ export default function StaffMyLeads() {
                   <DialogDescription>Add a new loan lead.</DialogDescription>
                 </div>
               </DialogHeader>
+              {capturedFormLocation && (
+                <div className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 rounded px-2 py-1.5">
+                  <MapPin className="h-3.5 w-3.5 shrink-0" />
+                  <span>Location: {capturedFormLocation.latitude.toFixed(5)}, {capturedFormLocation.longitude.toFixed(5)}</span>
+                </div>
+              )}
               <form onSubmit={handleLoanSubmit} className="space-y-6">
                 {/* Basic Details */}
                 <div className="space-y-4">
@@ -895,6 +917,12 @@ export default function StaffMyLeads() {
                   <DialogDescription>Add a new insurance lead.</DialogDescription>
                 </div>
               </DialogHeader>
+              {capturedFormLocation && (
+                <div className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 rounded px-2 py-1.5">
+                  <MapPin className="h-3.5 w-3.5 shrink-0" />
+                  <span>Location: {capturedFormLocation.latitude.toFixed(5)}, {capturedFormLocation.longitude.toFixed(5)}</span>
+                </div>
+              )}
               <form onSubmit={handleInsuranceSubmit} className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
