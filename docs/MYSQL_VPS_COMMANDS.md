@@ -427,6 +427,16 @@ CREATE TABLE IF NOT EXISTS leave_requests (
 | Miscellaneous Expenses (insurance lead) | **Insurance lead form (Miscellaneous Expenses)** ALTER block above |
 | Attendance login location (login_location, login_ip, login_lat, login_lng) | **Attendance login location** ALTER block above |
 | Attendance logout location (logout_location, logout_lat, logout_lng) | **Attendance logout location** ALTER block above |
+| Lead form location (where employee generated the lead – form_location on leads and insurance_leads) | **Lead form location** ALTER block below |
+
+**Lead form location (where lead was generated):** To store the address/location where the employee opened the lead form (e.g. "Hyderabad, Telangana, India"):
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE leads ADD COLUMN form_location VARCHAR(500) NULL;
+ALTER TABLE insurance_leads ADD COLUMN form_location VARCHAR(500) NULL;
+```
 
 Use `DESCRIBE table_name;` (see **Common database commands** below) to see which columns you already have.
 

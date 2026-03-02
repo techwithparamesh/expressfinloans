@@ -48,6 +48,8 @@ type Lead = {
   customerPhone: string | null;
   customerEmail: string | null;
   location: string | null;
+  formLocation?: string | null;
+  form_location?: string | null;
   loanType: string | null;
   subLoanType: string | null;
   incomeType: string | null;
@@ -72,6 +74,8 @@ type InsuranceLead = {
   contactNum: string | null;
   mailId: string | null;
   location: string | null;
+  formLocation?: string | null;
+  form_location?: string | null;
   insuranceType: string | null;
   insuranceSubtype: string | null;
   insuranceSubtypeOther: string | null;
@@ -198,6 +202,7 @@ export default function StaffMyLeads() {
   const [saving, setSaving] = useState(false);
   const [gettingLocationForForm, setGettingLocationForForm] = useState(false);
   const [capturedFormLocation, setCapturedFormLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [capturedFormAddress, setCapturedFormAddress] = useState<string | null>(null);
   const [loanForm, setLoanForm] = useState(defaultLoanForm);
   const [insuranceForm, setInsuranceForm] = useState(defaultInsuranceForm);
 
@@ -235,6 +240,14 @@ export default function StaffMyLeads() {
         return;
       }
       setCapturedFormLocation(coords);
+      try {
+        const { address } = await staffJson<{ address: string }>(
+          `/staff/reverse-geocode?lat=${encodeURIComponent(coords.latitude)}&lng=${encodeURIComponent(coords.longitude)}`
+        );
+        setCapturedFormAddress(address || `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`);
+      } catch {
+        setCapturedFormAddress(`${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`);
+      }
       setStep("choice");
       setLoanForm(defaultLoanForm());
       setInsuranceForm(defaultInsuranceForm());
@@ -242,6 +255,10 @@ export default function StaffMyLeads() {
     } finally {
       setGettingLocationForForm(false);
     }
+  }
+
+  function getFormLocationDisplay(lead: Lead | InsuranceLead): string | null {
+    return (lead as Lead).formLocation ?? (lead as Lead).form_location ?? (lead as InsuranceLead).formLocation ?? (lead as InsuranceLead).form_location ?? null;
   }
 
   async function handleLoanSubmit(e: React.FormEvent) {
@@ -288,6 +305,7 @@ export default function StaffMyLeads() {
           loanDisbursedAt: loanForm.loanDisbursedAt?.trim() || null,
           status: loanForm.status || "open",
           notes: loanForm.notes || null,
+          formLocation: capturedFormAddress || (capturedFormLocation ? `${capturedFormLocation.latitude}, ${capturedFormLocation.longitude}` : null) || undefined,
         }),
       });
       toast({ title: "Loan lead added" });
@@ -336,6 +354,7 @@ export default function StaffMyLeads() {
           miscellaneousExpenses: insuranceForm.miscellaneousExpenses?.trim() || null,
           status: insuranceForm.status || "open",
           notes: insuranceForm.notes || null,
+          formLocation: capturedFormAddress || (capturedFormLocation ? `${capturedFormLocation.latitude}, ${capturedFormLocation.longitude}` : null) || undefined,
         }),
       });
       toast({ title: "Insurance lead added" });
@@ -417,6 +436,12 @@ export default function StaffMyLeads() {
                         <span className="text-muted-foreground shrink-0 w-[100px]">Status</span>
                         <span className="text-right font-medium">{l.status ?? "—"}</span>
                       </div>
+                      {getFormLocationDisplay(l) && (
+                        <div className="flex justify-between gap-3">
+                          <span className="text-muted-foreground shrink-0 w-[100px]">Generated at</span>
+                          <span className="text-right text-xs truncate min-w-0 max-w-[200px]" title={getFormLocationDisplay(l) ?? undefined}>{getFormLocationDisplay(l)}</span>
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
@@ -434,6 +459,7 @@ export default function StaffMyLeads() {
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Sub type</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Amount</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Tenure</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Generated at</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Status</th>
                     </tr>
                   </thead>
@@ -448,6 +474,7 @@ export default function StaffMyLeads() {
                         <td className="py-2.5 pr-3">{l.subLoanType ?? "—"}</td>
                         <td className="py-2.5 pr-3 tabular-nums">{l.amount ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.tenure ?? "—"}</td>
+                        <td className="py-2.5 pr-3 max-w-[180px] truncate" title={getFormLocationDisplay(l) ?? undefined}>{getFormLocationDisplay(l) ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.status}</td>
                       </tr>
                     ))}
@@ -499,6 +526,12 @@ export default function StaffMyLeads() {
                         <span className="text-muted-foreground shrink-0 w-[110px]">Status</span>
                         <span className="text-right font-medium">{l.status ?? "—"}</span>
                       </div>
+                      {getFormLocationDisplay(l) && (
+                        <div className="flex justify-between gap-3">
+                          <span className="text-muted-foreground shrink-0 w-[110px]">Generated at</span>
+                          <span className="text-right text-xs truncate min-w-0 max-w-[200px]" title={getFormLocationDisplay(l) ?? undefined}>{getFormLocationDisplay(l)}</span>
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
@@ -516,6 +549,7 @@ export default function StaffMyLeads() {
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Premium collected</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Difference</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Misc. Expenses</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Generated at</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Status</th>
                     </tr>
                   </thead>
@@ -530,6 +564,7 @@ export default function StaffMyLeads() {
                         <td className="py-2.5 pr-3 tabular-nums">{l.premiumCollected ?? "—"}</td>
                         <td className="py-2.5 pr-3 tabular-nums">{l.difference ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.miscellaneousExpenses ?? "—"}</td>
+                        <td className="py-2.5 pr-3 max-w-[180px] truncate" title={getFormLocationDisplay(l) ?? undefined}>{getFormLocationDisplay(l) ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.status}</td>
                       </tr>
                     ))}
@@ -545,7 +580,10 @@ export default function StaffMyLeads() {
         open={open}
         onOpenChange={(open) => {
           setOpen(open);
-          if (!open) setCapturedFormLocation(null);
+          if (!open) {
+            setCapturedFormLocation(null);
+            setCapturedFormAddress(null);
+          }
         }}
       >
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -555,11 +593,11 @@ export default function StaffMyLeads() {
                 <DialogTitle>Lead form</DialogTitle>
                 <DialogDescription>Choose the type of lead to add.</DialogDescription>
               </DialogHeader>
-              {capturedFormLocation && (
+              {(capturedFormAddress || capturedFormLocation) && (
                 <div className="flex items-start gap-2 rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">
                   <MapPin className="h-4 w-4 shrink-0 mt-0.5 text-slate-500" />
                   <span>
-                    <strong>Location captured:</strong> {capturedFormLocation.latitude.toFixed(5)}, {capturedFormLocation.longitude.toFixed(5)}
+                    <strong>Location captured:</strong> {capturedFormAddress ?? (capturedFormLocation ? `${capturedFormLocation.latitude.toFixed(5)}, ${capturedFormLocation.longitude.toFixed(5)}` : "")}
                   </span>
                 </div>
               )}
@@ -597,10 +635,10 @@ export default function StaffMyLeads() {
                   <DialogDescription>Add a new loan lead.</DialogDescription>
                 </div>
               </DialogHeader>
-              {capturedFormLocation && (
+              {(capturedFormAddress || capturedFormLocation) && (
                 <div className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 rounded px-2 py-1.5">
                   <MapPin className="h-3.5 w-3.5 shrink-0" />
-                  <span>Location: {capturedFormLocation.latitude.toFixed(5)}, {capturedFormLocation.longitude.toFixed(5)}</span>
+                  <span>Generated at: {capturedFormAddress ?? (capturedFormLocation ? `${capturedFormLocation.latitude.toFixed(5)}, ${capturedFormLocation.longitude.toFixed(5)}` : "")}</span>
                 </div>
               )}
               <form onSubmit={handleLoanSubmit} className="space-y-6">
@@ -917,10 +955,10 @@ export default function StaffMyLeads() {
                   <DialogDescription>Add a new insurance lead.</DialogDescription>
                 </div>
               </DialogHeader>
-              {capturedFormLocation && (
+              {(capturedFormAddress || capturedFormLocation) && (
                 <div className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 rounded px-2 py-1.5">
                   <MapPin className="h-3.5 w-3.5 shrink-0" />
-                  <span>Location: {capturedFormLocation.latitude.toFixed(5)}, {capturedFormLocation.longitude.toFixed(5)}</span>
+                  <span>Generated at: {capturedFormAddress ?? (capturedFormLocation ? `${capturedFormLocation.latitude.toFixed(5)}, ${capturedFormLocation.longitude.toFixed(5)}` : "")}</span>
                 </div>
               )}
               <form onSubmit={handleInsuranceSubmit} className="space-y-3">

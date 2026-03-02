@@ -245,6 +245,21 @@ export async function registerRoutes(
     }
   });
 
+  // --- Staff: reverse-geocode (for lead form location display) ---
+  app.get("/api/staff/reverse-geocode", requireAuth, async (req, res, next) => {
+    try {
+      const lat = req.query.lat != null ? Number(req.query.lat) : NaN;
+      const lng = req.query.lng != null ? Number(req.query.lng) : NaN;
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return res.status(400).json({ message: "Query params lat and lng required" });
+      }
+      const address = await reverseGeocode(lat, lng);
+      res.json({ address: address || `${lat.toFixed(4)}, ${lng.toFixed(4)}` });
+    } catch (e) {
+      next(e);
+    }
+  });
+
   // --- Staff: leads ---
   app.get("/api/staff/leads/me", requireAuth, async (req, res, next) => {
     try {
@@ -277,6 +292,12 @@ export async function registerRoutes(
       if (!body.incomeType || (typeof body.incomeType === "string" && !body.incomeType.trim())) {
         return res.status(400).json({ message: "Income type is required" });
       }
+      let formLocation: string | null = (body.formLocation && String(body.formLocation).trim()) ? String(body.formLocation).trim().slice(0, 500) : null;
+      if (!formLocation && body.latitude != null && body.longitude != null) {
+        const lat = Number(body.latitude);
+        const lng = Number(body.longitude);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) formLocation = await reverseGeocode(lat, lng) || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      }
       const lead = await storage.createLead({
         employeeId: userId,
         date: dateStr,
@@ -300,6 +321,7 @@ export async function registerRoutes(
         loanDisbursedAt: body.loanDisbursedAt && String(body.loanDisbursedAt).trim() ? String(body.loanDisbursedAt).trim().slice(0, 10) : null,
         status: body.status ?? "open",
         notes: body.notes ?? null,
+        formLocation: formLocation ?? undefined,
       });
       const count = await storage.getLeadsCountForEmployeeOnDate(userId, dateStr);
       await storage.updateAttendanceFromLeadsCount(userId, dateStr, count);
@@ -450,6 +472,12 @@ export async function registerRoutes(
       const userId = (req.user as any).id;
       const body = req.body || {};
       const dateStr = body.date || todayStr();
+      let formLocation: string | null = (body.formLocation && String(body.formLocation).trim()) ? String(body.formLocation).trim().slice(0, 500) : null;
+      if (!formLocation && body.latitude != null && body.longitude != null) {
+        const lat = Number(body.latitude);
+        const lng = Number(body.longitude);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) formLocation = await reverseGeocode(lat, lng) || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      }
       const lead = await storage.createInsuranceLead({
         employeeId: userId,
         date: dateStr,
@@ -475,6 +503,7 @@ export async function registerRoutes(
         miscellaneousExpenses: body.miscellaneousExpenses ?? null,
         status: body.status ?? "open",
         notes: body.notes ?? null,
+        formLocation: formLocation ?? undefined,
       });
       res.status(201).json(lead);
     } catch (e) {

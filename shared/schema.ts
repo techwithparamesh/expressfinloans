@@ -109,6 +109,7 @@ export const leads = mysqlTable("leads", {
   status: varchar("status", { length: 50 }).notNull().default("open"),
   notes: text("notes"),
   closedAt: timestamp("closed_at"),
+  formLocation: varchar("form_location", { length: 500 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
   // Admin-only: payout and payment received from bank
@@ -141,6 +142,7 @@ export const insertLeadSchema = createInsertSchema(leads).pick({
   loanDisbursedAt: true,
   status: true,
   notes: true,
+  formLocation: true,
   payoutPercent: true,
   payoutAmount: true,
   reconsil: true,
@@ -181,6 +183,7 @@ export const insuranceLeads = mysqlTable("insurance_leads", {
   miscellaneousExpenses: varchar("miscellaneous_expenses", { length: 100 }),
   status: varchar("status", { length: 50 }).notNull().default("open"),
   notes: text("notes"),
+  formLocation: varchar("form_location", { length: 500 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
   // Admin-only: collected/actual premium and remarks
@@ -215,6 +218,7 @@ export const insertInsuranceLeadSchema = createInsertSchema(insuranceLeads).pick
   miscellaneousExpenses: true,
   status: true,
   notes: true,
+  formLocation: true,
   collectedPremium: true,
   actualPremium: true,
   finalRemarks: true,
