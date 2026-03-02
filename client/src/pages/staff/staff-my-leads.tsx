@@ -1182,11 +1182,7 @@ export default function StaffMyLeads() {
                     >
                       <SelectTrigger>
                         <SelectValue
-                          placeholder={
-                            insuranceForm.insuranceType === "General Insurance"
-                              ? "Select subtype first"
-                              : "Select company"
-                          }
+                          placeholder="Select company"
                         />
                       </SelectTrigger>
                       <SelectContent>
