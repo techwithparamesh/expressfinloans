@@ -495,6 +495,62 @@ If the table already exists without `purpose_other`, add it:
 ALTER TABLE admin_expenses ADD COLUMN purpose_other VARCHAR(255) NULL AFTER purpose;
 ```
 
+---
+
+**Payroll & Payslips (salary structure, payroll entries, payslips – Option B: app calculates):** For payslip generation with stored rules and monthly inputs:
+
+```sql
+USE expressfinloans;
+
+CREATE TABLE IF NOT EXISTS salary_structures (
+  id VARCHAR(36) PRIMARY KEY,
+  employee_id VARCHAR(36) NOT NULL UNIQUE,
+  basic DECIMAL(12,2) NOT NULL DEFAULT 0,
+  hra_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
+  special_allowance DECIMAL(12,2) NOT NULL DEFAULT 0,
+  conveyance DECIMAL(12,2) NOT NULL DEFAULT 0,
+  medical DECIMAL(12,2) NOT NULL DEFAULT 0,
+  employee_pf_percent DECIMAL(5,2) NOT NULL DEFAULT 12,
+  pt_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS payroll_entries (
+  id VARCHAR(36) PRIMARY KEY,
+  employee_id VARCHAR(36) NOT NULL,
+  period VARCHAR(7) NOT NULL,
+  incentives DECIMAL(12,2) NOT NULL DEFAULT 0,
+  deductions_other DECIMAL(12,2) NOT NULL DEFAULT 0,
+  tds_amount DECIMAL(12,2) NULL,
+  absent_days INT NOT NULL DEFAULT 0,
+  notes TEXT NULL,
+  created_by VARCHAR(36) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS payslips (
+  id VARCHAR(36) PRIMARY KEY,
+  employee_id VARCHAR(36) NOT NULL,
+  period VARCHAR(7) NOT NULL,
+  earnings_breakdown TEXT NULL,
+  deductions_breakdown TEXT NULL,
+  total_earnings DECIMAL(12,2) NOT NULL DEFAULT 0,
+  total_deductions DECIMAL(12,2) NOT NULL DEFAULT 0,
+  net_pay DECIMAL(12,2) NOT NULL DEFAULT 0,
+  pdf_path VARCHAR(512) NULL,
+  generated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  generated_by VARCHAR(36) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (generated_by) REFERENCES users(id) ON DELETE SET NULL
+);
+```
+
 Use `DESCRIBE table_name;` (see **Common database commands** below) to see which columns you already have.
 
 If you use **option A** (`npm run db:push`), Drizzle will apply these schema changes automatically.

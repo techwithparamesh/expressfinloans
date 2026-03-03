@@ -8,9 +8,11 @@ import PDFDocument from "pdfkit";
 import { storage } from "./storage";
 import { requireAuth, requireAdmin, requireAdminOrTeamLead } from "./auth";
 import { getClientIp, getLocationFromIp, reverseGeocode } from "./lib/geolocation";
+import { computePayslip, formatCurrency, type ComputedPayslip } from "./payroll";
 
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 const AVATARS_DIR = path.join(UPLOADS_DIR, "avatars");
+const PAYSLIPS_DIR = path.join(UPLOADS_DIR, "payslips");
 
 const LEAD_MIN_FOR_PRESENT = 2;
 
@@ -87,6 +89,9 @@ export async function registerRoutes(
   if (!fs.existsSync(AVATARS_DIR)) {
     fs.mkdirSync(UPLOADS_DIR, { recursive: true });
     fs.mkdirSync(AVATARS_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(PAYSLIPS_DIR)) {
+    fs.mkdirSync(PAYSLIPS_DIR, { recursive: true });
   }
   app.use("/uploads", express.static(UPLOADS_DIR));
 
@@ -2006,6 +2011,265 @@ export async function registerRoutes(
         miscellaneous,
         total: loans + miscellaneous,
       });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // --- Staff: Payroll & Payslips (Option B: rules + inputs, app calculates) ---
+  app.get("/api/staff/salary-structure/:employeeId", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const structure = await storage.getSalaryStructure(req.params.employeeId);
+      if (!structure) return res.status(404).json({ message: "Salary structure not found" });
+      const row = structure as Record<string, unknown>;
+      res.json({
+        id: row.id,
+        employeeId: row.employeeId,
+        basic: row.basic ?? 0,
+        hraPercent: row.hraPercent ?? 0,
+        specialAllowance: row.specialAllowance ?? 0,
+        conveyance: row.conveyance ?? 0,
+        medical: row.medical ?? 0,
+        employeePfPercent: row.employeePfPercent ?? 12,
+        ptAmount: row.ptAmount ?? 0,
+      });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.post("/api/staff/salary-structure", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const body = req.body || {};
+      const employeeId = (body.employeeId as string)?.trim();
+      if (!employeeId) return res.status(400).json({ message: "employeeId is required" });
+      const structure = await storage.upsertSalaryStructure({
+        employeeId,
+        basic: String(parseAmount(body.basic) || 0),
+        hraPercent: String(parseAmount(body.hraPercent) || 0),
+        specialAllowance: String(parseAmount(body.specialAllowance) || 0),
+        conveyance: String(parseAmount(body.conveyance) || 0),
+        medical: String(parseAmount(body.medical) || 0),
+        employeePfPercent: String(parseAmount(body.employeePfPercent) || 12),
+        ptAmount: String(parseAmount(body.ptAmount) || 0),
+      } as any);
+      res.json(structure);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/payroll-entries", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const period = (req.query.period as string)?.trim();
+      if (!period || !/^\d{4}-\d{2}$/.test(period))
+        return res.status(400).json({ message: "Query period (YYYY-MM) is required" });
+      const entries = await storage.getPayrollEntriesByPeriod(period);
+      res.json(entries.map((e) => ({ id: e.id, employeeId: e.employeeId, period: e.period, incentives: e.incentives, deductionsOther: e.deductionsOther, tdsAmount: e.tdsAmount, absentDays: e.absentDays, notes: e.notes })));
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.post("/api/staff/payroll-entries", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const userId = (req.user as any).id;
+      const body = req.body || {};
+      const employeeId = (body.employeeId as string)?.trim();
+      const period = (body.period as string)?.trim();
+      if (!employeeId || !period || !/^\d{4}-\d{2}$/.test(period))
+        return res.status(400).json({ message: "employeeId and period (YYYY-MM) are required" });
+      const entry = await storage.upsertPayrollEntry({
+        employeeId,
+        period,
+        incentives: String(parseAmount(body.incentives) || 0),
+        deductionsOther: String(parseAmount(body.deductionsOther) || 0),
+        tdsAmount: body.tdsAmount != null ? String(parseAmount(body.tdsAmount)) : undefined,
+        absentDays: Number(body.absentDays) || 0,
+        notes: (body.notes as string)?.trim() || undefined,
+        createdBy: userId,
+      } as any);
+      res.json(entry);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  function drawPayslipPDF(
+    doc: import("pdfkit").PDFDocument,
+    opts: { employeeName: string; employeeNumber: string; periodLabel: string; computed: ComputedPayslip; companyName: string }
+  ) {
+    const { employeeName, employeeNumber, periodLabel, computed, companyName } = opts;
+    const M = 40;
+    doc.fontSize(14).font("Helvetica-Bold").text(companyName || "Company", M, M, { align: "center" });
+    doc.font("Helvetica").fontSize(10).text("Payslip", M, doc.y + 8, { align: "center" });
+    doc.moveDown(0.5);
+    let y = doc.y + 10;
+    doc.fontSize(9).text(`Employee: ${employeeName}`, M, y);
+    y += 14;
+    doc.text(`Employee ID: ${employeeNumber}`, M, y);
+    y += 14;
+    doc.text(`Period: ${periodLabel}`, M, y);
+    y += 20;
+    doc.font("Helvetica-Bold").text("Earnings", M, y);
+    doc.font("Helvetica");
+    y += 14;
+    const earn = computed.earningsBreakdown;
+    doc.text(`Basic Salary        ${formatCurrency(earn.basic)}`, M, y);
+    y += 12;
+    doc.text(`HRA                 ${formatCurrency(earn.hra)}`, M, y);
+    y += 12;
+    doc.text(`Special Allowance   ${formatCurrency(earn.specialAllowance)}`, M, y);
+    y += 12;
+    doc.text(`Conveyance          ${formatCurrency(earn.conveyance)}`, M, y);
+    y += 12;
+    doc.text(`Medical             ${formatCurrency(earn.medical)}`, M, y);
+    y += 12;
+    doc.text(`Incentives          ${formatCurrency(earn.incentives)}`, M, y);
+    y += 16;
+    doc.font("Helvetica-Bold").text(`Total Earnings      ${formatCurrency(computed.totalEarnings)}`, M, y);
+    doc.font("Helvetica");
+    y += 20;
+    doc.font("Helvetica-Bold").text("Deductions", M, y);
+    doc.font("Helvetica");
+    y += 14;
+    const ded = computed.deductionsBreakdown;
+    doc.text(`PF                  ${formatCurrency(ded.pf)}`, M, y);
+    y += 12;
+    doc.text(`Professional Tax    ${formatCurrency(ded.pt)}`, M, y);
+    y += 12;
+    doc.text(`TDS                 ${formatCurrency(ded.tds)}`, M, y);
+    y += 12;
+    doc.text(`Other               ${formatCurrency(ded.other)}`, M, y);
+    y += 16;
+    doc.font("Helvetica-Bold").text(`Total Deductions   ${formatCurrency(computed.totalDeductions)}`, M, y);
+    y += 20;
+    doc.font("Helvetica-Bold").fontSize(11).text(`Net Pay             ${formatCurrency(computed.netPay)}`, M, y);
+    doc.font("Helvetica").fontSize(9);
+    doc.moveDown(2);
+    doc.text("This is a computer-generated payslip.", M, doc.y, { align: "center" });
+  }
+
+  app.post("/api/staff/payslips/generate", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const userId = (req.user as any).id;
+      const period = (req.body?.period as string)?.trim();
+      if (!period || !/^\d{4}-\d{2}$/.test(period))
+        return res.status(400).json({ message: "period (YYYY-MM) is required" });
+      const [y, m] = period.split("-").map(Number);
+      const periodLabel = new Date(y, m - 1, 1).toLocaleString("en-IN", { month: "long", year: "numeric" });
+      const employees = await storage.listEmployees();
+      const companyName = (req.body?.companyName as string)?.trim() || "Express Financial Services";
+      let generated = 0;
+      for (const emp of employees) {
+        const structure = await storage.getSalaryStructure(emp.id);
+        const entry = await storage.getPayrollEntry(emp.id, period);
+        if (!structure) continue;
+        const entryRow = entry || {
+          incentives: "0",
+          deductionsOther: "0",
+          tdsAmount: null,
+          absentDays: 0,
+        };
+        const computed = computePayslip(structure as any, entryRow as any);
+        const earningsJson = JSON.stringify(computed.earningsBreakdown);
+        const deductionsJson = JSON.stringify(computed.deductionsBreakdown);
+        const empName = (emp as any).fullName?.trim() || emp.username || "";
+        const empNum = (emp as any).employeeNumber ?? "";
+        const safeName = emp.id;
+        const filename = `payslip_${safeName}_${period}.pdf`;
+        const filePath = path.join(PAYSLIPS_DIR, filename);
+        const doc = new PDFDocument({ margin: 40, size: "A4" });
+        const stream = fs.createWriteStream(filePath);
+        doc.pipe(stream);
+        drawPayslipPDF(doc, { employeeName: empName, employeeNumber: empNum, periodLabel, computed, companyName });
+        doc.end();
+        await new Promise<void>((resolve, reject) => {
+          stream.on("finish", () => resolve());
+          stream.on("error", reject);
+        });
+        await storage.upsertPayslip({
+          employeeId: emp.id,
+          period,
+          earningsBreakdown: earningsJson,
+          deductionsBreakdown: deductionsJson,
+          totalEarnings: String(computed.totalEarnings),
+          totalDeductions: String(computed.totalDeductions),
+          netPay: String(computed.netPay),
+          pdfPath: path.join("payslips", filename),
+          generatedBy: userId,
+        } as any);
+        generated++;
+      }
+      res.json({ message: "Payslips generated", count: generated, period });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/payslips", requireAuth, async (req, res, next) => {
+    try {
+      const role = (req.user as any).role;
+      const employeeId = (req.query.employeeId as string) || undefined;
+      const period = (req.query.period as string) || undefined;
+      let list: { id: string; employeeId: string; period: string; totalEarnings: number; totalDeductions: number; netPay: number; generatedAt: string }[];
+      if (role === "admin") {
+        if (employeeId) {
+          list = (await storage.getPayslipsByEmployee(employeeId)).map((p) => ({
+            id: p.id,
+            employeeId: p.employeeId,
+            period: p.period,
+            totalEarnings: parseFloat(String(p.totalEarnings)) || 0,
+            totalDeductions: parseFloat(String(p.totalDeductions)) || 0,
+            netPay: parseFloat(String(p.netPay)) || 0,
+            generatedAt: String(p.generatedAt ?? ""),
+          }));
+        } else if (period) {
+          list = (await storage.getPayslipsByPeriod(period)).map((p) => ({
+            id: p.id,
+            employeeId: p.employeeId,
+            period: p.period,
+            totalEarnings: parseFloat(String(p.totalEarnings)) || 0,
+            totalDeductions: parseFloat(String(p.totalDeductions)) || 0,
+            netPay: parseFloat(String(p.netPay)) || 0,
+            generatedAt: String(p.generatedAt ?? ""),
+          }));
+        } else {
+          list = [];
+        }
+      } else {
+        const myId = (req.user as any).id;
+        list = (await storage.getPayslipsByEmployee(myId)).map((p) => ({
+          id: p.id,
+          employeeId: p.employeeId,
+          period: p.period,
+          totalEarnings: parseFloat(String(p.totalEarnings)) || 0,
+          totalDeductions: parseFloat(String(p.totalDeductions)) || 0,
+          netPay: parseFloat(String(p.netPay)) || 0,
+          generatedAt: String(p.generatedAt ?? ""),
+        }));
+      }
+      res.json(list);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/payslips/:id/file", requireAuth, async (req, res, next) => {
+    try {
+      const payslip = await storage.getPayslipById(req.params.id);
+      if (!payslip) return res.status(404).json({ message: "Payslip not found" });
+      const userId = (req.user as any).id;
+      const role = (req.user as any).role;
+      if (role !== "admin" && payslip.employeeId !== userId)
+        return res.status(403).json({ message: "Forbidden" });
+      if (!payslip.pdfPath) return res.status(404).json({ message: "Payslip PDF not generated" });
+      const fullPath = path.join(UPLOADS_DIR, payslip.pdfPath);
+      if (!fs.existsSync(fullPath)) return res.status(404).json({ message: "Payslip file not found" });
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="payslip-${payslip.period}.pdf"`);
+      const stream = fs.createReadStream(fullPath);
+      stream.pipe(res);
     } catch (e) {
       next(e);
     }

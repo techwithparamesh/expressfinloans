@@ -15,6 +15,7 @@ import {
   X,
   Target,
   Receipt,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -152,6 +153,7 @@ export default function StaffLayout({
     ...(isEmployee ? [{ href: path(basePath, "/my-dashboard"), label: "My dashboard", icon: LayoutDashboard }] : []),
     ...(isAdmin ? [{ href: path(basePath, "/employees"), label: "Employees", icon: Users }] : []),
     ...(isAdmin ? [{ href: path(basePath, "/admin-expenses"), label: "Admin expenses", icon: Receipt }] : []),
+    ...(isAdmin ? [{ href: path(basePath, "/payroll"), label: "Payroll", icon: DollarSign }] : []),
     ...(isTeamLead ? [{ href: path(basePath, "/my-team"), label: "My team", icon: Users }] : []),
     ...(isAdmin || isTeamLead ? [{ href: path(basePath, "/target-allocation"), label: "Target allocation", icon: Target }] : []),
     ...(isAdmin || isTeamLead ? [{ href: path(basePath, "/attendance"), label: "Attendance", icon: Calendar }] : []),
@@ -161,6 +163,7 @@ export default function StaffLayout({
     ...(isEmployee || isTeamLead ? [{ href: path(basePath, "/my-leads"), label: "My leads", icon: ClipboardList }] : []),
     ...(isEmployee || isTeamLead ? [{ href: path(basePath, "/my-attendance"), label: "My attendance", icon: Calendar }] : []),
     ...(isEmployee || isTeamLead ? [{ href: path(basePath, "/my-leave"), label: "My leave", icon: CalendarCheck }] : []),
+    ...(isEmployee || isTeamLead ? [{ href: path(basePath, "/my-payslips"), label: "My Payslips", icon: FileText }] : []),
     { href: path(basePath, "/profile"), label: "Profile", icon: User },
   ];
 

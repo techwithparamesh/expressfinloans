@@ -277,6 +277,93 @@ export const insertLeaveRequestSchema = createInsertSchema(leaveRequests).pick({
 export type LeaveRequest = typeof leaveRequests.$inferSelect;
 export type InsertLeaveRequest = z.infer<typeof insertLeaveRequestSchema>;
 
+// --- Payroll & Payslips (Option B: rules + inputs, app calculates) ---
+export const salaryStructures = mysqlTable("salary_structures", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  employeeId: varchar("employee_id", { length: 36 }).notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  basic: decimal("basic", { precision: 12, scale: 2 }).notNull().default("0"),
+  hraPercent: decimal("hra_percent", { precision: 5, scale: 2 }).notNull().default("0"),
+  specialAllowance: decimal("special_allowance", { precision: 12, scale: 2 }).notNull().default("0"),
+  conveyance: decimal("conveyance", { precision: 12, scale: 2 }).notNull().default("0"),
+  medical: decimal("medical", { precision: 12, scale: 2 }).notNull().default("0"),
+  employeePfPercent: decimal("employee_pf_percent", { precision: 5, scale: 2 }).notNull().default("12"),
+  ptAmount: decimal("pt_amount", { precision: 10, scale: 2 }).notNull().default("0"), // Professional tax
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export const insertSalaryStructureSchema = createInsertSchema(salaryStructures).pick({
+  employeeId: true,
+  basic: true,
+  hraPercent: true,
+  specialAllowance: true,
+  conveyance: true,
+  medical: true,
+  employeePfPercent: true,
+  ptAmount: true,
+});
+
+export type SalaryStructure = typeof salaryStructures.$inferSelect;
+export type InsertSalaryStructure = z.infer<typeof insertSalaryStructureSchema>;
+
+export const payrollEntries = mysqlTable("payroll_entries", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  employeeId: varchar("employee_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+  period: varchar("period", { length: 7 }).notNull(), // YYYY-MM
+  incentives: decimal("incentives", { precision: 12, scale: 2 }).notNull().default("0"),
+  deductionsOther: decimal("deductions_other", { precision: 12, scale: 2 }).notNull().default("0"),
+  tdsAmount: decimal("tds_amount", { precision: 12, scale: 2 }), // optional; if null we could calculate later
+  absentDays: int("absent_days").notNull().default(0),
+  notes: text("notes"),
+  createdBy: varchar("created_by", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export const insertPayrollEntrySchema = createInsertSchema(payrollEntries).pick({
+  employeeId: true,
+  period: true,
+  incentives: true,
+  deductionsOther: true,
+  tdsAmount: true,
+  absentDays: true,
+  notes: true,
+  createdBy: true,
+});
+
+export type PayrollEntry = typeof payrollEntries.$inferSelect;
+export type InsertPayrollEntry = z.infer<typeof insertPayrollEntrySchema>;
+
+export const payslips = mysqlTable("payslips", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  employeeId: varchar("employee_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+  period: varchar("period", { length: 7 }).notNull(),
+  earningsBreakdown: text("earnings_breakdown"), // JSON
+  deductionsBreakdown: text("deductions_breakdown"), // JSON
+  totalEarnings: decimal("total_earnings", { precision: 12, scale: 2 }).notNull().default("0"),
+  totalDeductions: decimal("total_deductions", { precision: 12, scale: 2 }).notNull().default("0"),
+  netPay: decimal("net_pay", { precision: 12, scale: 2 }).notNull().default("0"),
+  pdfPath: varchar("pdf_path", { length: 512 }),
+  generatedAt: timestamp("generated_at").defaultNow().notNull(),
+  generatedBy: varchar("generated_by", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPayslipSchema = createInsertSchema(payslips).pick({
+  employeeId: true,
+  period: true,
+  earningsBreakdown: true,
+  deductionsBreakdown: true,
+  totalEarnings: true,
+  totalDeductions: true,
+  netPay: true,
+  pdfPath: true,
+  generatedBy: true,
+});
+
+export type Payslip = typeof payslips.$inferSelect;
+export type InsertPayslip = z.infer<typeof insertPayslipSchema>;
+
 // --- Admin Expenses (office/admin ledger: Rent, Electricity, Water, Other) ---
 export const ADMIN_EXPENSE_PURPOSES = ["Rent", "Electricity Bill", "Water Bill", "Other"] as const;
 export type AdminExpensePurpose = (typeof ADMIN_EXPENSE_PURPOSES)[number];

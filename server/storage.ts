@@ -11,6 +11,12 @@ import {
   type InsertLeaveRequest,
   type AdminExpense,
   type InsertAdminExpense,
+  type SalaryStructure,
+  type InsertSalaryStructure,
+  type PayrollEntry,
+  type InsertPayrollEntry,
+  type Payslip,
+  type InsertPayslip,
   type CompanyMonthlyTarget,
   type MonthlyTarget,
   type MonthlyPerformance,
@@ -21,6 +27,9 @@ import {
   insuranceLeads,
   leaveRequests,
   adminExpenses,
+  salaryStructures,
+  payrollEntries,
+  payslips,
   companyMonthlyTarget,
   monthlyTargets,
   monthlyPerformance,
@@ -84,6 +93,17 @@ export interface IStorage {
   createAdminExpense(data: InsertAdminExpense): Promise<AdminExpense>;
   updateAdminExpense(id: string, data: Partial<InsertAdminExpense>): Promise<AdminExpense | undefined>;
   deleteAdminExpense(id: string): Promise<void>;
+
+  getSalaryStructure(employeeId: string): Promise<SalaryStructure | undefined>;
+  upsertSalaryStructure(data: InsertSalaryStructure): Promise<SalaryStructure>;
+  getPayrollEntry(employeeId: string, period: string): Promise<PayrollEntry | undefined>;
+  getPayrollEntriesByPeriod(period: string): Promise<PayrollEntry[]>;
+  upsertPayrollEntry(data: InsertPayrollEntry): Promise<PayrollEntry>;
+  getPayslip(employeeId: string, period: string): Promise<Payslip | undefined>;
+  getPayslipById(id: string): Promise<Payslip | undefined>;
+  getPayslipsByEmployee(employeeId: string): Promise<Payslip[]>;
+  getPayslipsByPeriod(period: string): Promise<Payslip[]>;
+  upsertPayslip(data: InsertPayslip): Promise<Payslip>;
 
   /** Joint visits count for team lead in date range (for conveyance). Returns 0 until joint visits are logged in CRM. */
   getJointVisitsCount(teamLeadId: string, fromDate: string, toDate: string): Promise<number>;
@@ -561,6 +581,104 @@ export class DrizzleStorage implements IStorage {
     await db.delete(adminExpenses).where(eq(adminExpenses.id, id));
   }
 
+  async getSalaryStructure(employeeId: string): Promise<SalaryStructure | undefined> {
+    await guardDb();
+    const [r] = await db.select().from(salaryStructures).where(eq(salaryStructures.employeeId, employeeId)).limit(1);
+    return r;
+  }
+
+  async upsertSalaryStructure(data: InsertSalaryStructure): Promise<SalaryStructure> {
+    await guardDb();
+    const existing = await this.getSalaryStructure(data.employeeId);
+    const payload = { ...data, updatedAt: new Date() } as any;
+    if (existing) {
+      await db.update(salaryStructures).set(payload).where(eq(salaryStructures.id, existing.id));
+      const out = await this.getSalaryStructure(data.employeeId);
+      if (!out) throw new Error("Failed to update salary structure");
+      return out;
+    }
+    const id = crypto.randomUUID();
+    await db.insert(salaryStructures).values({ ...data, id } as any);
+    const row = await this.getSalaryStructure(data.employeeId);
+    if (!row) throw new Error("Failed to create salary structure");
+    return row;
+  }
+
+  async getPayrollEntry(employeeId: string, period: string): Promise<PayrollEntry | undefined> {
+    await guardDb();
+    const [r] = await db
+      .select()
+      .from(payrollEntries)
+      .where(and(eq(payrollEntries.employeeId, employeeId), eq(payrollEntries.period, period)))
+      .limit(1);
+    return r;
+  }
+
+  async getPayrollEntriesByPeriod(period: string): Promise<PayrollEntry[]> {
+    await guardDb();
+    return db.select().from(payrollEntries).where(eq(payrollEntries.period, period)).orderBy(payrollEntries.employeeId);
+  }
+
+  async upsertPayrollEntry(data: InsertPayrollEntry): Promise<PayrollEntry> {
+    await guardDb();
+    const existing = await this.getPayrollEntry(data.employeeId, data.period);
+    const payload = { ...data, updatedAt: new Date() } as any;
+    if (existing) {
+      await db.update(payrollEntries).set(payload).where(eq(payrollEntries.id, existing.id));
+      const out = await this.getPayrollEntry(data.employeeId, data.period);
+      if (!out) throw new Error("Failed to update payroll entry");
+      return out;
+    }
+    const id = crypto.randomUUID();
+    await db.insert(payrollEntries).values({ ...data, id } as any);
+    const row = await this.getPayrollEntry(data.employeeId, data.period);
+    if (!row) throw new Error("Failed to create payroll entry");
+    return row;
+  }
+
+  async getPayslip(employeeId: string, period: string): Promise<Payslip | undefined> {
+    await guardDb();
+    const [r] = await db
+      .select()
+      .from(payslips)
+      .where(and(eq(payslips.employeeId, employeeId), eq(payslips.period, period)))
+      .limit(1);
+    return r;
+  }
+
+  async getPayslipById(id: string): Promise<Payslip | undefined> {
+    await guardDb();
+    const [r] = await db.select().from(payslips).where(eq(payslips.id, id)).limit(1);
+    return r;
+  }
+
+  async getPayslipsByEmployee(employeeId: string): Promise<Payslip[]> {
+    await guardDb();
+    return db.select().from(payslips).where(eq(payslips.employeeId, employeeId)).orderBy(desc(payslips.period));
+  }
+
+  async getPayslipsByPeriod(period: string): Promise<Payslip[]> {
+    await guardDb();
+    return db.select().from(payslips).where(eq(payslips.period, period)).orderBy(payslips.employeeId);
+  }
+
+  async upsertPayslip(data: InsertPayslip): Promise<Payslip> {
+    await guardDb();
+    const existing = await this.getPayslip(data.employeeId, data.period);
+    const payload = { ...data } as any;
+    if (existing) {
+      await db.update(payslips).set(payload).where(eq(payslips.id, existing.id));
+      const out = await this.getPayslip(data.employeeId, data.period);
+      if (!out) throw new Error("Failed to update payslip");
+      return out;
+    }
+    const id = crypto.randomUUID();
+    await db.insert(payslips).values({ ...data, id } as any);
+    const row = await this.getPayslip(data.employeeId, data.period);
+    if (!row) throw new Error("Failed to create payslip");
+    return row;
+  }
+
   async createLeaveRequest(data: InsertLeaveRequest): Promise<LeaveRequest> {
     await guardDb();
     const id = crypto.randomUUID();
@@ -989,6 +1107,46 @@ class NoDbStorage implements IStorage {
   }
   async deleteAdminExpense() {
     this.guard();
+  }
+  async getSalaryStructure() {
+    this.guard();
+    return undefined;
+  }
+  async upsertSalaryStructure() {
+    this.guard();
+    throw new Error("Not implemented");
+  }
+  async getPayrollEntry() {
+    this.guard();
+    return undefined;
+  }
+  async getPayrollEntriesByPeriod() {
+    this.guard();
+    return [];
+  }
+  async upsertPayrollEntry() {
+    this.guard();
+    throw new Error("Not implemented");
+  }
+  async getPayslip() {
+    this.guard();
+    return undefined;
+  }
+  async getPayslipById() {
+    this.guard();
+    return undefined;
+  }
+  async getPayslipsByEmployee() {
+    this.guard();
+    return [];
+  }
+  async getPayslipsByPeriod() {
+    this.guard();
+    return [];
+  }
+  async upsertPayslip() {
+    this.guard();
+    throw new Error("Not implemented");
   }
   async getJointVisitsCount() {
     this.guard();
