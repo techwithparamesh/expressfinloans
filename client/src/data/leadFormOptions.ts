@@ -53,6 +53,7 @@ export const INCOME_TYPES = [
 
 export const LOAN_STATUSES = [
   "Open",
+  "Logged",
   "Doc Collected",
   "Discrepancy",
   "Sanctioned",
@@ -136,14 +137,14 @@ export const INSURANCE_TYPES = ["General Insurance", "Health", "Life"] as const;
 /** When General Insurance is selected: Motor vs Non-Motor (Insurance Subtype). */
 export const GENERAL_INSURANCE_SUBTYPES = ["Motor", "Non-Motor"] as const;
 
-/** Options under Motor (Insurance Company when subtype = Motor). */
+/** Motor type options (General Insurance → Motor). */
 export const MOTOR_INSURANCE_OPTIONS = [
-  "Car",
-  "Two Wheeler",
-  "Commercial Vehicle",
-  "Fleet",
-  "GAP",
-  "Other",
+  "PVT CAR",
+  "TWO WHEELER",
+  "PCV",
+  "GCV",
+  "MISC-D",
+  "OTHER",
 ] as const;
 
 /** Options under Non-Motor (Insurance Company when subtype = Non-Motor). */

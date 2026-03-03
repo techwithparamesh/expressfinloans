@@ -1826,6 +1826,7 @@ export async function registerRoutes(
         payload.ftdAchieved = {
           loans: {
             open: { ftd: countLoans(leadsFtd, "open"), mtd: countLoans(leadsMtdFiltered, "open"), ytd: countLoans(leadsYtdFiltered, "open") },
+            logged: { ftd: countLoans(leadsFtd, "logged"), mtd: countLoans(leadsMtdFiltered, "logged"), ytd: countLoans(leadsYtdFiltered, "logged") },
             docCollected: { ftd: countLoans(leadsFtd, "doc collected"), mtd: countLoans(leadsMtdFiltered, "doc collected"), ytd: countLoans(leadsYtdFiltered, "doc collected") },
             discrepancy: { ftd: countLoans(leadsFtd, "discrepancy"), mtd: countLoans(leadsMtdFiltered, "discrepancy"), ytd: countLoans(leadsYtdFiltered, "discrepancy") },
             sanctioned: { ftd: countLoans(leadsFtd, "sanctioned"), mtd: countLoans(leadsMtdFiltered, "sanctioned"), ytd: countLoans(leadsYtdFiltered, "sanctioned") },

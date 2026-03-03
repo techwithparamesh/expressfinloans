@@ -1131,7 +1131,7 @@ export default function StaffMyLeads() {
                             ...f,
                             insuranceProductType: v,
                             insuranceProductTypeOther:
-                              v === "Other" ? f.insuranceProductTypeOther : "",
+                              v === "OTHER" ? f.insuranceProductTypeOther : "",
                           }))
                         }
                       >
@@ -1201,7 +1201,7 @@ export default function StaffMyLeads() {
                 {insuranceForm.insuranceType === "General Insurance" &&
                   (insuranceForm.insuranceCategory === "Motor" ||
                     insuranceForm.insuranceCategory === "Non-Motor") &&
-                  insuranceForm.insuranceProductType === "Other" && (
+                  insuranceForm.insuranceProductType === "OTHER" && (
                     <div className="space-y-1">
                       <Label>Specify other (product type)</Label>
                       <Input

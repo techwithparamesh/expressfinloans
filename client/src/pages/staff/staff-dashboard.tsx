@@ -62,6 +62,7 @@ type FtdPeriod = { ftd: number; mtd: number; ytd: number };
 type FtdAchieved = {
   loans: {
     open: FtdPeriod;
+    logged: FtdPeriod;
     docCollected: FtdPeriod;
     discrepancy: FtdPeriod;
     sanctioned: FtdPeriod;
@@ -362,6 +363,7 @@ export default function StaffDashboard() {
                   </tr>
                   {[
                     { key: "open" as const, label: "Open" },
+                    { key: "logged" as const, label: "Logged" },
                     { key: "docCollected" as const, label: "Doc Collected" },
                     { key: "discrepancy" as const, label: "Discrepancy" },
                     { key: "sanctioned" as const, label: "Sanctioned" },
