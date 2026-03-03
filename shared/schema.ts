@@ -33,6 +33,10 @@ export const users = mysqlTable("users", {
   pan: varchar("pan", { length: 20 }),
   uan: varchar("uan", { length: 30 }), // PF Universal Account Number
   dateOfJoining: date("date_of_joining"),
+  department: varchar("department", { length: 100 }),
+  location: varchar("location", { length: 100 }),
+  dateOfBirth: date("date_of_birth"),
+  gender: varchar("gender", { length: 10 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

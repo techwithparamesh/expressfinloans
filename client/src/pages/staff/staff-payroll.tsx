@@ -57,6 +57,8 @@ export default function StaffPayroll() {
   const [payrollForm, setPayrollForm] = useState({ incentives: 0, deductionsOther: 0, tdsAmount: "", absentDays: 0, notes: "" });
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [companyName, setCompanyName] = useState("Express Financial Services");
+  const [companyAddress, setCompanyAddress] = useState("");
 
   function loadEmployees() {
     staffJson<Employee[]>("/staff/employees").then(setEmployees).catch(() => setEmployees([]));
@@ -168,7 +170,11 @@ export default function StaffPayroll() {
       const res = await staffJson<{ count: number; period: string }>("/staff/payslips/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ period }),
+        body: JSON.stringify({
+          period,
+          companyName: companyName.trim() || undefined,
+          companyAddress: companyAddress.trim() || undefined,
+        }),
       });
       toast({ title: `${res.count} payslip(s) generated for ${formatPeriod(res.period)}` });
       loadPayslips();
@@ -290,9 +296,30 @@ export default function StaffPayroll() {
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
+            <div className="space-y-2">
               <CardTitle>Generate payslips</CardTitle>
               <CardDescription>Generate PDF payslips for {formatPeriod(period)} for all employees who have a salary structure (and optional payroll entry).</CardDescription>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-600">Company name (on payslip)</label>
+                  <input
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="Express Financial Services"
+                  />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="text-xs font-medium text-slate-600">Company address (optional, multi-line)</label>
+                  <textarea
+                    className="flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                    value={companyAddress}
+                    onChange={(e) => setCompanyAddress(e.target.value)}
+                    placeholder="Building, Floor, Address, City - PIN"
+                    rows={2}
+                  />
+                </div>
+              </div>
             </div>
             <Button onClick={generatePayslips} disabled={generating}>
               {generating ? "Generating…" : `Generate payslips for ${formatPeriod(period)}`}

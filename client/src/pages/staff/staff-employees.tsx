@@ -47,6 +47,10 @@ type Employee = {
   pan?: string | null;
   uan?: string | null;
   dateOfJoining?: string | null;
+  department?: string | null;
+  location?: string | null;
+  dateOfBirth?: string | null;
+  gender?: string | null;
 };
 
 type TeamLead = { id: string; username: string; fullName: string | null };
@@ -93,6 +97,10 @@ export default function StaffEmployees() {
     pan: "",
     uan: "",
     dateOfJoining: "",
+    department: "",
+    location: "",
+    dateOfBirth: "",
+    gender: "",
   });
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
@@ -136,6 +144,10 @@ export default function StaffEmployees() {
       pan: e.pan ?? "",
       uan: e.uan ?? "",
       dateOfJoining: e.dateOfJoining ?? "",
+      department: e.department ?? "",
+      location: e.location ?? "",
+      dateOfBirth: e.dateOfBirth ?? "",
+      gender: e.gender ?? "",
     });
   }
 
@@ -155,6 +167,10 @@ export default function StaffEmployees() {
         pan: editForm.pan.trim() || null,
         uan: editForm.uan.trim() || null,
         dateOfJoining: editForm.dateOfJoining.trim() || null,
+        department: editForm.department.trim() || null,
+        location: editForm.location.trim() || null,
+        dateOfBirth: editForm.dateOfBirth.trim() || null,
+        gender: editForm.gender.trim() || null,
       };
       if (editEmployee.role === "employee") {
         payload.teamLeadId = editForm.teamLeadId.trim() || null;
@@ -528,6 +544,33 @@ export default function StaffEmployees() {
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="edit-department">Department</Label>
+                    <Input
+                      id="edit-department"
+                      value={editForm.department}
+                      onChange={(e) => setEditForm((f) => ({ ...f, department: e.target.value }))}
+                      placeholder="e.g. Sales"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-location">Location</Label>
+                    <Input
+                      id="edit-location"
+                      value={editForm.location}
+                      onChange={(e) => setEditForm((f) => ({ ...f, location: e.target.value }))}
+                      placeholder="e.g. Chennai"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-dateOfBirth">Date of birth</Label>
+                    <Input
+                      id="edit-dateOfBirth"
+                      type="date"
+                      value={editForm.dateOfBirth}
+                      onChange={(e) => setEditForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="edit-dateOfJoining">Date of joining</Label>
                     <Input
                       id="edit-dateOfJoining"
@@ -535,6 +578,23 @@ export default function StaffEmployees() {
                       value={editForm.dateOfJoining}
                       onChange={(e) => setEditForm((f) => ({ ...f, dateOfJoining: e.target.value }))}
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-gender">Gender</Label>
+                    <Select
+                      value={editForm.gender || "none"}
+                      onValueChange={(v) => setEditForm((f) => ({ ...f, gender: v === "none" ? "" : v }))}
+                    >
+                      <SelectTrigger id="edit-gender">
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">—</SelectItem>
+                        <SelectItem value="M">Male</SelectItem>
+                        <SelectItem value="F">Female</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="space-y-2">

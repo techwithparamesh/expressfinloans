@@ -417,7 +417,8 @@ CREATE TABLE IF NOT EXISTS leave_requests (
 | Profile photo (avatar) on users | In **CREATE TABLE users**: column `avatar_url`; or `ALTER TABLE users ADD COLUMN avatar_url VARCHAR(512) NULL;` |
 | Employee ID (4-digit) on users | **Employee number** ALTER above; then run `npm run seed` to backfill |
 | Monthly lead target (admin-allocated) | **Monthly lead target** ALTER above |
-| Payslip / HR (designation, bank, PAN, UAN, DOJ) | **Users: payslip / HR fields** ALTER block above |
+| Payslip / HR (designation, bank, PAN, UAN, DOJ, department, location, DOB, gender) | **Users: payslip / HR fields** ALTER block above |
+| Company logo on payslips | Place `company-logo.png` or `company-logo.jpg` in the `uploads` folder (same directory as `avatars`, `payslips`). No DB change. |
 | Insurance leads table | **CREATE TABLE insurance_leads** in "If you already have the old leads table" |
 | Admin insurance fields (collected_premium, actual_premium, final_remarks) | **Admin-only insurance lead fields** ALTER block |
 | Insurance lead form (date_of_birth, insurance_subtype) | **Insurance lead form** ALTER block above |
@@ -575,6 +576,10 @@ ALTER TABLE users ADD COLUMN bank_ifsc VARCHAR(20) NULL;
 ALTER TABLE users ADD COLUMN pan VARCHAR(20) NULL;
 ALTER TABLE users ADD COLUMN uan VARCHAR(30) NULL;
 ALTER TABLE users ADD COLUMN date_of_joining DATE NULL;
+ALTER TABLE users ADD COLUMN department VARCHAR(100) NULL;
+ALTER TABLE users ADD COLUMN location VARCHAR(100) NULL;
+ALTER TABLE users ADD COLUMN date_of_birth DATE NULL;
+ALTER TABLE users ADD COLUMN gender VARCHAR(10) NULL;
 
 -- Company overall target (one row per month; admin sets total budget & leads)
 CREATE TABLE IF NOT EXISTS company_monthly_target (

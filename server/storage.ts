@@ -43,7 +43,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser & { password: string }): Promise<User>;
-  updateUser(id: string, data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget" | "teamLeadId" | "designation" | "bankAccountNumber" | "bankIfsc" | "pan" | "uan" | "dateOfJoining">>): Promise<User | undefined>;
+  updateUser(id: string, data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget" | "teamLeadId" | "designation" | "bankAccountNumber" | "bankIfsc" | "pan" | "uan" | "dateOfJoining" | "department" | "location" | "dateOfBirth" | "gender">>): Promise<User | undefined>;
   deleteUser(id: string): Promise<void>;
   getNextEmployeeNumber(): Promise<string>;
   backfillEmployeeNumbers(): Promise<void>;
@@ -207,7 +207,7 @@ export class DrizzleStorage implements IStorage {
 
   async updateUser(
     id: string,
-    data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget" | "teamLeadId" | "designation" | "bankAccountNumber" | "bankIfsc" | "pan" | "uan" | "dateOfJoining">>
+    data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget" | "teamLeadId" | "designation" | "bankAccountNumber" | "bankIfsc" | "pan" | "uan" | "dateOfJoining" | "department" | "location" | "dateOfBirth" | "gender">>
   ): Promise<User | undefined> {
     await guardDb();
     const payload: Record<string, unknown> = { ...data };

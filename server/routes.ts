@@ -14,6 +14,57 @@ const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 const AVATARS_DIR = path.join(UPLOADS_DIR, "avatars");
 const PAYSLIPS_DIR = path.join(UPLOADS_DIR, "payslips");
 
+/** Resolve company logo path for payslips (checks .png then .jpg). Returns path if file exists. */
+function getCompanyLogoPath(): string | null {
+  const base = path.join(UPLOADS_DIR, "company-logo");
+  for (const ext of [".png", ".jpg", ".jpeg"]) {
+    const p = base + ext;
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
+/** Format date for payslip display (handles ISO string or Date). */
+function formatPayslipDate(d: string | Date | null | undefined): string {
+  if (d == null) return "—";
+  const date = typeof d === "string" ? new Date(d) : d;
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** Format date as DD-MM-YYYY for payslip tables. */
+function formatPayslipDateDDMMYYYY(d: string | Date | null | undefined): string {
+  if (d == null) return "—";
+  const date = typeof d === "string" ? new Date(d) : d;
+  if (Number.isNaN(date.getTime())) return "—";
+  const day = date.getDate().toString().padStart(2, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  return `${day}-${month}-${date.getFullYear()}`;
+}
+
+/** Convert number to words (Indian style: Lakh, Crore). Returns e.g. "One Lakh Sixty Nine Thousand and Thirty Four Only" */
+function numberToWordsInRupees(n: number): string {
+  const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const round = Math.round(n);
+  if (round === 0) return "Zero Only";
+  if (round < 0) return "Minus " + numberToWordsInRupees(-round);
+
+  function toWords(num: number): string {
+    if (num === 0) return "";
+    if (num < 10) return ones[num];
+    if (num < 20) return teens[num - 10];
+    if (num < 100) return (tens[Math.floor(num / 10)] + " " + ones[num % 10]).trim();
+    if (num < 1000) return (ones[Math.floor(num / 100)] + " Hundred " + toWords(num % 100)).trim();
+    if (num < 100000) return (toWords(Math.floor(num / 1000)) + " Thousand " + toWords(num % 1000)).trim();
+    if (num < 10000000) return (toWords(Math.floor(num / 100000)) + " Lakh " + toWords(num % 100000)).trim();
+    return (toWords(Math.floor(num / 10000000)) + " Crore " + toWords(num % 10000000)).trim();
+  }
+  const s = toWords(round).replace(/\s+/g, " ").trim();
+  return s ? s + " Only" : "Zero Only";
+}
+
 const LEAD_MIN_FOR_PRESENT = 2;
 
 function todayStr(): string {
@@ -1273,6 +1324,10 @@ export async function registerRoutes(
         if (body.pan !== undefined) data.pan = typeof body.pan === "string" ? body.pan.trim() || null : null;
         if (body.uan !== undefined) data.uan = typeof body.uan === "string" ? body.uan.trim() || null : null;
         if (body.dateOfJoining !== undefined) data.dateOfJoining = typeof body.dateOfJoining === "string" ? (body.dateOfJoining.trim() || null) : null;
+        if (body.department !== undefined) data.department = typeof body.department === "string" ? body.department.trim() || null : null;
+        if (body.location !== undefined) data.location = typeof body.location === "string" ? body.location.trim() || null : null;
+        if (body.dateOfBirth !== undefined) data.dateOfBirth = typeof body.dateOfBirth === "string" ? (body.dateOfBirth.trim() || null) : null;
+        if (body.gender !== undefined) data.gender = typeof body.gender === "string" ? body.gender.trim() || null : null;
       } else if (role === "team_lead") {
         if ((target as any).role !== "employee") return res.status(403).json({ message: "Can only assign employees to your team" });
         if (body.teamLeadId !== undefined) {
@@ -1314,6 +1369,10 @@ export async function registerRoutes(
         pan: (updated as any).pan ?? null,
         uan: (updated as any).uan ?? null,
         dateOfJoining: (updated as any).dateOfJoining ?? null,
+        department: (updated as any).department ?? null,
+        location: (updated as any).location ?? null,
+        dateOfBirth: (updated as any).dateOfBirth ?? null,
+        gender: (updated as any).gender ?? null,
       });
     } catch (e) {
       next(e);
@@ -1422,6 +1481,10 @@ export async function registerRoutes(
           pan: (u as any).pan ?? null,
           uan: (u as any).uan ?? null,
           dateOfJoining: (u as any).dateOfJoining ?? null,
+          department: (u as any).department ?? null,
+          location: (u as any).location ?? null,
+          dateOfBirth: (u as any).dateOfBirth ?? null,
+          gender: (u as any).gender ?? null,
         }))
       );
     } catch (e) {
@@ -2117,14 +2180,25 @@ export async function registerRoutes(
     employeeName: string;
     employeeNumber: string;
     periodLabel: string;
+    payslipTitle: string; // "PAYSLIP FOR THE MONTH OF JUNE 2025"
     computed: ComputedPayslip;
     companyName: string;
+    companyAddress?: string | null;
     designation?: string | null;
-    dateOfJoining?: string | null;
+    dateOfJoining?: string | Date | null;
+    dateOfBirth?: string | Date | null;
     bankAccountNumber?: string | null;
     bankIfsc?: string | null;
     pan?: string | null;
     uan?: string | null;
+    department?: string | null;
+    location?: string | null;
+    gender?: string | null;
+    logoPath?: string | null;
+    totalEarningsYtd: number;
+    totalDeductionsYtd: number;
+    netPayYtd: number;
+    calendarDaysInMonth: number;
   };
 
   function drawPayslipPDF(doc: import("pdfkit").PDFDocument, opts: PayslipPDFOpts) {
@@ -2132,140 +2206,211 @@ export async function registerRoutes(
       employeeName,
       employeeNumber,
       periodLabel,
+      payslipTitle,
       computed,
       companyName,
+      companyAddress,
       designation,
       dateOfJoining,
+      dateOfBirth,
       bankAccountNumber,
-      bankIfsc,
       pan,
       uan,
+      department,
+      location,
+      gender,
+      logoPath,
+      totalEarningsYtd,
+      totalDeductionsYtd,
+      netPayYtd,
+      calendarDaysInMonth,
     } = opts;
-    const M = 50;
+    const M = 40;
     const pageW = 595;
     const rightEdge = pageW - M;
-    const amountColStart = rightEdge - 115;
-    const amountColWidth = 115;
-    const valueColStart = 200;
-    const valueColWidth = amountColStart - valueColStart - 10;
-    const rowH = 13;
-    const smallFont = 9;
-    const line = (y: number) => {
-      doc.moveTo(M, y).lineTo(rightEdge, y).stroke("#ccc");
+    const smallFont = 8;
+    const rowH = 11;
+    const cellPad = 4;
+
+    const drawCell = (x: number, y: number, w: number, h: number, text: string, bold = false, align: "left" | "right" = "left") => {
+      doc.font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(smallFont);
+      doc.rect(x, y, w, h).stroke("#333");
+      doc.text(String(text), x + cellPad, y + cellPad, { width: w - cellPad * 2, height: h - cellPad * 2, align, lineBreak: false });
     };
-    const label = (text: string, y: number) => doc.text(text, M + 10, y);
-    const value = (text: string, y: number) =>
-      doc.text(String(text || "—"), valueColStart, y, { width: valueColWidth, align: "right" });
 
     let y = M;
 
-    doc.fontSize(16).font("Helvetica-Bold").text(companyName || "Company", M, y, { align: "center", width: pageW - 2 * M });
-    y += 20;
-    doc.fontSize(11).font("Helvetica").text("SALARY SLIP", M, y, { align: "center", width: pageW - 2 * M });
-    y += 14;
-    doc.fontSize(smallFont).fillColor("#444").text(periodLabel, M, y, { align: "center", width: pageW - 2 * M });
-    y += 22;
-
-    const empRows: [string, string][] = [
-      ["Employee", employeeName || "—"],
-      ["Employee ID", employeeNumber || "—"],
-      ["Designation", designation || "—"],
-      ["Pay Period", periodLabel],
-      ["Date of Joining", dateOfJoining || "—"],
-    ];
-    if (computed.workingDaysInMonth != null && computed.daysPresent != null) {
-      empRows.push(["Working days", `${computed.daysPresent} / ${computed.workingDaysInMonth}`]);
-    }
-    const empBoxH = 10 + empRows.length * rowH + 10;
-    doc.rect(M, y, rightEdge - M, empBoxH).fill("#f8fafc").stroke("#e2e8f0");
-    y += 10;
-    doc.fillColor("#000").font("Helvetica").fontSize(smallFont);
-    for (const [lbl, val] of empRows) {
-      label(lbl, y);
-      value(val, y);
-      y += rowH;
-    }
-    y += 12;
-
-    const hasBank = bankAccountNumber || bankIfsc || pan || uan;
-    if (hasBank) {
-      doc.font("Helvetica-Bold").fontSize(10).text("Bank & Statutory Details", M, y);
-      y += rowH + 2;
-      line(y);
-      y += 6;
-      doc.font("Helvetica").fontSize(smallFont);
-      const bankRows: [string, string][] = [];
-      if (bankAccountNumber) bankRows.push(["Bank Account No.", bankAccountNumber]);
-      if (bankIfsc) bankRows.push(["IFSC Code", bankIfsc]);
-      if (pan) bankRows.push(["PAN", pan]);
-      if (uan) bankRows.push(["UAN (PF)", uan]);
-      for (const [lbl, val] of bankRows) {
-        label(lbl, y);
-        value(val, y);
-        y += rowH;
+    if (logoPath && fs.existsSync(logoPath)) {
+      try {
+        doc.image(logoPath, M, y, { fit: [48, 48] });
+      } catch {
+        // ignore
       }
-      line(y);
-      y += 10;
     }
+    const headerLeft = logoPath && fs.existsSync(logoPath) ? M + 56 : M;
+    const headerW = rightEdge - headerLeft;
+    doc.fontSize(14).font("Helvetica-Bold").text(companyName || "Company", headerLeft, y + 4, { align: "center", width: headerW });
+    if (companyAddress) {
+      doc.fontSize(8).font("Helvetica").fillColor("#333");
+      const lines = (companyAddress || "").split("\n").filter(Boolean);
+      lines.forEach((line, i) => {
+        doc.text(line.trim(), headerLeft, y + 22 + i * 10, { align: "center", width: headerW });
+      });
+      y += 22 + lines.length * 10;
+    } else {
+      y += 22;
+    }
+    doc.fontSize(10).font("Helvetica-Bold").text(payslipTitle, M, y, { align: "center", width: pageW - 2 * M });
+    y += 20;
 
-    doc.font("Helvetica-Bold").fontSize(10).text("Earnings", M, y);
-    y += rowH + 2;
-    line(y);
-    y += 6;
-    doc.font("Helvetica").fontSize(smallFont);
+    const colW = (rightEdge - M) / 3;
+    const empLabelW = 90;
+    const empValW = colW - empLabelW - 2;
+    const leftCol = M;
+    const midCol = M + colW;
+    const rightCol = M + colW * 2;
+    const empRows: [string, string][] = [
+      ["Emp Code", employeeNumber || "—"],
+      ["Department", department || "—"],
+      ["Location", location || "—"],
+      ["Date of Birth", formatPayslipDateDDMMYYYY(dateOfBirth)],
+      ["Date of Joining", formatPayslipDateDDMMYYYY(dateOfJoining)],
+      ["UAN", uan || "—"],
+    ];
+    const midRows: [string, string][] = [
+      ["Emp Name", employeeName || "—"],
+      ["Cost Center", "—"],
+      ["Designation", designation || "—"],
+      ["Bank A/c No", bankAccountNumber || "—"],
+      ["Gender", gender || "—"],
+      ["", "—"],
+    ];
+    const rightRows: [string, string][] = [
+      ["PF No.", uan || "—"],
+      ["ESI No.", "—"],
+      ["Pan No.", pan || "—"],
+      ["EPS No.", "—"],
+      ["Grade", "—"],
+      ["", "—"],
+    ];
+    const empTableH = Math.max(empRows.length, midRows.length, rightRows.length) * rowH;
+    for (let i = 0; i < empRows.length; i++) {
+      const [lbl, val] = empRows[i];
+      drawCell(leftCol, y + i * rowH, empLabelW, rowH, lbl);
+      drawCell(leftCol + empLabelW, y + i * rowH, empValW + 2, rowH, val);
+    }
+    for (let i = 0; i < midRows.length; i++) {
+      const [lbl, val] = midRows[i];
+      drawCell(midCol, y + i * rowH, empLabelW, rowH, lbl);
+      drawCell(midCol + empLabelW, y + i * rowH, empValW + 2, rowH, val);
+    }
+    for (let i = 0; i < rightRows.length; i++) {
+      const [lbl, val] = rightRows[i];
+      drawCell(rightCol, y + i * rowH, empLabelW, rowH, lbl);
+      drawCell(rightCol + empLabelW, y + i * rowH, empValW + 2, rowH, val);
+    }
+    y += empTableH + 6;
+    doc.font("Helvetica").fontSize(smallFont).fillColor("#000").text("Regime Type: New Regime", M, y);
+    y += 16;
+
+    const earnLabelW = 200;
+    const amtW = 95;
+    const ytdW = 95;
     const earn = computed.earningsBreakdown;
     const earnRows: [string, number][] = [
-      ["Basic Salary", earn.basic],
-      ["House Rent Allowance (HRA)", earn.hra],
-      ["Special Allowance", earn.specialAllowance],
+      ["Basic", earn.basic],
+      ["House Rent Allowance", earn.hra],
+      ["Other Allowance", earn.specialAllowance],
       ["Conveyance", earn.conveyance],
       ["Medical", earn.medical],
       ["Incentives", earn.incentives],
     ];
+    doc.font("Helvetica-Bold").fontSize(9).text("Earnings", M, y);
+    y += rowH + 2;
+    doc.rect(M, y, earnLabelW, rowH).stroke("#333");
+    doc.rect(M + earnLabelW, y, amtW, rowH).stroke("#333");
+    doc.rect(M + earnLabelW + amtW, y, ytdW, rowH).stroke("#333");
+    doc.font("Helvetica-Bold").fontSize(smallFont).text("Item Name", M + cellPad, y + cellPad);
+    doc.text("Amount", M + earnLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
+    doc.text("YTD", M + earnLabelW + amtW + cellPad, y + cellPad, { width: ytdW - cellPad * 2, align: "right" });
+    y += rowH;
     for (const [lbl, amt] of earnRows) {
-      doc.text(lbl, M, y);
-      doc.text(`₹ ${formatCurrency(amt)}`, amountColStart, y, { width: amountColWidth, align: "right" });
+      doc.rect(M, y, earnLabelW, rowH).stroke("#333");
+      doc.rect(M + earnLabelW, y, amtW, rowH).stroke("#333");
+      doc.rect(M + earnLabelW + amtW, y, ytdW, rowH).stroke("#333");
+      doc.font("Helvetica").fontSize(smallFont).text(lbl, M + cellPad, y + cellPad);
+      doc.text("Rs. " + formatCurrency(amt), M + earnLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
+      doc.text("—", M + earnLabelW + amtW + cellPad, y + cellPad, { width: ytdW - cellPad * 2, align: "right" });
       y += rowH;
     }
-    line(y);
-    y += 4;
-    doc.font("Helvetica-Bold").text("Total Earnings", M, y);
-    doc.text(`₹ ${formatCurrency(computed.totalEarnings)}`, amountColStart, y, { width: amountColWidth, align: "right" });
-    y += rowH + 14;
+    doc.rect(M, y, earnLabelW, rowH).stroke("#333");
+    doc.rect(M + earnLabelW, y, amtW, rowH).stroke("#333");
+    doc.rect(M + earnLabelW + amtW, y, ytdW, rowH).stroke("#333");
+    doc.font("Helvetica-Bold").fontSize(smallFont).text("Total Earnings", M + cellPad, y + cellPad);
+    doc.text("Rs. " + formatCurrency(computed.totalEarnings), M + earnLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
+    doc.text("Rs. " + formatCurrency(totalEarningsYtd), M + earnLabelW + amtW + cellPad, y + cellPad, { width: ytdW - cellPad * 2, align: "right" });
+    y += rowH + 10;
 
-    doc.font("Helvetica-Bold").fontSize(10).text("Deductions", M, y);
+    const dedLabelW = 200;
+    doc.font("Helvetica-Bold").fontSize(9).text("Deductions", M, y);
     y += rowH + 2;
-    line(y);
-    y += 6;
-    doc.font("Helvetica").fontSize(smallFont);
+    doc.rect(M, y, dedLabelW, rowH).stroke("#333");
+    doc.rect(M + dedLabelW, y, amtW, rowH).stroke("#333");
+    doc.rect(M + dedLabelW + amtW, y, ytdW, rowH).stroke("#333");
+    doc.font("Helvetica-Bold").fontSize(smallFont).text("Item Name", M + cellPad, y + cellPad);
+    doc.text("Amount", M + dedLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
+    doc.text("YTD", M + dedLabelW + amtW + cellPad, y + cellPad, { width: ytdW - cellPad * 2, align: "right" });
+    y += rowH;
     const ded = computed.deductionsBreakdown;
     const dedRows: [string, number][] = [
-      ["Provident Fund (PF)", ded.pf],
+      ["Provident Fund", ded.pf],
       ["Professional Tax", ded.pt],
-      ["Tax Deducted at Source (TDS)", ded.tds],
+      ["Income Tax (TDS)", ded.tds],
       ["Other Deductions", ded.other],
     ];
     for (const [lbl, amt] of dedRows) {
-      doc.text(lbl, M, y);
-      doc.text(`₹ ${formatCurrency(amt)}`, amountColStart, y, { width: amountColWidth, align: "right" });
+      doc.rect(M, y, dedLabelW, rowH).stroke("#333");
+      doc.rect(M + dedLabelW, y, amtW, rowH).stroke("#333");
+      doc.rect(M + dedLabelW + amtW, y, ytdW, rowH).stroke("#333");
+      doc.font("Helvetica").fontSize(smallFont).text(lbl, M + cellPad, y + cellPad);
+      doc.text("Rs. " + formatCurrency(amt), M + dedLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
+      doc.text("—", M + dedLabelW + amtW + cellPad, y + cellPad, { width: ytdW - cellPad * 2, align: "right" });
       y += rowH;
     }
-    line(y);
-    y += 4;
-    doc.font("Helvetica-Bold").text("Total Deductions", M, y);
-    doc.text(`₹ ${formatCurrency(computed.totalDeductions)}`, amountColStart, y, { width: amountColWidth, align: "right" });
-    y += rowH + 16;
+    doc.rect(M, y, dedLabelW, rowH).stroke("#333");
+    doc.rect(M + dedLabelW, y, amtW, rowH).stroke("#333");
+    doc.rect(M + dedLabelW + amtW, y, ytdW, rowH).stroke("#333");
+    doc.font("Helvetica-Bold").fontSize(smallFont).text("Total Deductions", M + cellPad, y + cellPad);
+    doc.text("Rs. " + formatCurrency(computed.totalDeductions), M + dedLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
+    doc.text("Rs. " + formatCurrency(totalDeductionsYtd), M + dedLabelW + amtW + cellPad, y + cellPad, { width: ytdW - cellPad * 2, align: "right" });
+    y += rowH + 14;
 
-    doc.rect(M, y, rightEdge - M, 28).fill("#e0f2fe").stroke("#0ea5e9");
-    y += 8;
-    doc.font("Helvetica-Bold").fontSize(12).fillColor("#0369a1").text("Net Pay", M + 10, y);
-    doc.text(`₹ ${formatCurrency(computed.netPay)}`, amountColStart, y - 2, { width: amountColWidth, align: "right" });
-    y += 28;
+    doc.font("Helvetica-Bold").fontSize(11).text("Net Pay : Rs. " + formatCurrency(computed.netPay), M, y);
+    doc.moveTo(M, y + 14).lineTo(M + 180, y + 14).stroke("#000");
+    y += 20;
+    doc.font("Helvetica").fontSize(smallFont).text("In Words Rupees " + numberToWordsInRupees(computed.netPay) + ".", M, y);
+    y += 20;
 
-    doc.fillColor("#000").font("Helvetica").fontSize(8).fillColor("#64748b");
+    const daysInMonth = calendarDaysInMonth;
+    const lopDays = (computed.workingDaysInMonth ?? 22) - (computed.daysPresent ?? 0);
+    const netDays = computed.daysPresent ?? 0;
+    const attW = (rightEdge - M) / 5;
+    doc.font("Helvetica-Bold").fontSize(9).text("Attendance / Days Worked", M, y);
+    y += rowH + 2;
+    ["Days In Month (A)", "Arrear Days (B)", "LOPR Days (C)", "LOP Days (D)", "Net Days Worked (E=A+B+C-D)"].forEach((h, i) => {
+      doc.rect(M + i * attW, y, attW, rowH).stroke("#333");
+      doc.font("Helvetica").fontSize(7).text(h, M + i * attW + 2, y + 2, { width: attW - 4, align: "center" });
+    });
+    y += rowH;
+    [String(daysInMonth), "0", "0", String(lopDays), String(netDays)].forEach((val, i) => {
+      doc.rect(M + i * attW, y, attW, rowH).stroke("#333");
+      doc.text(val, M + i * attW + 2, y + cellPad, { width: attW - 4, align: "center" });
+    });
+    y += rowH + 14;
+
+    doc.font("Helvetica").fontSize(7).fillColor("#666");
     doc.text("This is a computer-generated payslip. No signature required.", M, y, { align: "center", width: pageW - 2 * M });
-    y += 10;
-    doc.text(`Generated on: ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}`, M, y, { align: "center", width: pageW - 2 * M });
+    doc.text(`Generated on: ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}`, M, y + 8, { align: "center", width: pageW - 2 * M });
     doc.fillColor("#000");
   }
 
@@ -2279,9 +2424,12 @@ export async function registerRoutes(
       const monthStart = new Date(y, m - 1, 1).toISOString().slice(0, 10);
       const monthEnd = new Date(y, m, 0).toISOString().slice(0, 10);
       const periodLabel = new Date(y, m - 1, 1).toLocaleString("en-IN", { month: "long", year: "numeric" });
+      const payslipTitle = "PAYSLIP FOR THE MONTH OF " + periodLabel.toUpperCase();
       const workingDaysInMonth = getWorkingDaysInMonth(y, m);
+      const calendarDaysInMonth = new Date(y, m, 0).getDate();
       const employees = await storage.listEmployees();
       const companyName = (req.body?.companyName as string)?.trim() || "Express Financial Services";
+      const companyAddress = (req.body?.companyAddress as string)?.trim() || null;
       let generated = 0;
       for (const emp of employees) {
         const structure = await storage.getSalaryStructure(emp.id);
@@ -2297,6 +2445,20 @@ export async function registerRoutes(
         };
         const proration = workingDaysInMonth > 0 ? { workingDaysInMonth, daysPresent } : undefined;
         const computed = computePayslip(structure as any, entryRow as any, proration);
+        const allPayslips = await storage.getPayslipsByEmployee(emp.id);
+        const yearStr = String(y);
+        const previousInYear = allPayslips.filter((p) => String(p.period).startsWith(yearStr) && p.period < period);
+        let sumE = 0,
+          sumD = 0,
+          sumN = 0;
+        previousInYear.forEach((p) => {
+          sumE += parseAmount((p as any).totalEarnings ?? p.total_earnings ?? 0);
+          sumD += parseAmount((p as any).totalDeductions ?? p.total_deductions ?? 0);
+          sumN += parseAmount((p as any).netPay ?? p.net_pay ?? 0);
+        });
+        const totalEarningsYtd = sumE + computed.totalEarnings;
+        const totalDeductionsYtd = sumD + computed.totalDeductions;
+        const netPayYtd = sumN + computed.netPay;
         const earningsJson = JSON.stringify(computed.earningsBreakdown);
         const deductionsJson = JSON.stringify(computed.deductionsBreakdown);
         const empName = (emp as any).fullName?.trim() || emp.username || "";
@@ -2307,18 +2469,30 @@ export async function registerRoutes(
         const doc = new PDFDocument({ margin: 40, size: "A4" });
         const stream = fs.createWriteStream(filePath);
         doc.pipe(stream);
+        const companyLogoPath = getCompanyLogoPath();
         drawPayslipPDF(doc, {
           employeeName: empName,
           employeeNumber: empNum,
           periodLabel,
+          payslipTitle,
           computed,
           companyName,
+          companyAddress,
           designation: (emp as any).designation ?? null,
           dateOfJoining: (emp as any).dateOfJoining ?? null,
+          dateOfBirth: (emp as any).dateOfBirth ?? null,
           bankAccountNumber: (emp as any).bankAccountNumber ?? null,
           bankIfsc: (emp as any).bankIfsc ?? null,
           pan: (emp as any).pan ?? null,
           uan: (emp as any).uan ?? null,
+          department: (emp as any).department ?? null,
+          location: (emp as any).location ?? null,
+          gender: (emp as any).gender ?? null,
+          logoPath: companyLogoPath,
+          totalEarningsYtd,
+          totalDeductionsYtd,
+          netPayYtd,
+          calendarDaysInMonth,
         });
         doc.end();
         await new Promise<void>((resolve, reject) => {
