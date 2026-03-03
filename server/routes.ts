@@ -2100,59 +2100,104 @@ export async function registerRoutes(
     opts: { employeeName: string; employeeNumber: string; periodLabel: string; computed: ComputedPayslip; companyName: string }
   ) {
     const { employeeName, employeeNumber, periodLabel, computed, companyName } = opts;
-    const M = 40;
-    doc.fontSize(14).font("Helvetica-Bold").text(companyName || "Company", M, M, { align: "center" });
-    doc.font("Helvetica").fontSize(10).text("Payslip", M, doc.y + 8, { align: "center" });
-    doc.moveDown(0.5);
-    let y = doc.y + 10;
-    doc.fontSize(9).text(`Employee: ${employeeName}`, M, y);
+    const M = 50;
+    const pageW = 595;
+    const rightEdge = pageW - M;
+    const amountColStart = rightEdge - 115;
+    const amountColWidth = 115;
+    const rowH = 13;
+    const smallFont = 9;
+    const line = (y: number) => {
+      doc.moveTo(M, y).lineTo(rightEdge, y).stroke("#ccc");
+    };
+
+    let y = M;
+
+    doc.fontSize(16).font("Helvetica-Bold").text(companyName || "Company", M, y, { align: "center", width: pageW - 2 * M });
+    y += 20;
+    doc.fontSize(11).font("Helvetica").text("SALARY SLIP", M, y, { align: "center", width: pageW - 2 * M });
     y += 14;
-    doc.text(`Employee ID: ${employeeNumber}`, M, y);
-    y += 14;
-    doc.text(`Period: ${periodLabel}`, M, y);
-    y += 14;
+    doc.fontSize(smallFont).fillColor("#444").text(periodLabel, M, y, { align: "center", width: pageW - 2 * M });
+    y += 22;
+
+    doc.rect(M, y, rightEdge - M, 52).fill("#f8fafc").stroke("#e2e8f0");
+    y += 10;
+    doc.fillColor("#000").font("Helvetica").fontSize(smallFont);
+    doc.text("Employee", M + 10, y);
+    doc.text(employeeName, amountColStart - 10, y, { width: amountColStart - M - 20, align: "right" });
+    y += rowH;
+    doc.text("Employee ID", M + 10, y);
+    doc.text(employeeNumber || "—", amountColStart - 10, y, { width: amountColStart - M - 20, align: "right" });
+    y += rowH;
+    doc.text("Pay Period", M + 10, y);
+    doc.text(periodLabel, amountColStart - 10, y, { width: amountColStart - M - 20, align: "right" });
+    y += rowH;
     if (computed.workingDaysInMonth != null && computed.daysPresent != null) {
-      doc.text(`Working days: ${computed.workingDaysInMonth} | Days present (attendance): ${computed.daysPresent}`, M, y);
-      y += 14;
+      doc.text("Working days", M + 10, y);
+      doc.text(`${computed.daysPresent} / ${computed.workingDaysInMonth}`, amountColStart - 10, y, { width: amountColStart - M - 20, align: "right" });
+      y += rowH;
     }
+    y += 12;
+
+    doc.font("Helvetica-Bold").fontSize(10).text("Earnings", M, y);
+    y += rowH + 2;
+    line(y);
     y += 6;
-    doc.font("Helvetica-Bold").text("Earnings", M, y);
-    doc.font("Helvetica");
-    y += 14;
+    doc.font("Helvetica").fontSize(smallFont);
     const earn = computed.earningsBreakdown;
-    doc.text(`Basic Salary        ${formatCurrency(earn.basic)}`, M, y);
-    y += 12;
-    doc.text(`HRA                 ${formatCurrency(earn.hra)}`, M, y);
-    y += 12;
-    doc.text(`Special Allowance   ${formatCurrency(earn.specialAllowance)}`, M, y);
-    y += 12;
-    doc.text(`Conveyance          ${formatCurrency(earn.conveyance)}`, M, y);
-    y += 12;
-    doc.text(`Medical             ${formatCurrency(earn.medical)}`, M, y);
-    y += 12;
-    doc.text(`Incentives          ${formatCurrency(earn.incentives)}`, M, y);
-    y += 16;
-    doc.font("Helvetica-Bold").text(`Total Earnings      ${formatCurrency(computed.totalEarnings)}`, M, y);
-    doc.font("Helvetica");
-    y += 20;
-    doc.font("Helvetica-Bold").text("Deductions", M, y);
-    doc.font("Helvetica");
-    y += 14;
+    const earnRows: [string, number][] = [
+      ["Basic Salary", earn.basic],
+      ["House Rent Allowance (HRA)", earn.hra],
+      ["Special Allowance", earn.specialAllowance],
+      ["Conveyance", earn.conveyance],
+      ["Medical", earn.medical],
+      ["Incentives", earn.incentives],
+    ];
+    for (const [label, amt] of earnRows) {
+      doc.text(label, M, y);
+      doc.text(`₹ ${formatCurrency(amt)}`, amountColStart, y, { width: amountColWidth, align: "right" });
+      y += rowH;
+    }
+    line(y);
+    y += 4;
+    doc.font("Helvetica-Bold").text("Total Earnings", M, y);
+    doc.text(`₹ ${formatCurrency(computed.totalEarnings)}`, amountColStart, y, { width: amountColWidth, align: "right" });
+    y += rowH + 14;
+
+    doc.font("Helvetica-Bold").fontSize(10).text("Deductions", M, y);
+    y += rowH + 2;
+    line(y);
+    y += 6;
+    doc.font("Helvetica").fontSize(smallFont);
     const ded = computed.deductionsBreakdown;
-    doc.text(`PF                  ${formatCurrency(ded.pf)}`, M, y);
-    y += 12;
-    doc.text(`Professional Tax    ${formatCurrency(ded.pt)}`, M, y);
-    y += 12;
-    doc.text(`TDS                 ${formatCurrency(ded.tds)}`, M, y);
-    y += 12;
-    doc.text(`Other               ${formatCurrency(ded.other)}`, M, y);
-    y += 16;
-    doc.font("Helvetica-Bold").text(`Total Deductions   ${formatCurrency(computed.totalDeductions)}`, M, y);
-    y += 20;
-    doc.font("Helvetica-Bold").fontSize(11).text(`Net Pay             ${formatCurrency(computed.netPay)}`, M, y);
-    doc.font("Helvetica").fontSize(9);
-    doc.moveDown(2);
-    doc.text("This is a computer-generated payslip.", M, doc.y, { align: "center" });
+    const dedRows: [string, number][] = [
+      ["Provident Fund (PF)", ded.pf],
+      ["Professional Tax", ded.pt],
+      ["Tax Deducted at Source (TDS)", ded.tds],
+      ["Other Deductions", ded.other],
+    ];
+    for (const [label, amt] of dedRows) {
+      doc.text(label, M, y);
+      doc.text(`₹ ${formatCurrency(amt)}`, amountColStart, y, { width: amountColWidth, align: "right" });
+      y += rowH;
+    }
+    line(y);
+    y += 4;
+    doc.font("Helvetica-Bold").text("Total Deductions", M, y);
+    doc.text(`₹ ${formatCurrency(computed.totalDeductions)}`, amountColStart, y, { width: amountColWidth, align: "right" });
+    y += rowH + 16;
+
+    doc.rect(M, y, rightEdge - M, 28).fill("#e0f2fe").stroke("#0ea5e9");
+    y += 8;
+    doc.font("Helvetica-Bold").fontSize(12).fillColor("#0369a1").text("Net Pay", M + 10, y);
+    doc.text(`₹ ${formatCurrency(computed.netPay)}`, amountColStart, y - 2, { width: amountColWidth, align: "right" });
+    y += 28;
+
+    doc.fillColor("#000").font("Helvetica").fontSize(8).fillColor("#64748b");
+    doc.text("This is a computer-generated payslip. No signature required.", M, y, { align: "center", width: pageW - 2 * M });
+    y += 10;
+    doc.text(`Generated on: ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}`, M, y, { align: "center", width: pageW - 2 * M });
+    doc.fillColor("#000");
   }
 
   app.post("/api/staff/payslips/generate", requireAuth, requireAdmin, async (req, res, next) => {
