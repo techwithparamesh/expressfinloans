@@ -41,6 +41,12 @@ type Employee = {
   employeeNumber: string | null;
   monthlyLeadTarget: number | null;
   teamLeadId: string | null;
+  designation?: string | null;
+  bankAccountNumber?: string | null;
+  bankIfsc?: string | null;
+  pan?: string | null;
+  uan?: string | null;
+  dateOfJoining?: string | null;
 };
 
 type TeamLead = { id: string; username: string; fullName: string | null };
@@ -75,7 +81,19 @@ export default function StaffEmployees() {
   const [createTeamLeadId, setCreateTeamLeadId] = useState("");
   const [teamLeads, setTeamLeads] = useState<TeamLead[]>([]);
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
-  const [editForm, setEditForm] = useState({ fullName: "", email: "", phone: "", monthlyLeadTarget: "", teamLeadId: "" });
+  const [editForm, setEditForm] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    monthlyLeadTarget: "",
+    teamLeadId: "",
+    designation: "",
+    bankAccountNumber: "",
+    bankIfsc: "",
+    pan: "",
+    uan: "",
+    dateOfJoining: "",
+  });
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
   const [savingDelete, setSavingDelete] = useState(false);
@@ -112,6 +130,12 @@ export default function StaffEmployees() {
       phone: e.phone ?? "",
       monthlyLeadTarget: e.monthlyLeadTarget != null ? String(e.monthlyLeadTarget) : "",
       teamLeadId: e.teamLeadId ?? "",
+      designation: e.designation ?? "",
+      bankAccountNumber: e.bankAccountNumber ?? "",
+      bankIfsc: e.bankIfsc ?? "",
+      pan: e.pan ?? "",
+      uan: e.uan ?? "",
+      dateOfJoining: e.dateOfJoining ?? "",
     });
   }
 
@@ -125,6 +149,12 @@ export default function StaffEmployees() {
         email: editForm.email.trim() || null,
         phone: editForm.phone.trim() || null,
         monthlyLeadTarget: editForm.monthlyLeadTarget.trim() ? Number(editForm.monthlyLeadTarget) : null,
+        designation: editForm.designation.trim() || null,
+        bankAccountNumber: editForm.bankAccountNumber.trim() || null,
+        bankIfsc: editForm.bankIfsc.trim() || null,
+        pan: editForm.pan.trim() || null,
+        uan: editForm.uan.trim() || null,
+        dateOfJoining: editForm.dateOfJoining.trim() || null,
       };
       if (editEmployee.role === "employee") {
         payload.teamLeadId = editForm.teamLeadId.trim() || null;
@@ -484,6 +514,68 @@ export default function StaffEmployees() {
                   onChange={(e) => setEditForm((f) => ({ ...f, monthlyLeadTarget: e.target.value }))}
                   placeholder="e.g. 20 (blank = default)"
                 />
+              </div>
+              <div className="border-t pt-4 mt-4 space-y-4">
+                <p className="text-sm font-medium text-slate-700">Payslip / Bank details</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-designation">Designation</Label>
+                    <Input
+                      id="edit-designation"
+                      value={editForm.designation}
+                      onChange={(e) => setEditForm((f) => ({ ...f, designation: e.target.value }))}
+                      placeholder="e.g. Sales Executive"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-dateOfJoining">Date of joining</Label>
+                    <Input
+                      id="edit-dateOfJoining"
+                      type="date"
+                      value={editForm.dateOfJoining}
+                      onChange={(e) => setEditForm((f) => ({ ...f, dateOfJoining: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-bankAccountNumber">Bank account number</Label>
+                  <Input
+                    id="edit-bankAccountNumber"
+                    value={editForm.bankAccountNumber}
+                    onChange={(e) => setEditForm((f) => ({ ...f, bankAccountNumber: e.target.value }))}
+                    placeholder="Account number for salary credit"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-bankIfsc">IFSC code</Label>
+                  <Input
+                    id="edit-bankIfsc"
+                    value={editForm.bankIfsc}
+                    onChange={(e) => setEditForm((f) => ({ ...f, bankIfsc: e.target.value }))}
+                    placeholder="e.g. HDFC0001234"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-pan">PAN</Label>
+                    <Input
+                      id="edit-pan"
+                      value={editForm.pan}
+                      onChange={(e) => setEditForm((f) => ({ ...f, pan: e.target.value.toUpperCase() }))}
+                      placeholder="e.g. ABCD E1234F"
+                      maxLength={14}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-uan">UAN (PF)</Label>
+                    <Input
+                      id="edit-uan"
+                      value={editForm.uan}
+                      onChange={(e) => setEditForm((f) => ({ ...f, uan: e.target.value }))}
+                      placeholder="Universal Account Number"
+                    />
+                  </div>
+                </div>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setEditEmployee(null)}>

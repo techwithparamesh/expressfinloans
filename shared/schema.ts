@@ -27,6 +27,12 @@ export const users = mysqlTable("users", {
   teamLeadId: varchar("team_lead_id", { length: 36 }).references(() => users.id, { onDelete: "set null" }), // employee's Team Lead (null = unassigned)
   reportingTo: varchar("reporting_to", { length: 36 }).references(() => users.id, { onDelete: "set null" }), // hierarchical: who this user reports to (null for admin)
   isActive: int("is_active").notNull().default(1), // 1 = active, 0 = inactive
+  designation: varchar("designation", { length: 100 }), // job title for payslips
+  bankAccountNumber: varchar("bank_account_number", { length: 50 }),
+  bankIfsc: varchar("bank_ifsc", { length: 20 }),
+  pan: varchar("pan", { length: 20 }),
+  uan: varchar("uan", { length: 30 }), // PF Universal Account Number
+  dateOfJoining: date("date_of_joining"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

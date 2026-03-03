@@ -1267,6 +1267,12 @@ export async function registerRoutes(
           if (data.monthlyLeadTarget !== null && Number.isNaN(data.monthlyLeadTarget as number)) data.monthlyLeadTarget = null;
         }
         if (body.teamLeadId !== undefined) data.teamLeadId = body.teamLeadId === null || body.teamLeadId === "" ? null : body.teamLeadId;
+        if (body.designation !== undefined) data.designation = typeof body.designation === "string" ? body.designation.trim() || null : null;
+        if (body.bankAccountNumber !== undefined) data.bankAccountNumber = typeof body.bankAccountNumber === "string" ? body.bankAccountNumber.trim() || null : null;
+        if (body.bankIfsc !== undefined) data.bankIfsc = typeof body.bankIfsc === "string" ? body.bankIfsc.trim() || null : null;
+        if (body.pan !== undefined) data.pan = typeof body.pan === "string" ? body.pan.trim() || null : null;
+        if (body.uan !== undefined) data.uan = typeof body.uan === "string" ? body.uan.trim() || null : null;
+        if (body.dateOfJoining !== undefined) data.dateOfJoining = typeof body.dateOfJoining === "string" ? (body.dateOfJoining.trim() || null) : null;
       } else if (role === "team_lead") {
         if ((target as any).role !== "employee") return res.status(403).json({ message: "Can only assign employees to your team" });
         if (body.teamLeadId !== undefined) {
@@ -1302,6 +1308,12 @@ export async function registerRoutes(
         employeeNumber: (updated as any).employeeNumber ?? null,
         monthlyLeadTarget: (updated as any).monthlyLeadTarget ?? null,
         teamLeadId: (updated as any).teamLeadId ?? null,
+        designation: (updated as any).designation ?? null,
+        bankAccountNumber: (updated as any).bankAccountNumber ?? null,
+        bankIfsc: (updated as any).bankIfsc ?? null,
+        pan: (updated as any).pan ?? null,
+        uan: (updated as any).uan ?? null,
+        dateOfJoining: (updated as any).dateOfJoining ?? null,
       });
     } catch (e) {
       next(e);
@@ -1404,6 +1416,12 @@ export async function registerRoutes(
           employeeNumber: (u as any).employeeNumber ?? null,
           monthlyLeadTarget: (u as any).monthlyLeadTarget ?? null,
           teamLeadId: (u as any).teamLeadId ?? null,
+          designation: (u as any).designation ?? null,
+          bankAccountNumber: (u as any).bankAccountNumber ?? null,
+          bankIfsc: (u as any).bankIfsc ?? null,
+          pan: (u as any).pan ?? null,
+          uan: (u as any).uan ?? null,
+          dateOfJoining: (u as any).dateOfJoining ?? null,
         }))
       );
     } catch (e) {
@@ -2095,21 +2113,49 @@ export async function registerRoutes(
     }
   });
 
-  function drawPayslipPDF(
-    doc: import("pdfkit").PDFDocument,
-    opts: { employeeName: string; employeeNumber: string; periodLabel: string; computed: ComputedPayslip; companyName: string }
-  ) {
-    const { employeeName, employeeNumber, periodLabel, computed, companyName } = opts;
+  type PayslipPDFOpts = {
+    employeeName: string;
+    employeeNumber: string;
+    periodLabel: string;
+    computed: ComputedPayslip;
+    companyName: string;
+    designation?: string | null;
+    dateOfJoining?: string | null;
+    bankAccountNumber?: string | null;
+    bankIfsc?: string | null;
+    pan?: string | null;
+    uan?: string | null;
+  };
+
+  function drawPayslipPDF(doc: import("pdfkit").PDFDocument, opts: PayslipPDFOpts) {
+    const {
+      employeeName,
+      employeeNumber,
+      periodLabel,
+      computed,
+      companyName,
+      designation,
+      dateOfJoining,
+      bankAccountNumber,
+      bankIfsc,
+      pan,
+      uan,
+    } = opts;
     const M = 50;
     const pageW = 595;
     const rightEdge = pageW - M;
     const amountColStart = rightEdge - 115;
     const amountColWidth = 115;
+    const valueColStart = 200;
+    const valueColWidth = amountColStart - valueColStart - 10;
     const rowH = 13;
     const smallFont = 9;
     const line = (y: number) => {
       doc.moveTo(M, y).lineTo(rightEdge, y).stroke("#ccc");
     };
+    const label = (text: string, y: number) => doc.text(text, M + 10, y);
+    const value = (text: string, y: number) =>
+      doc.text(String(text || "—"), valueColStart, y, { width: valueColWidth, align: "right" });
 
     let y = M;
 
@@ -2120,24 +2166,47 @@ export async function registerRoutes(
     doc.fontSize(smallFont).fillColor("#444").text(periodLabel, M, y, { align: "center", width: pageW - 2 * M });
     y += 22;
 
-    doc.rect(M, y, rightEdge - M, 52).fill("#f8fafc").stroke("#e2e8f0");
+    const empRows: [string, string][] = [
+      ["Employee", employeeName || "—"],
+      ["Employee ID", employeeNumber || "—"],
+      ["Designation", designation || "—"],
+      ["Pay Period", periodLabel],
+      ["Date of Joining", dateOfJoining || "—"],
+    ];
+    if (computed.workingDaysInMonth != null && computed.daysPresent != null) {
+      empRows.push(["Working days", `${computed.daysPresent} / ${computed.workingDaysInMonth}`]);
+    }
+    const empBoxH = 10 + empRows.length * rowH + 10;
+    doc.rect(M, y, rightEdge - M, empBoxH).fill("#f8fafc").stroke("#e2e8f0");
     y += 10;
     doc.fillColor("#000").font("Helvetica").fontSize(smallFont);
-    doc.text("Employee", M + 10, y);
-    doc.text(employeeName, amountColStart - 10, y, { width: amountColStart - M - 20, align: "right" });
-    y += rowH;
-    doc.text("Employee ID", M + 10, y);
-    doc.text(employeeNumber || "—", amountColStart - 10, y, { width: amountColStart - M - 20, align: "right" });
-    y += rowH;
-    doc.text("Pay Period", M + 10, y);
-    doc.text(periodLabel, amountColStart - 10, y, { width: amountColStart - M - 20, align: "right" });
-    y += rowH;
-    if (computed.workingDaysInMonth != null && computed.daysPresent != null) {
-      doc.text("Working days", M + 10, y);
-      doc.text(`${computed.daysPresent} / ${computed.workingDaysInMonth}`, amountColStart - 10, y, { width: amountColStart - M - 20, align: "right" });
+    for (const [lbl, val] of empRows) {
+      label(lbl, y);
+      value(val, y);
       y += rowH;
     }
     y += 12;
+
+    const hasBank = bankAccountNumber || bankIfsc || pan || uan;
+    if (hasBank) {
+      doc.font("Helvetica-Bold").fontSize(10).text("Bank & Statutory Details", M, y);
+      y += rowH + 2;
+      line(y);
+      y += 6;
+      doc.font("Helvetica").fontSize(smallFont);
+      const bankRows: [string, string][] = [];
+      if (bankAccountNumber) bankRows.push(["Bank Account No.", bankAccountNumber]);
+      if (bankIfsc) bankRows.push(["IFSC Code", bankIfsc]);
+      if (pan) bankRows.push(["PAN", pan]);
+      if (uan) bankRows.push(["UAN (PF)", uan]);
+      for (const [lbl, val] of bankRows) {
+        label(lbl, y);
+        value(val, y);
+        y += rowH;
+      }
+      line(y);
+      y += 10;
+    }
 
     doc.font("Helvetica-Bold").fontSize(10).text("Earnings", M, y);
     y += rowH + 2;
@@ -2153,8 +2222,8 @@ export async function registerRoutes(
       ["Medical", earn.medical],
       ["Incentives", earn.incentives],
     ];
-    for (const [label, amt] of earnRows) {
-      doc.text(label, M, y);
+    for (const [lbl, amt] of earnRows) {
+      doc.text(lbl, M, y);
       doc.text(`₹ ${formatCurrency(amt)}`, amountColStart, y, { width: amountColWidth, align: "right" });
       y += rowH;
     }
@@ -2176,8 +2245,8 @@ export async function registerRoutes(
       ["Tax Deducted at Source (TDS)", ded.tds],
       ["Other Deductions", ded.other],
     ];
-    for (const [label, amt] of dedRows) {
-      doc.text(label, M, y);
+    for (const [lbl, amt] of dedRows) {
+      doc.text(lbl, M, y);
       doc.text(`₹ ${formatCurrency(amt)}`, amountColStart, y, { width: amountColWidth, align: "right" });
       y += rowH;
     }
@@ -2238,7 +2307,19 @@ export async function registerRoutes(
         const doc = new PDFDocument({ margin: 40, size: "A4" });
         const stream = fs.createWriteStream(filePath);
         doc.pipe(stream);
-        drawPayslipPDF(doc, { employeeName: empName, employeeNumber: empNum, periodLabel, computed, companyName });
+        drawPayslipPDF(doc, {
+          employeeName: empName,
+          employeeNumber: empNum,
+          periodLabel,
+          computed,
+          companyName,
+          designation: (emp as any).designation ?? null,
+          dateOfJoining: (emp as any).dateOfJoining ?? null,
+          bankAccountNumber: (emp as any).bankAccountNumber ?? null,
+          bankIfsc: (emp as any).bankIfsc ?? null,
+          pan: (emp as any).pan ?? null,
+          uan: (emp as any).uan ?? null,
+        });
         doc.end();
         await new Promise<void>((resolve, reject) => {
           stream.on("finish", () => resolve());
