@@ -8,7 +8,7 @@ import PDFDocument from "pdfkit";
 import { storage } from "./storage";
 import { requireAuth, requireAdmin, requireAdminOrTeamLead } from "./auth";
 import { getClientIp, getLocationFromIp, reverseGeocode } from "./lib/geolocation";
-import { computePayslip, formatCurrency, type ComputedPayslip } from "./payroll";
+import { computePayslip, formatCurrency, getWorkingDaysInMonth, type ComputedPayslip } from "./payroll";
 
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 const AVATARS_DIR = path.join(UPLOADS_DIR, "avatars");
@@ -2110,7 +2110,12 @@ export async function registerRoutes(
     doc.text(`Employee ID: ${employeeNumber}`, M, y);
     y += 14;
     doc.text(`Period: ${periodLabel}`, M, y);
-    y += 20;
+    y += 14;
+    if (computed.workingDaysInMonth != null && computed.daysPresent != null) {
+      doc.text(`Working days: ${computed.workingDaysInMonth} | Days present (attendance): ${computed.daysPresent}`, M, y);
+      y += 14;
+    }
+    y += 6;
     doc.font("Helvetica-Bold").text("Earnings", M, y);
     doc.font("Helvetica");
     y += 14;
@@ -2157,7 +2162,10 @@ export async function registerRoutes(
       if (!period || !/^\d{4}-\d{2}$/.test(period))
         return res.status(400).json({ message: "period (YYYY-MM) is required" });
       const [y, m] = period.split("-").map(Number);
+      const monthStart = new Date(y, m - 1, 1).toISOString().slice(0, 10);
+      const monthEnd = new Date(y, m, 0).toISOString().slice(0, 10);
       const periodLabel = new Date(y, m - 1, 1).toLocaleString("en-IN", { month: "long", year: "numeric" });
+      const workingDaysInMonth = getWorkingDaysInMonth(y, m);
       const employees = await storage.listEmployees();
       const companyName = (req.body?.companyName as string)?.trim() || "Express Financial Services";
       let generated = 0;
@@ -2165,13 +2173,16 @@ export async function registerRoutes(
         const structure = await storage.getSalaryStructure(emp.id);
         const entry = await storage.getPayrollEntry(emp.id, period);
         if (!structure) continue;
+        const att = await storage.getAttendanceLogsByEmployee(emp.id, monthStart, monthEnd);
+        const daysPresent = att.length;
         const entryRow = entry || {
           incentives: "0",
           deductionsOther: "0",
           tdsAmount: null,
           absentDays: 0,
         };
-        const computed = computePayslip(structure as any, entryRow as any);
+        const proration = workingDaysInMonth > 0 ? { workingDaysInMonth, daysPresent } : undefined;
+        const computed = computePayslip(structure as any, entryRow as any, proration);
         const earningsJson = JSON.stringify(computed.earningsBreakdown);
         const deductionsJson = JSON.stringify(computed.deductionsBreakdown);
         const empName = (emp as any).fullName?.trim() || emp.username || "";

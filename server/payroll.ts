@@ -50,11 +50,33 @@ export interface ComputedPayslip {
   totalEarnings: number;
   totalDeductions: number;
   netPay: number;
+  workingDaysInMonth?: number;
+  daysPresent?: number;
 }
 
-const PF_CAP_BASE = 15000; // PF statutory cap on basic (₹15,000)
+const PF_CAP_BASE = 15000;
 
-export function computePayslip(structure: SalaryStructureRow, entry: PayrollEntryRow): ComputedPayslip {
+/** Weekdays (Mon–Fri) in the given month. month is 1-based. */
+export function getWorkingDaysInMonth(year: number, month: number): number {
+  const first = new Date(year, month - 1, 1);
+  const last = new Date(year, month, 0);
+  let count = 0;
+  for (let d = new Date(first); d <= last; d.setDate(d.getDate() + 1)) {
+    if (d.getDay() >= 1 && d.getDay() <= 5) count++;
+  }
+  return count;
+}
+
+export interface ProrationOptions {
+  workingDaysInMonth: number;
+  daysPresent: number;
+}
+
+export function computePayslip(
+  structure: SalaryStructureRow,
+  entry: PayrollEntryRow,
+  proration?: ProrationOptions
+): ComputedPayslip {
   const basic = parseDecimal(structure.basic);
   const hraPercent = parseDecimal(structure.hraPercent);
   const specialAllowance = parseDecimal(structure.specialAllowance);
@@ -67,20 +89,35 @@ export function computePayslip(structure: SalaryStructureRow, entry: PayrollEntr
   const tdsAmount = parseDecimal(entry.tdsAmount);
 
   const hra = (basic * hraPercent) / 100;
-  const pfBase = Math.min(basic, PF_CAP_BASE);
+
+  let factor = 1;
+  const workingDaysInMonth = proration?.workingDaysInMonth ?? 0;
+  const daysPresent = proration?.daysPresent ?? 0;
+  if (proration && workingDaysInMonth > 0 && daysPresent >= 0) {
+    factor = Math.min(1, daysPresent / workingDaysInMonth);
+  }
+
+  const basicProrated = basic * factor;
+  const hraProrated = hra * factor;
+  const specialAllowanceProrated = specialAllowance * factor;
+  const conveyanceProrated = conveyance * factor;
+  const medicalProrated = medical * factor;
+  const incentivesProrated = incentives * factor;
+
+  const pfBase = Math.min(basicProrated, PF_CAP_BASE);
   const pf = (pfBase * employeePfPercent) / 100;
 
   const earningsBreakdown: EarningsBreakdown = {
-    basic,
-    hra,
-    specialAllowance,
-    conveyance,
-    medical,
-    incentives,
+    basic: Math.round(basicProrated * 100) / 100,
+    hra: Math.round(hraProrated * 100) / 100,
+    specialAllowance: Math.round(specialAllowanceProrated * 100) / 100,
+    conveyance: Math.round(conveyanceProrated * 100) / 100,
+    medical: Math.round(medicalProrated * 100) / 100,
+    incentives: Math.round(incentivesProrated * 100) / 100,
   };
 
   const deductionsBreakdown: DeductionsBreakdown = {
-    pf,
+    pf: Math.round(pf * 100) / 100,
     pt: ptAmount,
     tds: tdsAmount,
     other: deductionsOther,
@@ -100,15 +137,20 @@ export function computePayslip(structure: SalaryStructureRow, entry: PayrollEntr
     deductionsBreakdown.tds +
     deductionsBreakdown.other;
 
-  const netPay = totalEarnings - totalDeductions;
+  const netPay = Math.round((totalEarnings - totalDeductions) * 100) / 100;
 
-  return {
+  const result: ComputedPayslip = {
     earningsBreakdown,
     deductionsBreakdown,
-    totalEarnings,
-    totalDeductions,
+    totalEarnings: Math.round(totalEarnings * 100) / 100,
+    totalDeductions: Math.round(totalDeductions * 100) / 100,
     netPay,
   };
+  if (proration && workingDaysInMonth > 0) {
+    result.workingDaysInMonth = workingDaysInMonth;
+    result.daysPresent = daysPresent;
+  }
+  return result;
 }
 
 export function formatCurrency(n: number): string {
