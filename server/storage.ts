@@ -130,9 +130,12 @@ export class DrizzleStorage implements IStorage {
 
   async getNextEmployeeNumber(): Promise<string> {
     await guardDb();
-    const employees = await db.select({ employeeNumber: users.employeeNumber }).from(users).where(eq(users.role, "employee"));
+    const staff = await db
+      .select({ employeeNumber: users.employeeNumber })
+      .from(users)
+      .where(inArray(users.role, ["employee", "team_lead"]));
     let max = 1000;
-    for (const row of employees) {
+    for (const row of staff) {
       const n = row.employeeNumber ? parseInt(String(row.employeeNumber), 10) : NaN;
       if (!Number.isNaN(n) && n > max) max = n;
     }
@@ -141,9 +144,13 @@ export class DrizzleStorage implements IStorage {
 
   async backfillEmployeeNumbers(): Promise<void> {
     await guardDb();
-    const employees = await db.select().from(users).where(eq(users.role, "employee")).orderBy(users.createdAt);
+    const staff = await db
+      .select()
+      .from(users)
+      .where(inArray(users.role, ["employee", "team_lead"]))
+      .orderBy(users.createdAt);
     let next = 1001;
-    for (const u of employees) {
+    for (const u of staff) {
       if (!(u as any).employeeNumber) {
         await db.update(users).set({ employeeNumber: String(next) }).where(eq(users.id, u.id));
         next += 1;
@@ -163,8 +170,10 @@ export class DrizzleStorage implements IStorage {
       email: (data as any).email ?? null,
       phone: (data as any).phone ?? null,
     };
-    if (role === "employee") {
+    if (role === "employee" || role === "team_lead") {
       values.employeeNumber = await this.getNextEmployeeNumber();
+    }
+    if (role === "employee") {
       const target = (data as any).monthlyLeadTarget;
       if (target !== undefined && target !== null) values.monthlyLeadTarget = Number(target);
       const tlId = (data as any).teamLeadId;
