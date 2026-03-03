@@ -2195,9 +2195,6 @@ export async function registerRoutes(
     location?: string | null;
     gender?: string | null;
     logoPath?: string | null;
-    totalEarningsYtd: number;
-    totalDeductionsYtd: number;
-    netPayYtd: number;
     calendarDaysInMonth: number;
   };
 
@@ -2220,17 +2217,15 @@ export async function registerRoutes(
       location,
       gender,
       logoPath,
-      totalEarningsYtd,
-      totalDeductionsYtd,
-      netPayYtd,
       calendarDaysInMonth,
     } = opts;
-    const M = 40;
+    const M = 45;
     const pageW = 595;
     const rightEdge = pageW - M;
-    const smallFont = 8;
-    const rowH = 11;
-    const cellPad = 4;
+    const contentW = rightEdge - M;
+    const smallFont = 9;
+    const rowH = 15;
+    const cellPad = 6;
 
     const drawCell = (x: number, y: number, w: number, h: number, text: string, bold = false, align: "left" | "right" = "left") => {
       doc.font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(smallFont);
@@ -2239,15 +2234,15 @@ export async function registerRoutes(
     };
 
     let y = M;
-
-    if (logoPath && fs.existsSync(logoPath)) {
+    const hasLogo = !!(logoPath && fs.existsSync(logoPath));
+    if (hasLogo) {
       try {
-        doc.image(logoPath, M, y, { fit: [48, 48] });
+        doc.image(logoPath!, M, y, { fit: [56, 56] });
       } catch {
-        // ignore
+        // ignore invalid image
       }
     }
-    const headerLeft = logoPath && fs.existsSync(logoPath) ? M + 56 : M;
+    const headerLeft = hasLogo ? M + 62 : M;
     const headerW = rightEdge - headerLeft;
     doc.fontSize(14).font("Helvetica-Bold").text(companyName || "Company", headerLeft, y + 4, { align: "center", width: headerW });
     if (companyAddress) {
@@ -2261,7 +2256,7 @@ export async function registerRoutes(
       y += 22;
     }
     doc.fontSize(10).font("Helvetica-Bold").text(payslipTitle, M, y, { align: "center", width: pageW - 2 * M });
-    y += 20;
+    y += 24;
 
     const colW = (rightEdge - M) / 3;
     const empLabelW = 90;
@@ -2309,13 +2304,10 @@ export async function registerRoutes(
       drawCell(rightCol, y + i * rowH, empLabelW, rowH, lbl);
       drawCell(rightCol + empLabelW, y + i * rowH, empValW + 2, rowH, val);
     }
-    y += empTableH + 6;
-    doc.font("Helvetica").fontSize(smallFont).fillColor("#000").text("Regime Type: New Regime", M, y);
-    y += 16;
+    y += empTableH + 12;
 
-    const earnLabelW = 200;
-    const amtW = 95;
-    const ytdW = 95;
+    const tableLabelW = contentW - 130;
+    const amtW = 130;
     const earn = computed.earningsBreakdown;
     const earnRows: [string, number][] = [
       ["Basic", earn.basic],
@@ -2325,41 +2317,32 @@ export async function registerRoutes(
       ["Medical", earn.medical],
       ["Incentives", earn.incentives],
     ];
-    doc.font("Helvetica-Bold").fontSize(9).text("Earnings", M, y);
-    y += rowH + 2;
-    doc.rect(M, y, earnLabelW, rowH).stroke("#333");
-    doc.rect(M + earnLabelW, y, amtW, rowH).stroke("#333");
-    doc.rect(M + earnLabelW + amtW, y, ytdW, rowH).stroke("#333");
+    doc.font("Helvetica-Bold").fontSize(10).text("Earnings", M, y);
+    y += rowH + 4;
+    doc.rect(M, y, tableLabelW, rowH).stroke("#333");
+    doc.rect(M + tableLabelW, y, amtW, rowH).stroke("#333");
     doc.font("Helvetica-Bold").fontSize(smallFont).text("Item Name", M + cellPad, y + cellPad);
-    doc.text("Amount", M + earnLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
-    doc.text("YTD", M + earnLabelW + amtW + cellPad, y + cellPad, { width: ytdW - cellPad * 2, align: "right" });
+    doc.text("Amount", M + tableLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
     y += rowH;
     for (const [lbl, amt] of earnRows) {
-      doc.rect(M, y, earnLabelW, rowH).stroke("#333");
-      doc.rect(M + earnLabelW, y, amtW, rowH).stroke("#333");
-      doc.rect(M + earnLabelW + amtW, y, ytdW, rowH).stroke("#333");
+      doc.rect(M, y, tableLabelW, rowH).stroke("#333");
+      doc.rect(M + tableLabelW, y, amtW, rowH).stroke("#333");
       doc.font("Helvetica").fontSize(smallFont).text(lbl, M + cellPad, y + cellPad);
-      doc.text("Rs. " + formatCurrency(amt), M + earnLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
-      doc.text("—", M + earnLabelW + amtW + cellPad, y + cellPad, { width: ytdW - cellPad * 2, align: "right" });
+      doc.text("Rs. " + formatCurrency(amt), M + tableLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
       y += rowH;
     }
-    doc.rect(M, y, earnLabelW, rowH).stroke("#333");
-    doc.rect(M + earnLabelW, y, amtW, rowH).stroke("#333");
-    doc.rect(M + earnLabelW + amtW, y, ytdW, rowH).stroke("#333");
+    doc.rect(M, y, tableLabelW, rowH).stroke("#333");
+    doc.rect(M + tableLabelW, y, amtW, rowH).stroke("#333");
     doc.font("Helvetica-Bold").fontSize(smallFont).text("Total Earnings", M + cellPad, y + cellPad);
-    doc.text("Rs. " + formatCurrency(computed.totalEarnings), M + earnLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
-    doc.text("Rs. " + formatCurrency(totalEarningsYtd), M + earnLabelW + amtW + cellPad, y + cellPad, { width: ytdW - cellPad * 2, align: "right" });
-    y += rowH + 10;
+    doc.text("Rs. " + formatCurrency(computed.totalEarnings), M + tableLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
+    y += rowH + 14;
 
-    const dedLabelW = 200;
-    doc.font("Helvetica-Bold").fontSize(9).text("Deductions", M, y);
-    y += rowH + 2;
-    doc.rect(M, y, dedLabelW, rowH).stroke("#333");
-    doc.rect(M + dedLabelW, y, amtW, rowH).stroke("#333");
-    doc.rect(M + dedLabelW + amtW, y, ytdW, rowH).stroke("#333");
+    doc.font("Helvetica-Bold").fontSize(10).text("Deductions", M, y);
+    y += rowH + 4;
+    doc.rect(M, y, tableLabelW, rowH).stroke("#333");
+    doc.rect(M + tableLabelW, y, amtW, rowH).stroke("#333");
     doc.font("Helvetica-Bold").fontSize(smallFont).text("Item Name", M + cellPad, y + cellPad);
-    doc.text("Amount", M + dedLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
-    doc.text("YTD", M + dedLabelW + amtW + cellPad, y + cellPad, { width: ytdW - cellPad * 2, align: "right" });
+    doc.text("Amount", M + tableLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
     y += rowH;
     const ded = computed.deductionsBreakdown;
     const dedRows: [string, number][] = [
@@ -2369,21 +2352,17 @@ export async function registerRoutes(
       ["Other Deductions", ded.other],
     ];
     for (const [lbl, amt] of dedRows) {
-      doc.rect(M, y, dedLabelW, rowH).stroke("#333");
-      doc.rect(M + dedLabelW, y, amtW, rowH).stroke("#333");
-      doc.rect(M + dedLabelW + amtW, y, ytdW, rowH).stroke("#333");
+      doc.rect(M, y, tableLabelW, rowH).stroke("#333");
+      doc.rect(M + tableLabelW, y, amtW, rowH).stroke("#333");
       doc.font("Helvetica").fontSize(smallFont).text(lbl, M + cellPad, y + cellPad);
-      doc.text("Rs. " + formatCurrency(amt), M + dedLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
-      doc.text("—", M + dedLabelW + amtW + cellPad, y + cellPad, { width: ytdW - cellPad * 2, align: "right" });
+      doc.text("Rs. " + formatCurrency(amt), M + tableLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
       y += rowH;
     }
-    doc.rect(M, y, dedLabelW, rowH).stroke("#333");
-    doc.rect(M + dedLabelW, y, amtW, rowH).stroke("#333");
-    doc.rect(M + dedLabelW + amtW, y, ytdW, rowH).stroke("#333");
+    doc.rect(M, y, tableLabelW, rowH).stroke("#333");
+    doc.rect(M + tableLabelW, y, amtW, rowH).stroke("#333");
     doc.font("Helvetica-Bold").fontSize(smallFont).text("Total Deductions", M + cellPad, y + cellPad);
-    doc.text("Rs. " + formatCurrency(computed.totalDeductions), M + dedLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
-    doc.text("Rs. " + formatCurrency(totalDeductionsYtd), M + dedLabelW + amtW + cellPad, y + cellPad, { width: ytdW - cellPad * 2, align: "right" });
-    y += rowH + 14;
+    doc.text("Rs. " + formatCurrency(computed.totalDeductions), M + tableLabelW + cellPad, y + cellPad, { width: amtW - cellPad * 2, align: "right" });
+    y += rowH + 16;
 
     doc.font("Helvetica-Bold").fontSize(11).text("Net Pay : Rs. " + formatCurrency(computed.netPay), M, y);
     doc.moveTo(M, y + 14).lineTo(M + 180, y + 14).stroke("#000");
@@ -2394,19 +2373,21 @@ export async function registerRoutes(
     const daysInMonth = calendarDaysInMonth;
     const lopDays = (computed.workingDaysInMonth ?? 22) - (computed.daysPresent ?? 0);
     const netDays = computed.daysPresent ?? 0;
-    const attW = (rightEdge - M) / 5;
+    const attRowH = 16;
+    const attW = contentW / 5;
     doc.font("Helvetica-Bold").fontSize(9).text("Attendance / Days Worked", M, y);
-    y += rowH + 2;
-    ["Days In Month (A)", "Arrear Days (B)", "LOPR Days (C)", "LOP Days (D)", "Net Days Worked (E=A+B+C-D)"].forEach((h, i) => {
-      doc.rect(M + i * attW, y, attW, rowH).stroke("#333");
-      doc.font("Helvetica").fontSize(7).text(h, M + i * attW + 2, y + 2, { width: attW - 4, align: "center" });
+    y += attRowH;
+    const attHeaders = ["Days (A)", "Arrear (B)", "LOPR (C)", "LOP (D)", "Net Days (E)"];
+    attHeaders.forEach((h, i) => {
+      doc.rect(M + i * attW, y, attW, attRowH).stroke("#333");
+      doc.font("Helvetica").fontSize(smallFont).text(h, M + i * attW + cellPad, y + cellPad, { width: attW - cellPad * 2, align: "center" });
     });
-    y += rowH;
+    y += attRowH;
     [String(daysInMonth), "0", "0", String(lopDays), String(netDays)].forEach((val, i) => {
-      doc.rect(M + i * attW, y, attW, rowH).stroke("#333");
-      doc.text(val, M + i * attW + 2, y + cellPad, { width: attW - 4, align: "center" });
+      doc.rect(M + i * attW, y, attW, attRowH).stroke("#333");
+      doc.font("Helvetica").fontSize(smallFont).text(val, M + i * attW + cellPad, y + cellPad, { width: attW - cellPad * 2, align: "center" });
     });
-    y += rowH + 14;
+    y += attRowH + 14;
 
     doc.font("Helvetica").fontSize(7).fillColor("#666");
     doc.text("This is a computer-generated payslip. No signature required.", M, y, { align: "center", width: pageW - 2 * M });
@@ -2445,20 +2426,6 @@ export async function registerRoutes(
         };
         const proration = workingDaysInMonth > 0 ? { workingDaysInMonth, daysPresent } : undefined;
         const computed = computePayslip(structure as any, entryRow as any, proration);
-        const allPayslips = await storage.getPayslipsByEmployee(emp.id);
-        const yearStr = String(y);
-        const previousInYear = allPayslips.filter((p) => String(p.period).startsWith(yearStr) && p.period < period);
-        let sumE = 0,
-          sumD = 0,
-          sumN = 0;
-        previousInYear.forEach((p) => {
-          sumE += parseAmount((p as any).totalEarnings ?? p.total_earnings ?? 0);
-          sumD += parseAmount((p as any).totalDeductions ?? p.total_deductions ?? 0);
-          sumN += parseAmount((p as any).netPay ?? p.net_pay ?? 0);
-        });
-        const totalEarningsYtd = sumE + computed.totalEarnings;
-        const totalDeductionsYtd = sumD + computed.totalDeductions;
-        const netPayYtd = sumN + computed.netPay;
         const earningsJson = JSON.stringify(computed.earningsBreakdown);
         const deductionsJson = JSON.stringify(computed.deductionsBreakdown);
         const empName = (emp as any).fullName?.trim() || emp.username || "";
@@ -2489,9 +2456,6 @@ export async function registerRoutes(
           location: (emp as any).location ?? null,
           gender: (emp as any).gender ?? null,
           logoPath: companyLogoPath,
-          totalEarningsYtd,
-          totalDeductionsYtd,
-          netPayYtd,
           calendarDaysInMonth,
         });
         doc.end();
