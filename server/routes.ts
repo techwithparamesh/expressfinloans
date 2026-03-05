@@ -390,6 +390,7 @@ export async function registerRoutes(
         cibil: body.cibil ?? null,
         docsCollected: body.docsCollected ?? null,
         companyLogged: body.companyLogged ?? null,
+        applicationNumber: body.applicationNumber ?? null,
         tenure: body.tenure ?? null,
         roi: body.roi ?? null,
         loanDisbursed: body.loanDisbursed ?? null,

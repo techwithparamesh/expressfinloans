@@ -60,6 +60,8 @@ type Lead = {
   amount: string | null;
   cibil: string | null;
   companyLogged: string | null;
+  applicationNumber?: string | null;
+  application_number?: string | null;
   tenure: string | null;
   roi: string | null;
   loanDisbursed: string | null;
@@ -167,6 +169,7 @@ const defaultLoanForm = () => ({
   cibil: "",
   companyLogged: "",
   bankOthers: "",
+  applicationNumber: "",
   tenure: "",
   roi: "",
   loanDisbursed: "",
@@ -316,6 +319,7 @@ export default function StaffMyLeads() {
           amount: loanForm.amount || null,
           cibil: loanForm.cibil || null,
           companyLogged: loanForm.companyLogged === "OTHERS" ? (loanForm.bankOthers?.trim() || "OTHERS") : (loanForm.companyLogged || null),
+          applicationNumber: loanForm.applicationNumber?.trim() || null,
           tenure: loanForm.tenure?.trim() || null,
           roi: loanForm.roi || null,
           loanDisbursed: loanForm.loanDisbursed || null,
@@ -455,6 +459,10 @@ export default function StaffMyLeads() {
                         <span className="text-right tabular-nums">{l.amount ?? "—"}</span>
                       </div>
                       <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[100px]">Application no.</span>
+                        <span className="text-right">{(l as Lead).applicationNumber ?? (l as any).application_number ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
                         <span className="text-muted-foreground shrink-0 w-[100px]">Tenure</span>
                         <span className="text-right">{l.tenure ?? "—"}</span>
                       </div>
@@ -484,6 +492,7 @@ export default function StaffMyLeads() {
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Loan type</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Sub type</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Amount</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Application no.</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Tenure</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Generated at</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Status</th>
@@ -499,6 +508,7 @@ export default function StaffMyLeads() {
                         <td className="py-2.5 pr-3">{l.loanType ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.subLoanType ?? "—"}</td>
                         <td className="py-2.5 pr-3 tabular-nums">{l.amount ?? "—"}</td>
+                        <td className="py-2.5 pr-3">{(l as Lead).applicationNumber ?? (l as any).application_number ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.tenure ?? "—"}</td>
                         <td className="py-2.5 pr-3 max-w-[180px] truncate" title={getFormLocationDisplay(l) ?? undefined}>{getFormLocationDisplay(l) ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.status}</td>
@@ -829,6 +839,14 @@ export default function StaffMyLeads() {
                         onChange={(e) => setLoanForm((f) => ({ ...f, cibil: e.target.value }))}
                       />
                     </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Application number</Label>
+                    <Input
+                      value={loanForm.applicationNumber}
+                      onChange={(e) => setLoanForm((f) => ({ ...f, applicationNumber: e.target.value }))}
+                      placeholder="e.g. APP123456"
+                    />
                   </div>
                   <div className="space-y-1">
                     <Label>Bank logged</Label>

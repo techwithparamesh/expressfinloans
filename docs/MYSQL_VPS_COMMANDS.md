@@ -430,6 +430,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
 | Attendance login location (login_location, login_ip, login_lat, login_lng) | **Attendance login location** ALTER block above |
 | Attendance logout location (logout_location, logout_lat, logout_lng) | **Attendance logout location** ALTER block above |
 | Lead form location (where employee generated the lead – form_location on leads and insurance_leads) | **Lead form location** ALTER block below |
+| Application number (loan form – manual entry) | **Application number (loan form)** ALTER block below |
 | Insurance product type (Motor/Non-Motor: Car, Two Wheeler, Fire, Health, etc.) | **Product type (Motor/Non-Motor options)** ALTER block below |
 | Vehicle number (Motor insurance) | **Vehicle number (Motor insurance)** ALTER block below |
 | Admin expenses (office ledger) | **Admin Expenses** CREATE TABLE block below |
@@ -441,6 +442,14 @@ USE expressfinloans;
 
 ALTER TABLE leads ADD COLUMN form_location VARCHAR(500) NULL;
 ALTER TABLE insurance_leads ADD COLUMN form_location VARCHAR(500) NULL;
+```
+
+**Application number (loan form):** For employees to enter the loan application number manually:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE leads ADD COLUMN application_number VARCHAR(100) NULL AFTER company_logged;
 ```
 
 **Insurance Subtype (General Insurance: Motor / Non-Motor):** To store the category when insurance type is General Insurance:
