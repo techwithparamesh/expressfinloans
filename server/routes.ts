@@ -493,6 +493,7 @@ export async function registerRoutes(
       if (body.cibil !== undefined) data.cibil = body.cibil;
       if (body.docsCollected !== undefined) data.docsCollected = body.docsCollected;
       if (body.companyLogged !== undefined) data.companyLogged = body.companyLogged;
+      if (body.applicationNumber !== undefined) data.applicationNumber = body.applicationNumber;
       if (body.tenure !== undefined) data.tenure = body.tenure;
       if (body.roi !== undefined) data.roi = body.roi;
       if (body.loanDisbursed !== undefined) data.loanDisbursed = body.loanDisbursed;
@@ -622,16 +623,60 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/staff/insurance-leads/:id", requireAuth, requireAdmin, async (req, res, next) => {
+  app.patch("/api/staff/insurance-leads/:id", requireAuth, async (req, res, next) => {
     try {
       const id = req.params.id;
       const lead = await storage.getInsuranceLead(id);
       if (!lead) return res.status(404).json({ message: "Insurance lead not found" });
+      const userId = (req.user as any).id;
+      const role = (req.user as any).role;
+      const isAdmin = role === "admin";
+      if (!isAdmin) {
+        if (lead.employeeId !== userId) {
+          if (role === "team_lead") {
+            const visibleIds = await getVisibleEmployeeIds(req);
+            if (visibleIds === null || (!visibleIds.includes(lead.employeeId) && lead.employeeId !== userId))
+              return res.status(403).json({ message: "Forbidden" });
+          } else {
+            return res.status(403).json({ message: "Forbidden" });
+          }
+        }
+      }
       const body = req.body || {};
       const data: Record<string, unknown> = {};
-      if (body.collectedPremium !== undefined) data.collectedPremium = body.collectedPremium;
-      if (body.actualPremium !== undefined) data.actualPremium = body.actualPremium;
-      if (body.finalRemarks !== undefined) data.finalRemarks = body.finalRemarks;
+      if (body.date !== undefined) data.date = body.date && String(body.date).trim() ? String(body.date).trim().slice(0, 10) : null;
+      if (body.customerName !== undefined) data.customerName = body.customerName;
+      if (body.dateOfBirth !== undefined) data.dateOfBirth = body.dateOfBirth && String(body.dateOfBirth).trim() ? String(body.dateOfBirth).trim().slice(0, 10) : null;
+      if (body.contactNum !== undefined) data.contactNum = body.contactNum;
+      if (body.mailId !== undefined) data.mailId = body.mailId;
+      if (body.location !== undefined) data.location = body.location;
+      if (body.insuranceType !== undefined) data.insuranceType = body.insuranceType;
+      if (body.insuranceCategory !== undefined) data.insuranceCategory = body.insuranceCategory;
+      if (body.insuranceProductType !== undefined) data.insuranceProductType = body.insuranceProductType;
+      if (body.insuranceProductTypeOther !== undefined) data.insuranceProductTypeOther = body.insuranceProductTypeOther;
+      if (body.vehicleNumber !== undefined) data.vehicleNumber = body.vehicleNumber;
+      if (body.insuranceSubtype !== undefined) data.insuranceSubtype = body.insuranceSubtype;
+      if (body.insuranceSubtypeOther !== undefined) data.insuranceSubtypeOther = body.insuranceSubtypeOther;
+      if (body.profileType !== undefined) data.profileType = body.profileType;
+      if (body.profileComments !== undefined) data.profileComments = body.profileComments;
+      if (body.businessType !== undefined) data.businessType = body.businessType;
+      if (body.businessTypeComments !== undefined) data.businessTypeComments = body.businessTypeComments;
+      if (body.paymentMode !== undefined) data.paymentMode = body.paymentMode;
+      if (body.paymentModeComments !== undefined) data.paymentModeComments = body.paymentModeComments;
+      if (body.paymentDoneBy !== undefined) data.paymentDoneBy = body.paymentDoneBy;
+      if (body.paymentDoneByComments !== undefined) data.paymentDoneByComments = body.paymentDoneByComments;
+      if (body.premiumQuoted !== undefined) data.premiumQuoted = body.premiumQuoted;
+      if (body.premiumCollected !== undefined) data.premiumCollected = body.premiumCollected;
+      if (body.difference !== undefined) data.difference = body.difference;
+      if (body.miscellaneousExpenses !== undefined) data.miscellaneousExpenses = body.miscellaneousExpenses;
+      if (body.status !== undefined) data.status = body.status;
+      if (body.notes !== undefined) data.notes = body.notes;
+      if (body.formLocation !== undefined) data.formLocation = body.formLocation;
+      if (isAdmin) {
+        if (body.collectedPremium !== undefined) data.collectedPremium = body.collectedPremium;
+        if (body.actualPremium !== undefined) data.actualPremium = body.actualPremium;
+        if (body.finalRemarks !== undefined) data.finalRemarks = body.finalRemarks;
+      }
       const updated = await storage.updateInsuranceLead(id, data);
       if (!updated) return res.status(500).json({ message: "Update failed" });
       res.json(updated);

@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { staffJson } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useMyDashboardInvalidate } from "./staff-layout";
-import { Plus, ArrowLeft, FileText, Shield, MapPin } from "lucide-react";
+import { Plus, ArrowLeft, FileText, Shield, MapPin, Pencil } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
   LOAN_TYPES,
@@ -222,6 +222,92 @@ export default function StaffMyLeads() {
   const [capturedFormAddress, setCapturedFormAddress] = useState<string | null>(null);
   const [loanForm, setLoanForm] = useState(defaultLoanForm);
   const [insuranceForm, setInsuranceForm] = useState(defaultInsuranceForm);
+  const [editLoanLeadId, setEditLoanLeadId] = useState<string | null>(null);
+  const [editInsuranceLeadId, setEditInsuranceLeadId] = useState<string | null>(null);
+
+  function mapLeadToLoanForm(l: Lead): ReturnType<typeof defaultLoanForm> {
+    const dateVal = (l as { date?: string }).date;
+    const dateStr = dateVal ? String(dateVal).slice(0, 10) : today();
+    return {
+      date: dateStr,
+      customerName: l.customerName ?? "",
+      dateOfBirth: (l.dateOfBirth && String(l.dateOfBirth).slice(0, 10)) ?? "",
+      customerPhone: l.customerPhone ?? "",
+      customerEmail: l.customerEmail ?? "",
+      location: l.location ?? "",
+      loanType: l.loanType ?? "",
+      subLoanType: l.subLoanType ?? "",
+      incomeType: l.incomeType ?? "",
+      incomeComments: l.incomeComments ?? "",
+      amount: l.amount ?? "",
+      cibil: l.cibil ?? "",
+      companyLogged: l.companyLogged ?? "",
+      bankOthers: "",
+      applicationNumber: (l as Lead).applicationNumber ?? (l as { application_number?: string }).application_number ?? "",
+      tenure: l.tenure ?? "",
+      roi: l.roi ?? "",
+      loanDisbursed: l.loanDisbursed ?? "",
+      loanSanctionedAt: l.loanSanctionedAt ? String(l.loanSanctionedAt).slice(0, 10) : "",
+      loanDisbursedAt: l.loanDisbursedAt ? String(l.loanDisbursedAt).slice(0, 10) : "",
+      status: l.status ?? "Open",
+      notes: l.notes ?? "",
+    };
+  }
+
+  function mapInsuranceLeadToForm(l: InsuranceLead): ReturnType<typeof defaultInsuranceForm> {
+    const dateVal = (l as { date?: string }).date;
+    const dateStr = dateVal ? String(dateVal).slice(0, 10) : today();
+    return {
+      date: dateStr,
+      customerName: l.customerName ?? "",
+      dateOfBirth: (l.dateOfBirth && String(l.dateOfBirth).slice(0, 10)) ?? "",
+      contactNum: l.contactNum ?? "",
+      mailId: l.mailId ?? "",
+      location: l.location ?? "",
+      insuranceType: l.insuranceType ?? "",
+      insuranceCategory: l.insuranceCategory ?? l.insurance_category ?? "",
+      insuranceProductType: l.insuranceProductType ?? l.insurance_product_type ?? "",
+      insuranceProductTypeOther: l.insuranceProductTypeOther ?? "",
+      vehicleNumber: l.vehicleNumber ?? l.vehicle_number ?? "",
+      insuranceSubtype: l.insuranceSubtype ?? "",
+      insuranceSubtypeOther: l.insuranceSubtypeOther ?? "",
+      profileType: l.profileType ?? "",
+      profileComments: l.profileComments ?? "",
+      businessType: l.businessType ?? "",
+      businessTypeComments: l.businessTypeComments ?? "",
+      paymentMode: l.paymentMode ?? "",
+      paymentModeComments: l.paymentModeComments ?? "",
+      paymentDoneBy: l.paymentDoneBy ?? "",
+      paymentDoneByComments: l.paymentDoneByComments ?? "",
+      premiumQuoted: l.premiumQuoted ?? "",
+      premiumCollected: l.premiumCollected ?? "",
+      miscellaneousExpenses: l.miscellaneousExpenses ?? "",
+      status: l.status ?? "Open",
+      notes: l.notes ?? "",
+    };
+  }
+
+  function openEditLoanLead(lead: Lead) {
+    setEditLoanLeadId(lead.id);
+    setEditInsuranceLeadId(null);
+    setLoanForm(mapLeadToLoanForm(lead));
+    setInsuranceForm(defaultInsuranceForm());
+    setStep("loan");
+    setCapturedFormAddress(getFormLocationDisplay(lead) ?? null);
+    setCapturedFormLocation(null);
+    setOpen(true);
+  }
+
+  function openEditInsuranceLead(lead: InsuranceLead) {
+    setEditInsuranceLeadId(lead.id);
+    setEditLoanLeadId(null);
+    setInsuranceForm(mapInsuranceLeadToForm(lead));
+    setLoanForm(defaultLoanForm());
+    setStep("insurance");
+    setCapturedFormAddress(getFormLocationDisplay(lead) ?? null);
+    setCapturedFormLocation(null);
+    setOpen(true);
+  }
 
   function load() {
     setLoading(true);
@@ -302,35 +388,46 @@ export default function StaffMyLeads() {
     }
     setSaving(true);
     try {
-      await staffJson("/staff/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          date: loanForm.date,
-          customerName: loanForm.customerName || null,
-          dateOfBirth: loanForm.dateOfBirth?.trim() || null,
-          customerPhone: loanForm.customerPhone || null,
-          customerEmail: loanForm.customerEmail || null,
-          location: loanForm.location || null,
-          loanType: loanForm.loanType || null,
-          subLoanType: loanForm.subLoanType || null,
-          incomeType: loanForm.incomeType || null,
-          incomeComments: loanForm.incomeComments?.trim() || null,
-          amount: loanForm.amount || null,
-          cibil: loanForm.cibil || null,
-          companyLogged: loanForm.companyLogged === "OTHERS" ? (loanForm.bankOthers?.trim() || "OTHERS") : (loanForm.companyLogged || null),
-          applicationNumber: loanForm.applicationNumber?.trim() || null,
-          tenure: loanForm.tenure?.trim() || null,
-          roi: loanForm.roi || null,
-          loanDisbursed: loanForm.loanDisbursed || null,
-          loanSanctionedAt: loanForm.loanSanctionedAt?.trim() || null,
-          loanDisbursedAt: loanForm.loanDisbursedAt?.trim() || null,
-          status: loanForm.status || "open",
-          notes: loanForm.notes || null,
-          formLocation: capturedFormAddress || (capturedFormLocation ? `${capturedFormLocation.latitude}, ${capturedFormLocation.longitude}` : null) || undefined,
-        }),
-      });
-      toast({ title: "Loan lead added" });
+      const payload = {
+        date: loanForm.date,
+        customerName: loanForm.customerName || null,
+        dateOfBirth: loanForm.dateOfBirth?.trim() || null,
+        customerPhone: loanForm.customerPhone || null,
+        customerEmail: loanForm.customerEmail || null,
+        location: loanForm.location || null,
+        loanType: loanForm.loanType || null,
+        subLoanType: loanForm.subLoanType || null,
+        incomeType: loanForm.incomeType || null,
+        incomeComments: loanForm.incomeComments?.trim() || null,
+        amount: loanForm.amount || null,
+        cibil: loanForm.cibil || null,
+        companyLogged: loanForm.companyLogged === "OTHERS" ? (loanForm.bankOthers?.trim() || "OTHERS") : (loanForm.companyLogged || null),
+        applicationNumber: loanForm.applicationNumber?.trim() || null,
+        tenure: loanForm.tenure?.trim() || null,
+        roi: loanForm.roi || null,
+        loanDisbursed: loanForm.loanDisbursed || null,
+        loanSanctionedAt: loanForm.loanSanctionedAt?.trim() || null,
+        loanDisbursedAt: loanForm.loanDisbursedAt?.trim() || null,
+        status: loanForm.status || "open",
+        notes: loanForm.notes || null,
+        formLocation: capturedFormAddress || (capturedFormLocation ? `${capturedFormLocation.latitude}, ${capturedFormLocation.longitude}` : null) || undefined,
+      };
+      if (editLoanLeadId) {
+        await staffJson("/staff/leads/" + editLoanLeadId, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        toast({ title: "Loan lead updated" });
+        setEditLoanLeadId(null);
+      } else {
+        await staffJson("/staff/leads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        toast({ title: "Loan lead added" });
+      }
       setOpen(false);
       setLoanForm(defaultLoanForm());
       load();
@@ -346,48 +443,59 @@ export default function StaffMyLeads() {
     e.preventDefault();
     setSaving(true);
     try {
-      await staffJson("/staff/insurance-leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          date: insuranceForm.date,
-          customerName: insuranceForm.customerName || null,
-          dateOfBirth: insuranceForm.dateOfBirth?.trim() || null,
-          contactNum: insuranceForm.contactNum || null,
-          mailId: insuranceForm.mailId || null,
-          location: insuranceForm.location || null,
-          insuranceType: insuranceForm.insuranceType || null,
-          insuranceCategory: insuranceForm.insuranceCategory || null,
-          insuranceProductType: insuranceForm.insuranceProductType || null,
-          insuranceProductTypeOther: insuranceForm.insuranceProductTypeOther?.trim() || null,
-          vehicleNumber:
-            insuranceForm.insuranceType === "General Insurance" &&
-            insuranceForm.insuranceCategory === "Motor"
-              ? insuranceForm.vehicleNumber?.trim() || null
-              : null,
-          insuranceSubtype: insuranceForm.insuranceSubtype || null,
-          insuranceSubtypeOther: insuranceForm.insuranceSubtypeOther?.trim() || null,
-          profileType: insuranceForm.profileType || null,
-          profileComments: insuranceForm.profileComments?.trim() || null,
-          businessType: insuranceForm.businessType || null,
-          businessTypeComments: insuranceForm.businessTypeComments?.trim() || null,
-          paymentMode: insuranceForm.paymentMode || null,
-          paymentModeComments: insuranceForm.paymentModeComments?.trim() || null,
-          paymentDoneBy: insuranceForm.paymentDoneBy || null,
-          paymentDoneByComments: insuranceForm.paymentDoneByComments?.trim() || null,
-          premiumQuoted: insuranceForm.premiumQuoted || null,
-          premiumCollected: insuranceForm.premiumCollected || null,
-          difference: premiumDifference(
-            insuranceForm.premiumQuoted,
-            insuranceForm.premiumCollected
-          ),
-          miscellaneousExpenses: insuranceForm.miscellaneousExpenses?.trim() || null,
-          status: insuranceForm.status || "open",
-          notes: insuranceForm.notes || null,
-          formLocation: capturedFormAddress || (capturedFormLocation ? `${capturedFormLocation.latitude}, ${capturedFormLocation.longitude}` : null) || undefined,
-        }),
-      });
-      toast({ title: "Insurance lead added" });
+      const payload = {
+        date: insuranceForm.date,
+        customerName: insuranceForm.customerName || null,
+        dateOfBirth: insuranceForm.dateOfBirth?.trim() || null,
+        contactNum: insuranceForm.contactNum || null,
+        mailId: insuranceForm.mailId || null,
+        location: insuranceForm.location || null,
+        insuranceType: insuranceForm.insuranceType || null,
+        insuranceCategory: insuranceForm.insuranceCategory || null,
+        insuranceProductType: insuranceForm.insuranceProductType || null,
+        insuranceProductTypeOther: insuranceForm.insuranceProductTypeOther?.trim() || null,
+        vehicleNumber:
+          insuranceForm.insuranceType === "General Insurance" &&
+          insuranceForm.insuranceCategory === "Motor"
+            ? insuranceForm.vehicleNumber?.trim() || null
+            : null,
+        insuranceSubtype: insuranceForm.insuranceSubtype || null,
+        insuranceSubtypeOther: insuranceForm.insuranceSubtypeOther?.trim() || null,
+        profileType: insuranceForm.profileType || null,
+        profileComments: insuranceForm.profileComments?.trim() || null,
+        businessType: insuranceForm.businessType || null,
+        businessTypeComments: insuranceForm.businessTypeComments?.trim() || null,
+        paymentMode: insuranceForm.paymentMode || null,
+        paymentModeComments: insuranceForm.paymentModeComments?.trim() || null,
+        paymentDoneBy: insuranceForm.paymentDoneBy || null,
+        paymentDoneByComments: insuranceForm.paymentDoneByComments?.trim() || null,
+        premiumQuoted: insuranceForm.premiumQuoted || null,
+        premiumCollected: insuranceForm.premiumCollected || null,
+        difference: premiumDifference(
+          insuranceForm.premiumQuoted,
+          insuranceForm.premiumCollected
+        ),
+        miscellaneousExpenses: insuranceForm.miscellaneousExpenses?.trim() || null,
+        status: insuranceForm.status || "open",
+        notes: insuranceForm.notes || null,
+        formLocation: capturedFormAddress || (capturedFormLocation ? `${capturedFormLocation.latitude}, ${capturedFormLocation.longitude}` : null) || undefined,
+      };
+      if (editInsuranceLeadId) {
+        await staffJson("/staff/insurance-leads/" + editInsuranceLeadId, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        toast({ title: "Insurance lead updated" });
+        setEditInsuranceLeadId(null);
+      } else {
+        await staffJson("/staff/insurance-leads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        toast({ title: "Insurance lead added" });
+      }
       setOpen(false);
       setInsuranceForm(defaultInsuranceForm());
       load();
@@ -476,6 +584,12 @@ export default function StaffMyLeads() {
                           <span className="text-right text-xs truncate min-w-0 max-w-[200px]" title={getFormLocationDisplay(l) ?? undefined}>{getFormLocationDisplay(l)}</span>
                         </div>
                       )}
+                      <div className="pt-2 border-t flex justify-end">
+                        <Button type="button" variant="outline" size="sm" onClick={() => openEditLoanLead(l)}>
+                          <Pencil className="h-3.5 w-3.5 mr-1" />
+                          Edit
+                        </Button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -496,6 +610,7 @@ export default function StaffMyLeads() {
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Tenure</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Generated at</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Status</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -512,6 +627,12 @@ export default function StaffMyLeads() {
                         <td className="py-2.5 pr-3">{l.tenure ?? "—"}</td>
                         <td className="py-2.5 pr-3 max-w-[180px] truncate" title={getFormLocationDisplay(l) ?? undefined}>{getFormLocationDisplay(l) ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.status}</td>
+                        <td className="py-2.5 pr-3">
+                          <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={() => openEditLoanLead(l)}>
+                            <Pencil className="h-3.5 w-3.5 mr-1" />
+                            Edit
+                          </Button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -574,6 +695,12 @@ export default function StaffMyLeads() {
                           <span className="text-right text-xs truncate min-w-0 max-w-[200px]" title={getFormLocationDisplay(l) ?? undefined}>{getFormLocationDisplay(l)}</span>
                         </div>
                       )}
+                      <div className="pt-2 border-t flex justify-end">
+                        <Button type="button" variant="outline" size="sm" onClick={() => openEditInsuranceLead(l)}>
+                          <Pencil className="h-3.5 w-3.5 mr-1" />
+                          Edit
+                        </Button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -594,6 +721,7 @@ export default function StaffMyLeads() {
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Misc. Expenses</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Generated at</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Status</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -610,6 +738,12 @@ export default function StaffMyLeads() {
                         <td className="py-2.5 pr-3">{l.miscellaneousExpenses ?? "—"}</td>
                         <td className="py-2.5 pr-3 max-w-[180px] truncate" title={getFormLocationDisplay(l) ?? undefined}>{getFormLocationDisplay(l) ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.status}</td>
+                        <td className="py-2.5 pr-3">
+                          <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={() => openEditInsuranceLead(l)}>
+                            <Pencil className="h-3.5 w-3.5 mr-1" />
+                            Edit
+                          </Button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -622,11 +756,13 @@ export default function StaffMyLeads() {
 
       <Dialog
         open={open}
-        onOpenChange={(open) => {
-          setOpen(open);
-          if (!open) {
+        onOpenChange={(isOpen) => {
+          setOpen(isOpen);
+          if (!isOpen) {
             setCapturedFormLocation(null);
             setCapturedFormAddress(null);
+            setEditLoanLeadId(null);
+            setEditInsuranceLeadId(null);
           }
         }}
       >
@@ -671,12 +807,17 @@ export default function StaffMyLeads() {
           {step === "loan" && (
             <>
               <DialogHeader className="flex flex-row items-center gap-2">
-                <Button type="button" variant="ghost" size="icon" onClick={() => setStep("choice")}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => (editLoanLeadId ? (setOpen(false), setEditLoanLeadId(null)) : setStep("choice"))}
+                >
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
-                  <DialogTitle>Loan lead</DialogTitle>
-                  <DialogDescription>Add a new loan lead.</DialogDescription>
+                  <DialogTitle>{editLoanLeadId ? "Edit loan lead" : "Loan lead"}</DialogTitle>
+                  <DialogDescription>{editLoanLeadId ? "Update the lead details." : "Add a new loan lead."}</DialogDescription>
                 </div>
               </DialogHeader>
               {(capturedFormAddress || capturedFormLocation) && (
@@ -989,7 +1130,7 @@ export default function StaffMyLeads() {
                     Back
                   </Button>
                   <Button type="submit" disabled={saving}>
-                    {saving ? "Saving…" : "Add loan lead"}
+                    {saving ? "Saving…" : editLoanLeadId ? "Save changes" : "Add loan lead"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -999,12 +1140,17 @@ export default function StaffMyLeads() {
           {step === "insurance" && (
             <>
               <DialogHeader className="flex flex-row items-center gap-2">
-                <Button type="button" variant="ghost" size="icon" onClick={() => setStep("choice")}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => (editInsuranceLeadId ? (setOpen(false), setEditInsuranceLeadId(null)) : setStep("choice"))}
+                >
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
-                  <DialogTitle>Insurance lead</DialogTitle>
-                  <DialogDescription>Add a new insurance lead.</DialogDescription>
+                  <DialogTitle>{editInsuranceLeadId ? "Edit insurance lead" : "Insurance lead"}</DialogTitle>
+                  <DialogDescription>{editInsuranceLeadId ? "Update the lead details." : "Add a new insurance lead."}</DialogDescription>
                 </div>
               </DialogHeader>
               {(capturedFormAddress || capturedFormLocation) && (
@@ -1480,7 +1626,7 @@ export default function StaffMyLeads() {
                     Back
                   </Button>
                   <Button type="submit" disabled={saving}>
-                    {saving ? "Saving…" : "Add insurance lead"}
+                    {saving ? "Saving…" : editInsuranceLeadId ? "Save changes" : "Add insurance lead"}
                   </Button>
                 </DialogFooter>
               </form>

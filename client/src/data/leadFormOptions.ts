@@ -6,7 +6,7 @@
 export const LOAN_TYPES = [
   "Personal Loan",
   "Car Loan",
-  "MSME",
+  "SME",
   "Business Loan",
   "Project Finance",
   "LAP",
@@ -25,14 +25,14 @@ const SUB_LAP_LRD_HOME_LAND = [
   "Self Construction",
   "Land + Construction",
   "Land Loan",
-  "Commercial Purchase",
+  "Commercial LAP",
 ] as const;
 
 /** Sub loan types per loan type. BT available under all; OD removed. */
 export const LOAN_TYPE_SUBTYPES: Record<(typeof LOAN_TYPES)[number], readonly string[]> = {
   "Personal Loan": ["New", "BT", "Topup"],
   "Car Loan": ["New", "Used", "BT", "Topup"],
-  MSME: ["New", "Used", "BT", "Topup", "Term Loan"],
+  SME: ["New", "BT", "Topup", "Term Loan", "OD"],
   "Business Loan": ["New", "BT", "Topup"],
   "Project Finance": ["Open Land", "Apartment", "Villas", "BT"],
   LAP: [...SUB_LAP_LRD_HOME_LAND],
