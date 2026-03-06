@@ -4,6 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -12,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { staffJson } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarCheck } from "lucide-react";
+import { CalendarCheck, Pencil } from "lucide-react";
 
 const LEAVE_TYPES = [
   { value: "on_duty", label: "On Duty" },
@@ -50,6 +58,12 @@ export default function StaffMyLeave() {
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editLeaveId, setEditLeaveId] = useState<string | null>(null);
+  const [editLeaveType, setEditLeaveType] = useState<string>("on_duty");
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
+  const [editReason, setEditReason] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   function load() {
     setLoading(true);
@@ -103,6 +117,48 @@ export default function StaffMyLeave() {
   };
 
   const typeLabel = (t: string) => LEAVE_TYPES.find((x) => x.value === t)?.label ?? t;
+
+  function openEdit(lv: LeaveRequest) {
+    if (lv.status !== "pending") return;
+    setEditLeaveId(lv.id);
+    setEditLeaveType(lv.leaveType || "on_duty");
+    setEditStartDate(String(lv.startDate ?? "").slice(0, 10));
+    setEditEndDate(String(lv.endDate ?? "").slice(0, 10));
+    setEditReason(lv.reason ?? "");
+  }
+
+  async function handleEditSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editLeaveId) return;
+    if (!editStartDate || !editEndDate) {
+      toast({ title: "Start and end date required", variant: "destructive" });
+      return;
+    }
+    if (editStartDate > editEndDate) {
+      toast({ title: "Start date must be before end date", variant: "destructive" });
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      await staffJson("/staff/leave/" + editLeaveId, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leaveType: editLeaveType,
+          startDate: editStartDate,
+          endDate: editEndDate,
+          reason: editReason.trim() || null,
+        }),
+      });
+      toast({ title: "Leave request updated" });
+      setEditLeaveId(null);
+      load();
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Failed to update", variant: "destructive" });
+    } finally {
+      setSavingEdit(false);
+    }
+  }
 
   if (loading && list.length === 0) return <p className="text-slate-500">Loading…</p>;
 
@@ -191,6 +247,7 @@ export default function StaffMyLeave() {
                     <th className="text-left p-3 font-medium min-w-[100px]">End</th>
                     <th className="text-left p-3 font-medium min-w-[80px]">Status</th>
                     <th className="text-left p-3 font-medium">Reason</th>
+                    <th className="text-left p-3 font-medium w-[90px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -201,6 +258,14 @@ export default function StaffMyLeave() {
                       <td className="p-3">{String(lv.endDate).slice(0, 10)}</td>
                       <td className="p-3">{statusBadge(lv.status)}</td>
                       <td className="p-3">{lv.reason || "—"}</td>
+                      <td className="p-3">
+                        {lv.status === "pending" && (
+                          <Button type="button" variant="outline" size="sm" onClick={() => openEdit(lv)}>
+                            <Pencil className="h-3.5 w-3.5 mr-1" />
+                            Edit
+                          </Button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -209,6 +274,68 @@ export default function StaffMyLeave() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!editLeaveId} onOpenChange={(open) => !open && setEditLeaveId(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit leave request</DialogTitle>
+            <DialogDescription>Update the details of your pending leave request.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Leave type</Label>
+              <Select value={editLeaveType} onValueChange={setEditLeaveType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LEAVE_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Start date</Label>
+                <Input
+                  type="date"
+                  value={editStartDate}
+                  onChange={(e) => setEditStartDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>End date</Label>
+                <Input
+                  type="date"
+                  value={editEndDate}
+                  onChange={(e) => setEditEndDate(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Reason (optional)</Label>
+              <Input
+                value={editReason}
+                onChange={(e) => setEditReason(e.target.value)}
+                placeholder="Brief reason for leave"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditLeaveId(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={savingEdit}>
+                {savingEdit ? "Saving…" : "Save changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

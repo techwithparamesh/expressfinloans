@@ -86,7 +86,7 @@ export interface IStorage {
   getLeaveRequest(id: string): Promise<LeaveRequest | undefined>;
   getLeaveRequestsByEmployee(employeeId: string, fromDate?: string, toDate?: string): Promise<LeaveRequest[]>;
   getLeaveRequestsForApproval(employeeIds: string[], filters?: { status?: string; fromDate?: string; toDate?: string }): Promise<LeaveRequest[]>;
-  updateLeaveRequest(id: string, data: Partial<Pick<LeaveRequest, "status" | "approvedById" | "approvedAt">>): Promise<LeaveRequest | undefined>;
+  updateLeaveRequest(id: string, data: Partial<Pick<LeaveRequest, "status" | "approvedById" | "approvedAt" | "leaveType" | "startDate" | "endDate" | "reason">>): Promise<LeaveRequest | undefined>;
 
   getAdminExpenses(filters?: { month?: string; purpose?: string }): Promise<AdminExpense[]>;
   getAdminExpense(id: string): Promise<AdminExpense | undefined>;
@@ -730,7 +730,7 @@ export class DrizzleStorage implements IStorage {
 
   async updateLeaveRequest(
     id: string,
-    data: Partial<Pick<LeaveRequest, "status" | "approvedById" | "approvedAt">>
+    data: Partial<Pick<LeaveRequest, "status" | "approvedById" | "approvedAt" | "leaveType" | "startDate" | "endDate" | "reason">>
   ): Promise<LeaveRequest | undefined> {
     await guardDb();
     await db.update(leaveRequests).set({ ...data, updatedAt: new Date() }).where(eq(leaveRequests.id, id));

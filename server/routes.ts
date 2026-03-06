@@ -501,7 +501,8 @@ export async function registerRoutes(
       if (body.loanDisbursedAt !== undefined) data.loanDisbursedAt = body.loanDisbursedAt && String(body.loanDisbursedAt).trim() ? String(body.loanDisbursedAt).trim().slice(0, 10) : null;
       if (body.status !== undefined) data.status = body.status;
       if (body.notes !== undefined) data.notes = body.notes;
-      if (body.date !== undefined) data.date = body.date;
+      if (body.date !== undefined) data.date = typeof body.date === "string" ? body.date.trim().slice(0, 10) : body.date;
+      if (body.formLocation !== undefined) data.formLocation = body.formLocation;
       // Admin-only fields: only admins can set these
       if (isAdmin) {
         if (body.payoutPercent !== undefined) data.payoutPercent = body.payoutPercent;
@@ -511,9 +512,15 @@ export async function registerRoutes(
       }
       const updated = await storage.updateLead(id, data);
       if (!updated) return res.status(500).json({ message: "Update failed" });
-      const dateStr = (updated.date as unknown as string).slice?.(0, 10) ?? String(updated.date);
-      const count = await storage.getLeadsCountForEmployeeOnDate(updated.employeeId, dateStr);
-      await storage.updateAttendanceFromLeadsCount(updated.employeeId, dateStr, count);
+      const empId = (updated as any).employeeId ?? (updated as any).employee_id;
+      const rawDate = (updated as any).date;
+      const dateStr = rawDate ? (typeof rawDate === "string" ? rawDate.slice(0, 10) : String(rawDate).slice(0, 10)) : "";
+      if (empId && dateStr) {
+        try {
+          const count = await storage.getLeadsCountForEmployeeOnDate(empId, dateStr);
+          await storage.updateAttendanceFromLeadsCount(empId, dateStr, count);
+        } catch (_) { /* non-fatal */ }
+      }
       res.json(updated);
     } catch (e) {
       next(e);
@@ -882,25 +889,66 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/staff/leave/:id", requireAuth, requireAdminOrTeamLead, async (req, res, next) => {
+  app.patch("/api/staff/leave/:id", requireAuth, async (req, res, next) => {
     try {
       const id = req.params.id;
       const leave = await storage.getLeaveRequest(id);
       if (!leave) return res.status(404).json({ message: "Leave request not found" });
-      if (leave.status !== "pending") {
-        return res.status(400).json({ message: "Leave request already processed" });
-      }
       const userId = (req.user as any).id;
-      const visibleIds = await getVisibleEmployeeIds(req);
-      if (visibleIds !== null && !visibleIds.includes(leave.employeeId)) {
-        return res.status(403).json({ message: "You can only approve/reject leave for your team members" });
+      const role = (req.user as any).role;
+      const body = req.body || {};
+      const isApproval = body.status === "approved" || body.status === "rejected";
+
+      if (isApproval) {
+        // Approve/reject: only admin or team lead for their team
+        if (role !== "admin" && role !== "team_lead") {
+          return res.status(403).json({ message: "Only admin or team lead can approve or reject leave" });
+        }
+        if (leave.status !== "pending") {
+          return res.status(400).json({ message: "Leave request already processed" });
+        }
+        const visibleIds = await getVisibleEmployeeIds(req);
+        if (visibleIds !== null && !visibleIds.includes(leave.employeeId)) {
+          return res.status(403).json({ message: "You can only approve/reject leave for your team members" });
+        }
+        const status = body.status === "rejected" ? "rejected" : "approved";
+        const updated = await storage.updateLeaveRequest(id, {
+          status,
+          approvedById: userId,
+          approvedAt: new Date(),
+        });
+        if (!updated) return res.status(500).json({ message: "Update failed" });
+        return res.json(updated);
       }
-      const status = (req.body?.status as string) === "rejected" ? "rejected" : "approved";
-      const updated = await storage.updateLeaveRequest(id, {
-        status,
-        approvedById: userId,
-        approvedAt: new Date(),
-      });
+
+      // Edit content (leaveType, startDate, endDate, reason): only for pending, by owner or team lead or admin
+      if (leave.status !== "pending") {
+        return res.status(400).json({ message: "Only pending leave requests can be edited" });
+      }
+      const canEdit =
+        leave.employeeId === userId ||
+        role === "admin" ||
+        (role === "team_lead" && (await getVisibleEmployeeIds(req))?.includes(leave.employeeId));
+      if (!canEdit) {
+        return res.status(403).json({ message: "You can only edit your own pending leave or your team members'" });
+      }
+      const validTypes = ["on_duty", "missed_punch", "on_leave", "loss_of_pay", "personal", "sick", "casual", "emergency", "other"];
+      const data: Partial<{ leaveType: string; startDate: string; endDate: string; reason: string | null }> = {};
+      if (body.leaveType !== undefined) {
+        const leaveType = String(body.leaveType).trim();
+        if (!validTypes.includes(leaveType)) return res.status(400).json({ message: "Invalid leave type" });
+        data.leaveType = leaveType;
+      }
+      if (body.startDate !== undefined) data.startDate = String(body.startDate).trim().slice(0, 10);
+      if (body.endDate !== undefined) data.endDate = String(body.endDate).trim().slice(0, 10);
+      if (body.reason !== undefined) data.reason = body.reason === null || body.reason === "" ? null : String(body.reason).trim();
+      const startDate = data.startDate ?? (leave as any).startDate ?? (leave as any).start_date;
+      const endDate = data.endDate ?? (leave as any).endDate ?? (leave as any).end_date;
+      if (startDate && endDate && startDate > endDate) {
+        return res.status(400).json({ message: "Start date must be before or equal to end date" });
+      }
+      if (Object.keys(data).length === 0) return res.json(leave);
+      const updated = await storage.updateLeaveRequest(id, data);
       if (!updated) return res.status(500).json({ message: "Update failed" });
       res.json(updated);
     } catch (e) {
