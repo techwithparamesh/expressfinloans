@@ -898,6 +898,24 @@ export async function registerRoutes(
       const role = (req.user as any).role;
       const body = req.body || {};
       const isApproval = body.status === "approved" || body.status === "rejected";
+      const isCancel = body.status === "cancelled";
+
+      if (isCancel) {
+        // Cancel (withdraw) pending leave: owner, team lead for team member, or admin
+        if (leave.status !== "pending") {
+          return res.status(400).json({ message: "Only pending leave requests can be cancelled" });
+        }
+        const canCancel =
+          leave.employeeId === userId ||
+          role === "admin" ||
+          (role === "team_lead" && (await getVisibleEmployeeIds(req))?.includes(leave.employeeId));
+        if (!canCancel) {
+          return res.status(403).json({ message: "You can only cancel your own pending leave or your team members'" });
+        }
+        const updated = await storage.updateLeaveRequest(id, { status: "cancelled" });
+        if (!updated) return res.status(500).json({ message: "Update failed" });
+        return res.json(updated);
+      }
 
       if (isApproval) {
         // Approve/reject: only admin or team lead for their team

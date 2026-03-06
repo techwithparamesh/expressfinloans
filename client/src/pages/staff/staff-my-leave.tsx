@@ -20,7 +20,17 @@ import {
 } from "@/components/ui/select";
 import { staffJson } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarCheck, Pencil } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { CalendarCheck, Pencil, XCircle } from "lucide-react";
 
 const LEAVE_TYPES = [
   { value: "on_duty", label: "On Duty" },
@@ -64,6 +74,8 @@ export default function StaffMyLeave() {
   const [editEndDate, setEditEndDate] = useState("");
   const [editReason, setEditReason] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [cancelLeaveId, setCancelLeaveId] = useState<string | null>(null);
+  const [savingCancel, setSavingCancel] = useState(false);
 
   function load() {
     setLoading(true);
@@ -112,7 +124,14 @@ export default function StaffMyLeave() {
   }
 
   const statusBadge = (s: string) => {
-    const c = s === "approved" ? "bg-green-100 text-green-800" : s === "rejected" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800";
+    const c =
+      s === "approved"
+        ? "bg-green-100 text-green-800"
+        : s === "rejected"
+          ? "bg-red-100 text-red-800"
+          : s === "cancelled"
+            ? "bg-slate-100 text-slate-600"
+            : "bg-amber-100 text-amber-800";
     return <span className={`px-2 py-0.5 rounded text-xs font-medium ${c}`}>{s}</span>;
   };
 
@@ -125,6 +144,25 @@ export default function StaffMyLeave() {
     setEditStartDate(String(lv.startDate ?? "").slice(0, 10));
     setEditEndDate(String(lv.endDate ?? "").slice(0, 10));
     setEditReason(lv.reason ?? "");
+  }
+
+  async function handleCancelLeave() {
+    if (!cancelLeaveId) return;
+    setSavingCancel(true);
+    try {
+      await staffJson("/staff/leave/" + cancelLeaveId, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "cancelled" }),
+      });
+      toast({ title: "Leave request cancelled" });
+      setCancelLeaveId(null);
+      load();
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Failed to cancel", variant: "destructive" });
+    } finally {
+      setSavingCancel(false);
+    }
   }
 
   async function handleEditSubmit(e: React.FormEvent) {
@@ -260,10 +298,16 @@ export default function StaffMyLeave() {
                       <td className="p-3">{lv.reason || "—"}</td>
                       <td className="p-3">
                         {lv.status === "pending" && (
-                          <Button type="button" variant="outline" size="sm" onClick={() => openEdit(lv)}>
-                            <Pencil className="h-3.5 w-3.5 mr-1" />
-                            Edit
-                          </Button>
+                          <div className="flex flex-wrap gap-1">
+                            <Button type="button" variant="outline" size="sm" onClick={() => openEdit(lv)}>
+                              <Pencil className="h-3.5 w-3.5 mr-1" />
+                              Edit
+                            </Button>
+                            <Button type="button" variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => setCancelLeaveId(lv.id)}>
+                              <XCircle className="h-3.5 w-3.5 mr-1" />
+                              Cancel
+                            </Button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -274,6 +318,23 @@ export default function StaffMyLeave() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!cancelLeaveId} onOpenChange={(open) => !open && setCancelLeaveId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel leave request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will withdraw your leave request. You can apply again later if needed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep request</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCancelLeave} disabled={savingCancel} className="bg-red-600 hover:bg-red-700">
+              {savingCancel ? "Cancelling…" : "Cancel leave"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={!!editLeaveId} onOpenChange={(open) => !open && setEditLeaveId(null)}>
         <DialogContent className="max-w-md">
