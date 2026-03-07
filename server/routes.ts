@@ -2721,8 +2721,8 @@ export async function registerRoutes(
       };
       const roleLabel = (r: string) => (r === "team_lead" ? "Team leader" : r === "admin" ? "Admin" : "Employee");
       const rows: { employeeId: string; employeeNumber: string; name: string; role: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number }[] = [];
-      const leadRows: { employeeNumber: string; employeeName: string; date: string; customerName: string; dateOfBirth: string; customerPhone: string; customerEmail: string; location: string; loanType: string; subLoanType: string; incomeType: string; amount: string; cibil: string; status: string; loanDisbursed: string; loanSanctionedAt: string; loanDisbursedAt: string; notes: string; payoutPercent: string; payoutAmount: string; paymentStatus: string }[] = [];
-      const insuranceRows: { employeeNumber: string; employeeName: string; date: string; customerName: string; contactNum: string; mailId: string; location: string; insuranceType: string; insuranceSubtype: string; premiumQuoted: string; premiumCollected: string; status: string; notes: string }[] = [];
+      const leadRows: Record<string, string>[] = [];
+      const insuranceRows: Record<string, string>[] = [];
       const attendanceRows: { employeeNumber: string; employeeName: string; date: string; loginAt: string; logoutAt: string; status: string; loginLocation: string; logoutLocation: string; leadsCount: number }[] = [];
       const leaveRows: { employeeNumber: string; employeeName: string; leaveType: string; startDate: string; endDate: string; reason: string; status: string }[] = [];
       for (const u of filtered) {
@@ -2768,15 +2768,23 @@ export async function registerRoutes(
             loanType: String(lAny.loanType ?? l.loanType ?? ""),
             subLoanType: String(lAny.subLoanType ?? l.subLoanType ?? ""),
             incomeType: String(lAny.incomeType ?? l.incomeType ?? ""),
+            incomeComments: String(lAny.incomeComments ?? (l as any).incomeComments ?? ""),
             amount: String(lAny.amount ?? l.amount ?? ""),
             cibil: String(lAny.cibil ?? l.cibil ?? ""),
-            status: String(lAny.status ?? l.status ?? ""),
+            docsCollected: String(lAny.docsCollected ?? (l as any).docsCollected ?? ""),
+            companyLogged: String(lAny.companyLogged ?? (l as any).companyLogged ?? ""),
+            applicationNumber: String(lAny.applicationNumber ?? (l as any).application_number ?? ""),
+            tenure: String(lAny.tenure ?? l.tenure ?? ""),
+            roi: String(lAny.roi ?? l.roi ?? ""),
             loanDisbursed: String(lAny.loanDisbursed ?? l.loanDisbursed ?? ""),
             loanSanctionedAt: toDateStr(lAny.loanSanctionedAt ?? l.loanSanctionedAt),
             loanDisbursedAt: toDateStr(lAny.loanDisbursedAt ?? l.loanDisbursedAt),
+            status: String(lAny.status ?? l.status ?? ""),
             notes: String(lAny.notes ?? l.notes ?? ""),
+            formLocation: String(lAny.formLocation ?? (l as any).form_location ?? ""),
             payoutPercent: String(lAny.payoutPercent ?? l.payoutPercent ?? ""),
             payoutAmount: String(lAny.payoutAmount ?? l.payoutAmount ?? ""),
+            reconsil: String(lAny.reconsil ?? (l as any).reconsil ?? ""),
             paymentStatus: String(lAny.paymentStatus ?? l.paymentStatus ?? ""),
           });
         }
@@ -2787,15 +2795,36 @@ export async function registerRoutes(
             employeeName: empName,
             date: toDateStr(iAny.date ?? i.date),
             customerName: String(iAny.customerName ?? i.customerName ?? ""),
+            dateOfBirth: toDateStr(iAny.dateOfBirth ?? i.dateOfBirth),
             contactNum: String(iAny.contactNum ?? i.contactNum ?? ""),
             mailId: String(iAny.mailId ?? i.mailId ?? ""),
             location: String(iAny.location ?? i.location ?? ""),
             insuranceType: String(iAny.insuranceType ?? i.insuranceType ?? ""),
+            insuranceCategory: String(iAny.insuranceCategory ?? (i as any).insurance_category ?? ""),
+            insuranceProductType: String(iAny.insuranceProductType ?? (i as any).insurance_product_type ?? ""),
+            insuranceProductTypeOther: String(iAny.insuranceProductTypeOther ?? (i as any).insurance_product_type_other ?? ""),
+            vehicleNumber: String(iAny.vehicleNumber ?? (i as any).vehicle_number ?? ""),
             insuranceSubtype: String(iAny.insuranceSubtype ?? i.insuranceSubtype ?? ""),
+            insuranceSubtypeOther: String(iAny.insuranceSubtypeOther ?? (i as any).insuranceSubtypeOther ?? ""),
+            profileType: String(iAny.profileType ?? (i as any).profileType ?? ""),
+            profileComments: String(iAny.profileComments ?? (i as any).profileComments ?? ""),
+            businessType: String(iAny.businessType ?? (i as any).businessType ?? ""),
+            businessTypeComments: String(iAny.businessTypeComments ?? (i as any).businessTypeComments ?? ""),
+            paymentMode: String(iAny.paymentMode ?? (i as any).paymentMode ?? ""),
+            paymentModeComments: String(iAny.paymentModeComments ?? (i as any).paymentModeComments ?? ""),
+            paymentDoneBy: String(iAny.paymentDoneBy ?? (i as any).paymentDoneBy ?? ""),
+            paymentDoneByComments: String(iAny.paymentDoneByComments ?? (i as any).paymentDoneByComments ?? ""),
+            incomeType: String(iAny.incomeType ?? (i as any).incomeType ?? ""),
             premiumQuoted: String(iAny.premiumQuoted ?? i.premiumQuoted ?? ""),
             premiumCollected: String(iAny.premiumCollected ?? i.premiumCollected ?? ""),
+            difference: String(iAny.difference ?? (i as any).difference ?? ""),
+            miscellaneousExpenses: String(iAny.miscellaneousExpenses ?? (i as any).miscellaneousExpenses ?? ""),
             status: String(iAny.status ?? i.status ?? ""),
             notes: String(iAny.notes ?? i.notes ?? ""),
+            formLocation: String(iAny.formLocation ?? (i as any).form_location ?? ""),
+            collectedPremium: String(iAny.collectedPremium ?? (i as any).collectedPremium ?? ""),
+            actualPremium: String(iAny.actualPremium ?? (i as any).actualPremium ?? ""),
+            finalRemarks: String(iAny.finalRemarks ?? (i as any).finalRemarks ?? ""),
           });
         }
         for (const a of att) {
@@ -2840,7 +2869,7 @@ export async function registerRoutes(
         summarySheet.addRows(rows);
         summarySheet.getRow(1).font = { bold: true };
         const leadsSheet = workbook.addWorksheet("Leads");
-        leadsSheet.columns = [
+        const leadCols = [
           { header: "Employee ID", key: "employeeNumber", width: 12 },
           { header: "Employee Name", key: "employeeName", width: 18 },
           { header: "Date", key: "date", width: 12 },
@@ -2851,36 +2880,67 @@ export async function registerRoutes(
           { header: "Location", key: "location", width: 18 },
           { header: "Loan Type", key: "loanType", width: 14 },
           { header: "Sub Type", key: "subLoanType", width: 12 },
-          { header: "Income Type", key: "incomeType", width: 12 },
+          { header: "Income Type", key: "incomeType", width: 14 },
+          { header: "Income Comments", key: "incomeComments", width: 20 },
           { header: "Amount", key: "amount", width: 12 },
           { header: "CIBIL", key: "cibil", width: 8 },
-          { header: "Status", key: "status", width: 10 },
+          { header: "Docs Collected", key: "docsCollected", width: 16 },
+          { header: "Company Logged", key: "companyLogged", width: 16 },
+          { header: "Application No", key: "applicationNumber", width: 18 },
+          { header: "Tenure", key: "tenure", width: 8 },
+          { header: "ROI", key: "roi", width: 8 },
           { header: "Loan Disbursed", key: "loanDisbursed", width: 14 },
           { header: "Sanctioned At", key: "loanSanctionedAt", width: 12 },
           { header: "Disbursed At", key: "loanDisbursedAt", width: 12 },
+          { header: "Status", key: "status", width: 12 },
           { header: "Notes", key: "notes", width: 24 },
+          { header: "Form Location", key: "formLocation", width: 28 },
           { header: "Payout %", key: "payoutPercent", width: 10 },
           { header: "Payout Amount", key: "payoutAmount", width: 12 },
-          { header: "Payment Status", key: "paymentStatus", width: 12 },
+          { header: "Reconsil", key: "reconsil", width: 14 },
+          { header: "Payment Status", key: "paymentStatus", width: 14 },
         ];
+        leadsSheet.columns = leadCols;
         leadsSheet.addRows(leadRows);
         leadsSheet.getRow(1).font = { bold: true };
         const insuranceSheet = workbook.addWorksheet("Insurance Leads");
-        insuranceSheet.columns = [
+        const insCols = [
           { header: "Employee ID", key: "employeeNumber", width: 12 },
           { header: "Employee Name", key: "employeeName", width: 18 },
           { header: "Date", key: "date", width: 12 },
           { header: "Customer Name", key: "customerName", width: 20 },
+          { header: "DOB", key: "dateOfBirth", width: 12 },
           { header: "Contact", key: "contactNum", width: 14 },
           { header: "Email", key: "mailId", width: 22 },
           { header: "Location", key: "location", width: 18 },
-          { header: "Insurance Type", key: "insuranceType", width: 14 },
-          { header: "Subtype", key: "insuranceSubtype", width: 12 },
+          { header: "Insurance Type", key: "insuranceType", width: 16 },
+          { header: "Category", key: "insuranceCategory", width: 12 },
+          { header: "Product Type", key: "insuranceProductType", width: 14 },
+          { header: "Product Type Other", key: "insuranceProductTypeOther", width: 18 },
+          { header: "Vehicle No", key: "vehicleNumber", width: 14 },
+          { header: "Subtype", key: "insuranceSubtype", width: 14 },
+          { header: "Subtype Other", key: "insuranceSubtypeOther", width: 14 },
+          { header: "Profile Type", key: "profileType", width: 12 },
+          { header: "Profile Comments", key: "profileComments", width: 20 },
+          { header: "Business Type", key: "businessType", width: 14 },
+          { header: "Business Comments", key: "businessTypeComments", width: 18 },
+          { header: "Payment Mode", key: "paymentMode", width: 12 },
+          { header: "Payment Mode Comments", key: "paymentModeComments", width: 20 },
+          { header: "Payment Done By", key: "paymentDoneBy", width: 14 },
+          { header: "Payment Done By Comments", key: "paymentDoneByComments", width: 22 },
+          { header: "Income Type", key: "incomeType", width: 12 },
           { header: "Premium Quoted", key: "premiumQuoted", width: 14 },
           { header: "Premium Collected", key: "premiumCollected", width: 14 },
+          { header: "Difference", key: "difference", width: 12 },
+          { header: "Misc Expenses", key: "miscellaneousExpenses", width: 14 },
           { header: "Status", key: "status", width: 10 },
           { header: "Notes", key: "notes", width: 24 },
+          { header: "Form Location", key: "formLocation", width: 28 },
+          { header: "Collected Premium", key: "collectedPremium", width: 14 },
+          { header: "Actual Premium", key: "actualPremium", width: 14 },
+          { header: "Final Remarks", key: "finalRemarks", width: 24 },
         ];
+        insuranceSheet.columns = insCols;
         insuranceSheet.addRows(insuranceRows);
         insuranceSheet.getRow(1).font = { bold: true };
         const attendanceSheet = workbook.addWorksheet("Attendance");
@@ -3002,14 +3062,14 @@ export async function registerRoutes(
           doc.moveDown(0.5);
           y = doc.y + 4;
         }
-        const leadHeaders = ["Emp ID", "Name", "Date", "Customer", "Phone", "Loan Type", "Amount", "Status"];
-        const leadKeys = ["employeeNumber", "employeeName", "date", "customerName", "customerPhone", "loanType", "amount", "status"];
-        const leadWidths = [38, 50, 42, 55, 48, 42, 42, 38];
-        drawTable("Leads", leadHeaders, leadWidths, leadRows, leadKeys);
-        const insHeaders = ["Emp ID", "Name", "Date", "Customer", "Contact", "Type", "Premium", "Status"];
-        const insKeys = ["employeeNumber", "employeeName", "date", "customerName", "contactNum", "insuranceType", "premiumCollected", "status"];
-        const insWidths = [38, 50, 42, 55, 48, 42, 42, 38];
-        drawTable("Insurance Leads", insHeaders, insWidths, insuranceRows, insKeys);
+        const leadHeaders = ["Emp ID", "Name", "Date", "Customer", "DOB", "Phone", "Email", "Location", "Loan Type", "Sub", "Income", "Income Cmt", "Amount", "CIBIL", "Docs", "Co Logged", "App No", "Tenure", "ROI", "Disb", "Sanct", "Disb At", "Status", "Notes", "Form Loc", "Payout%", "Payout Amt", "Reconsil", "Pay Status"];
+        const leadKeys = ["employeeNumber", "employeeName", "date", "customerName", "dateOfBirth", "customerPhone", "customerEmail", "location", "loanType", "subLoanType", "incomeType", "incomeComments", "amount", "cibil", "docsCollected", "companyLogged", "applicationNumber", "tenure", "roi", "loanDisbursed", "loanSanctionedAt", "loanDisbursedAt", "status", "notes", "formLocation", "payoutPercent", "payoutAmount", "reconsil", "paymentStatus"];
+        const leadWidths = leadKeys.map(() => 16);
+        drawTable("Leads (full)", leadHeaders, leadWidths, leadRows, leadKeys);
+        const insHeaders = ["Emp ID", "Name", "Date", "Customer", "DOB", "Contact", "Email", "Loc", "Type", "Cat", "Prod", "Prod Oth", "Vehicle", "Sub", "Sub Oth", "Profile", "Prof Cmt", "Biz", "Biz Cmt", "Pay Mode", "Pay Cmt", "Pay By", "Pay By Cmt", "Income", "Quoted", "Coll", "Diff", "Misc", "Status", "Notes", "Form Loc", "Coll Prem", "Actual", "Remarks"];
+        const insKeys = ["employeeNumber", "employeeName", "date", "customerName", "dateOfBirth", "contactNum", "mailId", "location", "insuranceType", "insuranceCategory", "insuranceProductType", "insuranceProductTypeOther", "vehicleNumber", "insuranceSubtype", "insuranceSubtypeOther", "profileType", "profileComments", "businessType", "businessTypeComments", "paymentMode", "paymentModeComments", "paymentDoneBy", "paymentDoneByComments", "incomeType", "premiumQuoted", "premiumCollected", "difference", "miscellaneousExpenses", "status", "notes", "formLocation", "collectedPremium", "actualPremium", "finalRemarks"];
+        const insWidths = insKeys.map(() => 14);
+        drawTable("Insurance Leads (full)", insHeaders, insWidths, insuranceRows, insKeys);
         const attHeaders = ["Emp ID", "Name", "Date", "Login", "Logout", "Login loc", "Logout loc", "Leads"];
         const attKeys = ["employeeNumber", "employeeName", "date", "loginAt", "logoutAt", "loginLocation", "logoutLocation", "leadsCount"];
         const attWidths = [36, 42, 38, 44, 44, 50, 50, 28];

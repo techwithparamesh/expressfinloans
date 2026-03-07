@@ -522,7 +522,7 @@ export default function StaffMyLeads() {
       <Card className="overflow-hidden">
         <CardHeader className="p-4 sm:p-6">
           <CardTitle className="text-base sm:text-lg">Leads this month</CardTitle>
-          <CardDescription className="text-xs sm:text-sm">Add 2 or more loan leads per day to be marked present. Location is captured when you open the lead form; allow access when prompted.</CardDescription>
+          <CardDescription className="text-xs sm:text-sm">Location is captured when you open the lead form; allow access when prompted.</CardDescription>
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
           <Tabs defaultValue="loan">

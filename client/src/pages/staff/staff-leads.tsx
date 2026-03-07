@@ -32,7 +32,7 @@ import { staffJson, staffFetch, getAuthMe } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-import { Target } from "lucide-react";
+import { Target, Eye } from "lucide-react";
 
 const RECONSIL_OPTIONS = ["Yes Received", "Not Revived", "Not as per Rate"] as const;
 const PAYMENT_STATUS_OPTIONS = ["Received", "Pending", "Not Received"] as const;
@@ -46,13 +46,25 @@ type Lead = {
   customerName: string | null;
   dateOfBirth?: string | null;
   customerPhone: string | null;
+  customerEmail?: string | null;
+  location?: string | null;
   loanType: string | null;
   subLoanType?: string | null;
   incomeType?: string | null;
   incomeComments?: string | null;
   amount: string | null;
+  cibil?: string | null;
+  docsCollected?: string | null;
+  companyLogged?: string | null;
+  applicationNumber?: string | null;
   tenure?: string | null;
+  roi?: string | null;
+  loanDisbursed?: string | null;
+  loanSanctionedAt?: string | null;
+  loanDisbursedAt?: string | null;
   status: string;
+  notes?: string | null;
+  formLocation?: string | null;
   payoutPercent: string | null;
   payoutAmount: string | null;
   reconsil: string | null;
@@ -74,8 +86,10 @@ export default function StaffLeads() {
   const [status, setStatus] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [editLead, setEditLead] = useState<Lead | null>(null);
+  const [viewLead, setViewLead] = useState<Lead | null>(null);
   const [deleteLead, setDeleteLead] = useState<Lead | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loadingView, setLoadingView] = useState(false);
   const [showAdminFields, setShowAdminFields] = useState(false);
   const [adminForm, setAdminForm] = useState({
     payoutPercent: "",
@@ -112,6 +126,28 @@ export default function StaffLeads() {
       reconsil: l.reconsil ?? "",
       paymentStatus: l.paymentStatus ?? "",
     });
+  }
+
+  async function openView(l: Lead) {
+    setViewLead(null);
+    setLoadingView(true);
+    try {
+      const full = await staffJson<Lead>("/staff/leads/" + l.id);
+      setViewLead(full);
+    } catch {
+      toast({ title: "Could not load lead details", variant: "destructive" });
+    } finally {
+      setLoadingView(false);
+    }
+  }
+
+  function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
+    return (
+      <div className="flex justify-between gap-4 py-1.5 border-b border-slate-100 last:border-0">
+        <span className="text-slate-500 shrink-0 w-[140px]">{label}</span>
+        <span className="text-right font-medium min-w-0 break-words">{value ?? "—"}</span>
+      </div>
+    );
   }
 
   async function confirmDelete() {
@@ -275,7 +311,11 @@ export default function StaffLeads() {
                       </>
                     )}
                     <td className="py-2 px-2">
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" onClick={() => openView(l)} disabled={loadingView}>
+                          <Eye className="h-3.5 w-3.5 mr-1" />
+                          View
+                        </Button>
                         <Button variant="outline" size="sm" onClick={() => openEdit(l)}>
                           Edit
                         </Button>
@@ -291,6 +331,79 @@ export default function StaffLeads() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={!!viewLead} onOpenChange={(open) => !open && setViewLead(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Customer / Lead details</DialogTitle>
+            <DialogDescription>Full details for this lead. Read-only.</DialogDescription>
+          </DialogHeader>
+          {viewLead && (
+            <div className="space-y-6 py-2">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 border-b pb-2 mb-2">Customer &amp; contact</h3>
+                <div className="space-y-0 text-sm">
+                  <DetailRow label="Customer name" value={viewLead.customerName} />
+                  <DetailRow label="Date of birth" value={viewLead.dateOfBirth ? String(viewLead.dateOfBirth).slice(0, 10) : null} />
+                  <DetailRow label="Phone" value={viewLead.customerPhone} />
+                  <DetailRow label="Email" value={viewLead.customerEmail} />
+                  <DetailRow label="Location" value={viewLead.location} />
+                  <DetailRow label="Lead date" value={viewLead.date ? String(viewLead.date).slice(0, 10) : null} />
+                  <DetailRow label="Generated at" value={viewLead.formLocation ?? (viewLead as any).form_location} />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 border-b pb-2 mb-2">Loan details</h3>
+                <div className="space-y-0 text-sm">
+                  <DetailRow label="Loan type" value={viewLead.loanType} />
+                  <DetailRow label="Sub type" value={viewLead.subLoanType} />
+                  <DetailRow label="Income type" value={viewLead.incomeType} />
+                  <DetailRow label="Income comments" value={viewLead.incomeComments} />
+                  <DetailRow label="Amount" value={viewLead.amount} />
+                  <DetailRow label="CIBIL" value={viewLead.cibil} />
+                  <DetailRow label="Application number" value={viewLead.applicationNumber ?? (viewLead as any).application_number} />
+                  <DetailRow label="Company logged" value={viewLead.companyLogged} />
+                  <DetailRow label="Tenure" value={viewLead.tenure} />
+                  <DetailRow label="ROI" value={viewLead.roi} />
+                  <DetailRow label="Docs collected" value={viewLead.docsCollected} />
+                  <DetailRow label="Loan sanctioned" value={viewLead.loanSanctionedAt ? String(viewLead.loanSanctionedAt).slice(0, 10) : null} />
+                  <DetailRow label="Loan disbursed" value={viewLead.loanDisbursedAt ? String(viewLead.loanDisbursedAt).slice(0, 10) : null} />
+                  <DetailRow label="Loan disbursed amount" value={viewLead.loanDisbursed} />
+                  <DetailRow label="Status" value={viewLead.status} />
+                  <DetailRow label="Notes" value={viewLead.notes} />
+                </div>
+              </div>
+              {(viewLead.payoutPercent ?? viewLead.payoutAmount ?? viewLead.reconsil ?? viewLead.paymentStatus) && (
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-700 border-b pb-2 mb-2">Payout &amp; payment (admin)</h3>
+                  <div className="space-y-0 text-sm">
+                    <DetailRow label="Payout %" value={viewLead.payoutPercent} />
+                    <DetailRow label="Payout amount" value={viewLead.payoutAmount} />
+                    <DetailRow label="Reconsil" value={viewLead.reconsil} />
+                    <DetailRow label="Payment status" value={viewLead.paymentStatus} />
+                  </div>
+                </div>
+              )}
+              <div className="pt-2">
+                <p className="text-xs text-slate-500">
+                  Logged by: {employees.find((e) => e.id === viewLead.employeeId)?.fullName || employees.find((e) => e.id === viewLead.employeeId)?.username || viewLead.employeeId}
+                  {employees.find((e) => e.id === viewLead.employeeId)?.employeeNumber && ` (ID: ${employees.find((e) => e.id === viewLead.employeeId)?.employeeNumber})`}
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewLead(null)}>
+              Close
+            </Button>
+            {viewLead && (
+              <Button variant="outline" onClick={() => { setViewLead(null); openEdit(leads.find((l) => l.id === viewLead.id) ?? viewLead); }}>
+                Edit admin fields
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteLead} onOpenChange={(open) => !open && setDeleteLead(null)}>
         <AlertDialogContent>

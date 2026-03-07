@@ -203,7 +203,7 @@ export default function StaffAttendance() {
           <CardDescription>
             {employeeId
               ? `Showing attendance for ${employees.find((e) => e.id === employeeId)?.fullName || employees.find((e) => e.id === employeeId)?.username || "selected staff"}. Total: ${filteredLogs.length} log${filteredLogs.length !== 1 ? "s" : ""}.`
-              : `Login, logout, leads count, status (present = 2 or more leads). Total: ${filteredLogs.length} log${filteredLogs.length !== 1 ? "s" : ""}.`}
+              : `Login, logout, leads count, status. Total: ${filteredLogs.length} log${filteredLogs.length !== 1 ? "s" : ""}.`}
           </CardDescription>
         </CardHeader>
         <CardContent>

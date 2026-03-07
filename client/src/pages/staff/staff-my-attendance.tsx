@@ -138,7 +138,7 @@ export default function StaffMyAttendance() {
             <Calendar className="h-5 w-5 shrink-0" />
             Today ({today})
           </CardTitle>
-          <CardDescription className="text-xs sm:text-sm">Mark login and logout. You need 2 or more leads to be marked present. When you tap Log in or Log out, allow location if prompted and wait until it finishes—location is then saved (or from IP if unavailable).</CardDescription>
+          <CardDescription className="text-xs sm:text-sm">Mark login and logout. When you tap Log in or Log out, allow location if prompted and wait until it finishes—location is then saved (or from IP if unavailable).</CardDescription>
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0 flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">

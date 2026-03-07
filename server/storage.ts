@@ -317,7 +317,7 @@ export class DrizzleStorage implements IStorage {
       date: dateStr as any,
       loginAt: now,
       leadsCount: 0,
-      status: "incomplete",
+      status: "present",
       ...locationFields,
     });
   }
@@ -349,26 +349,25 @@ export class DrizzleStorage implements IStorage {
       date: dateStr as any,
       logoutAt: now,
       leadsCount: 0,
-      status: "incomplete",
+      status: "present",
       ...logoutFields,
     });
   }
 
   async updateAttendanceFromLeadsCount(employeeId: string, dateStr: string, count: number): Promise<void> {
     await guardDb();
-    const status = count >= 2 ? "present" : "incomplete";
     const existing = await this.getAttendanceLog(employeeId, dateStr);
     if (existing) {
       await db
         .update(attendanceLogs)
-        .set({ leadsCount: count, status, updatedAt: new Date() })
+        .set({ leadsCount: count, updatedAt: new Date() })
         .where(eq(attendanceLogs.id, existing.id));
     } else {
       await db.insert(attendanceLogs).values({
         employeeId,
         date: dateStr as any,
         leadsCount: count,
-        status,
+        status: "present",
       });
     }
   }
