@@ -1,11 +1,21 @@
 import type { Request } from "express";
 
-/** Get client IP from request (handles x-forwarded-for behind proxy). */
+/**
+ * Get client IP from request (handles proxy headers).
+ * Tries: X-Forwarded-For (first IP = original client), X-Real-IP, then req.ip / socket.
+ * When the server sees 127.0.0.1 it usually means the request came through a proxy that
+ * didn't forward the real IP – ensure the proxy sets X-Forwarded-For or X-Real-IP.
+ */
 export function getClientIp(req: Request): string {
   const forwarded = req.headers["x-forwarded-for"];
   if (forwarded) {
     const first = typeof forwarded === "string" ? forwarded.split(",")[0] : forwarded[0];
     if (first) return first.trim();
+  }
+  const realIp = req.headers["x-real-ip"];
+  if (realIp) {
+    const ip = typeof realIp === "string" ? realIp.trim() : realIp[0];
+    if (ip) return ip;
   }
   return req.ip || req.socket?.remoteAddress || "";
 }

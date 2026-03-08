@@ -12,6 +12,7 @@ import { useMonthlyTargetPopup, useConveyancePolicyPopup, useMyDashboardInvalida
 type MyDashboard = {
   monthLabel: string;
   leadsThisMonth: number;
+  insuranceLeadsThisMonth?: number;
   monthTarget: number;
   achievementPct: number;
   daysPresent: number;
@@ -69,11 +70,21 @@ export default function StaffMyDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Leads this month</CardTitle>
+            <CardTitle className="text-sm font-medium">Loan leads this month</CardTitle>
             <FileText className="h-4 w-4 text-slate-500" />
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{data.leadsThisMonth}</p>
+            <p className="text-xs text-slate-500">{data.monthLabel}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Insurance leads this month</CardTitle>
+            <FileText className="h-4 w-4 text-slate-500" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{data.insuranceLeadsThisMonth ?? 0}</p>
             <p className="text-xs text-slate-500">{data.monthLabel}</p>
           </CardContent>
         </Card>
@@ -94,7 +105,7 @@ export default function StaffMyDashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{data.achievementPct}%</p>
-            <p className="text-xs text-slate-500">{data.leadsThisMonth} of {data.monthTarget} leads</p>
+            <p className="text-xs text-slate-500">Loan: {data.leadsThisMonth} of {data.monthTarget}</p>
           </CardContent>
         </Card>
         <Card>

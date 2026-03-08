@@ -215,8 +215,12 @@ export async function registerRoutes(
         if (!loginLocation) loginLocation = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
       } else {
         const isLocalhost = !clientIp || clientIp === "::1" || clientIp === "127.0.0.1" || clientIp.startsWith("127.");
-        loginLocation = isLocalhost ? "Local" : await getLocationFromIp(clientIp);
-        if (!loginLocation && clientIp) loginLocation = `IP: ${clientIp}`;
+        if (isLocalhost) {
+          loginLocation = "Location not captured (allow browser location when logging in for address)";
+        } else {
+          loginLocation = await getLocationFromIp(clientIp);
+          if (!loginLocation && clientIp) loginLocation = `IP: ${clientIp}`;
+        }
       }
 
       const log = await storage.setAttendanceLogin(userId, dateStr, {
@@ -261,8 +265,12 @@ export async function registerRoutes(
         if (!logoutLocation) logoutLocation = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
       } else {
         const isLocalhost = !clientIp || clientIp === "::1" || clientIp === "127.0.0.1" || clientIp.startsWith("127.");
-        logoutLocation = isLocalhost ? "Local" : await getLocationFromIp(clientIp);
-        if (!logoutLocation && clientIp) logoutLocation = `IP: ${clientIp}`;
+        if (isLocalhost) {
+          logoutLocation = "Location not captured (allow browser location when logging out for address)";
+        } else {
+          logoutLocation = await getLocationFromIp(clientIp);
+          if (!logoutLocation && clientIp) logoutLocation = `IP: ${clientIp}`;
+        }
       }
 
       const log = await storage.setAttendanceLogout(userId, dateStr, {
@@ -1355,6 +1363,7 @@ export async function registerRoutes(
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
       const leadsThisMonth = await storage.getLeadsByEmployee(userId, monthStart, monthEnd);
+      const insuranceLeadsThisMonth = await storage.getInsuranceLeadsByEmployee(userId, monthStart, monthEnd);
       const achievement = leadsThisMonth.length;
       const achievementPct = monthTarget > 0 ? Math.round((achievement / monthTarget) * 100) : 0;
       const attendanceLogs = await storage.getAttendanceLogsByEmployee(userId, monthStart, monthEnd);
@@ -1365,6 +1374,7 @@ export async function registerRoutes(
       const from7 = sevenDaysAgo.toISOString().slice(0, 10);
       const today = todayStr();
       const leadsLast7 = await storage.getLeadsByEmployee(userId, from7, today);
+      const insuranceLeadsLast7 = await storage.getInsuranceLeadsByEmployee(userId, from7, today);
       const byDate: Record<string, number> = {};
       for (let i = 0; i < 7; i++) {
         const d = new Date();
@@ -1375,12 +1385,17 @@ export async function registerRoutes(
         const dateStr = String(l.date).slice(0, 10);
         if (byDate[dateStr] !== undefined) byDate[dateStr]++;
       }
+      for (const il of insuranceLeadsLast7) {
+        const dateStr = String((il as any).date ?? il.date).slice(0, 10);
+        if (byDate[dateStr] !== undefined) byDate[dateStr]++;
+      }
       const leadsLast7Days = Object.entries(byDate)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([date, count]) => ({ date, count }));
       res.json({
         monthLabel: now.toLocaleString("default", { month: "long", year: "numeric" }),
         leadsThisMonth: achievement,
+        insuranceLeadsThisMonth: insuranceLeadsThisMonth.length,
         monthTarget,
         achievementPct,
         daysPresent,
@@ -2720,7 +2735,7 @@ export async function registerRoutes(
         return String(v).slice(0, 10);
       };
       const roleLabel = (r: string) => (r === "team_lead" ? "Team leader" : r === "admin" ? "Admin" : "Employee");
-      const rows: { employeeId: string; employeeNumber: string; name: string; role: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number }[] = [];
+      const rows: { employeeId: string; employeeNumber: string; name: string; role: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number; disbursedAmount: number }[] = [];
       const leadRows: Record<string, string>[] = [];
       const insuranceRows: Record<string, string>[] = [];
       const attendanceRows: { employeeNumber: string; employeeName: string; date: string; loginAt: string; logoutAt: string; status: string; loginLocation: string; logoutLocation: string; leadsCount: number }[] = [];
@@ -2744,6 +2759,7 @@ export async function registerRoutes(
             if (t >= rangeStart && t <= rangeEnd) leaveDays++;
           }
         }
+        const disbursedAmount = leadsList.reduce((sum, l) => sum + getLeadAmount(l as any), 0);
         rows.push({
           employeeId: uid,
           employeeNumber: empNum,
@@ -2753,6 +2769,7 @@ export async function registerRoutes(
           leadsCount: leadsList.length,
           insuranceLeadsCount: insList.length,
           leaveDays,
+          disbursedAmount,
         });
         for (const l of leadsList) {
           const lAny = l as Record<string, unknown>;
@@ -2865,6 +2882,7 @@ export async function registerRoutes(
           { header: "Loan Leads", key: "leadsCount", width: 12 },
           { header: "Insurance Leads", key: "insuranceLeadsCount", width: 16 },
           { header: "Leave Days", key: "leaveDays", width: 12 },
+          { header: "Disbursed Amount", key: "disbursedAmount", width: 16 },
         ];
         summarySheet.addRows(rows);
         summarySheet.getRow(1).font = { bold: true };
@@ -2882,14 +2900,13 @@ export async function registerRoutes(
           { header: "Sub Type", key: "subLoanType", width: 12 },
           { header: "Income Type", key: "incomeType", width: 14 },
           { header: "Income Comments", key: "incomeComments", width: 20 },
-          { header: "Amount", key: "amount", width: 12 },
+          { header: "Request Amount", key: "amount", width: 14 },
           { header: "CIBIL", key: "cibil", width: 8 },
-          { header: "Docs Collected", key: "docsCollected", width: 16 },
           { header: "Company Logged", key: "companyLogged", width: 16 },
           { header: "Application No", key: "applicationNumber", width: 18 },
           { header: "Tenure", key: "tenure", width: 8 },
           { header: "ROI", key: "roi", width: 8 },
-          { header: "Loan Disbursed", key: "loanDisbursed", width: 14 },
+          { header: "Disbursed Amount", key: "loanDisbursed", width: 16 },
           { header: "Sanctioned At", key: "loanSanctionedAt", width: 12 },
           { header: "Disbursed At", key: "loanDisbursedAt", width: 12 },
           { header: "Status", key: "status", width: 12 },
@@ -2988,8 +3005,8 @@ export async function registerRoutes(
         doc.moveDown(0.5);
         doc.fontSize(10).text("Summary", { continued: false });
         doc.fontSize(smallFont);
-        const summaryHeaders = ["Emp ID", "Name", "Role", "Present", "Leads", "Ins", "Leave"];
-        const summaryCols = [50, 95, 145, 195, 245, 285, 330];
+        const summaryHeaders = ["Emp ID", "Name", "Role", "Present", "Leads", "Ins", "Leave", "Disbursed"];
+        const summaryCols = [45, 85, 130, 175, 215, 250, 285, 345];
         let y = doc.y + 6;
         doc.font("Helvetica-Bold");
         for (let i = 0; i < summaryHeaders.length; i++) {
@@ -3006,13 +3023,15 @@ export async function registerRoutes(
             doc.font("Helvetica");
             y += ROW_HEIGHT;
           }
+          const disbStr = r.disbursedAmount != null && r.disbursedAmount > 0 ? String(r.disbursedAmount) : "";
           doc.text((r.employeeNumber || "").slice(0, 8), summaryCols[0], y);
-          doc.text((r.name || "").slice(0, 12), summaryCols[1], y);
-          doc.text((r.role || "").slice(0, 10), summaryCols[2], y);
+          doc.text((r.name || "").slice(0, 10), summaryCols[1], y);
+          doc.text((r.role || "").slice(0, 8), summaryCols[2], y);
           doc.text(String(r.daysPresent), summaryCols[3], y);
           doc.text(String(r.leadsCount), summaryCols[4], y);
           doc.text(String(r.insuranceLeadsCount), summaryCols[5], y);
           doc.text(String(r.leaveDays), summaryCols[6], y);
+          doc.text(disbStr.slice(0, 10), summaryCols[7], y);
           y += ROW_HEIGHT;
         }
         doc.moveDown(1);
@@ -3062,8 +3081,8 @@ export async function registerRoutes(
           doc.moveDown(0.5);
           y = doc.y + 4;
         }
-        const leadHeaders = ["Emp ID", "Name", "Date", "Customer", "DOB", "Phone", "Email", "Location", "Loan Type", "Sub", "Income", "Income Cmt", "Amount", "CIBIL", "Docs", "Co Logged", "App No", "Tenure", "ROI", "Disb", "Sanct", "Disb At", "Status", "Notes", "Form Loc", "Payout%", "Payout Amt", "Reconsil", "Pay Status"];
-        const leadKeys = ["employeeNumber", "employeeName", "date", "customerName", "dateOfBirth", "customerPhone", "customerEmail", "location", "loanType", "subLoanType", "incomeType", "incomeComments", "amount", "cibil", "docsCollected", "companyLogged", "applicationNumber", "tenure", "roi", "loanDisbursed", "loanSanctionedAt", "loanDisbursedAt", "status", "notes", "formLocation", "payoutPercent", "payoutAmount", "reconsil", "paymentStatus"];
+        const leadHeaders = ["Emp ID", "Name", "Date", "Customer", "DOB", "Phone", "Email", "Location", "Loan Type", "Sub", "Income", "Income Cmt", "Request Amt", "CIBIL", "Co Logged", "App No", "Tenure", "ROI", "Disb Amt", "Sanct", "Disb At", "Status", "Notes", "Form Loc", "Payout%", "Payout Amt", "Reconsil", "Pay Status"];
+        const leadKeys = ["employeeNumber", "employeeName", "date", "customerName", "dateOfBirth", "customerPhone", "customerEmail", "location", "loanType", "subLoanType", "incomeType", "incomeComments", "amount", "cibil", "companyLogged", "applicationNumber", "tenure", "roi", "loanDisbursed", "loanSanctionedAt", "loanDisbursedAt", "status", "notes", "formLocation", "payoutPercent", "payoutAmount", "reconsil", "paymentStatus"];
         const leadWidths = leadKeys.map(() => 16);
         drawTable("Leads (full)", leadHeaders, leadWidths, leadRows, leadKeys);
         const insHeaders = ["Emp ID", "Name", "Date", "Customer", "DOB", "Contact", "Email", "Loc", "Type", "Cat", "Prod", "Prod Oth", "Vehicle", "Sub", "Sub Oth", "Profile", "Prof Cmt", "Biz", "Biz Cmt", "Pay Mode", "Pay Cmt", "Pay By", "Pay By Cmt", "Income", "Quoted", "Coll", "Diff", "Misc", "Status", "Notes", "Form Loc", "Coll Prem", "Actual", "Remarks"];

@@ -15,6 +15,7 @@ export const LOAN_TYPES = [
   "Land Purchase",
   "Education Loan",
   "Equipment Loan",
+  "CV",
 ] as const;
 
 /** Sub loan types for LAP, LRD, Home Loan, Land Purchase */
@@ -41,6 +42,7 @@ export const LOAN_TYPE_SUBTYPES: Record<(typeof LOAN_TYPES)[number], readonly st
   "Land Purchase": [...SUB_LAP_LRD_HOME_LAND],
   "Education Loan": ["New"],
   "Equipment Loan": ["New", "BT", "Topup"],
+  CV: ["New", "Used", "BT", "Topup"],
 };
 
 export const INCOME_TYPES = [

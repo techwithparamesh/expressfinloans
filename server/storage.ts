@@ -306,7 +306,7 @@ export class DrizzleStorage implements IStorage {
     if (existing) {
       await db
         .update(attendanceLogs)
-        .set({ loginAt: now, updatedAt: now, ...locationFields })
+        .set({ loginAt: now, status: "present", updatedAt: now, ...locationFields })
         .where(eq(attendanceLogs.id, existing.id));
       const [updated] = await db.select().from(attendanceLogs).where(eq(attendanceLogs.id, existing.id)).limit(1);
       if (!updated) throw new Error("Failed to update login");
@@ -338,7 +338,7 @@ export class DrizzleStorage implements IStorage {
     if (existing) {
       await db
         .update(attendanceLogs)
-        .set({ logoutAt: now, updatedAt: now, ...logoutFields })
+        .set({ logoutAt: now, status: "present", updatedAt: now, ...logoutFields })
         .where(eq(attendanceLogs.id, existing.id));
       const [updated] = await db.select().from(attendanceLogs).where(eq(attendanceLogs.id, existing.id)).limit(1);
       if (!updated) throw new Error("Failed to update logout");
