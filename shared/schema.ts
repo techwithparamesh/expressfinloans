@@ -200,6 +200,11 @@ export const insuranceLeads = mysqlTable("insurance_leads", {
   status: varchar("status", { length: 50 }).notNull().default("open"),
   notes: text("notes"),
   formLocation: varchar("form_location", { length: 500 }),
+  // Policy details (for renewal reminder)
+  policyNumber: varchar("policy_number", { length: 100 }),
+  policyStartDate: date("policy_start_date"),
+  policyEndDate: date("policy_end_date"),
+  renewedAt: timestamp("renewed_at"), // when set, policy is treated as renewed; no longer shown in expiring reminder
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
   // Admin-only: collected/actual premium and remarks
@@ -239,6 +244,10 @@ export const insertInsuranceLeadSchema = createInsertSchema(insuranceLeads).pick
   status: true,
   notes: true,
   formLocation: true,
+  policyNumber: true,
+  policyStartDate: true,
+  policyEndDate: true,
+  renewedAt: true,
   collectedPremium: true,
   actualPremium: true,
   finalRemarks: true,

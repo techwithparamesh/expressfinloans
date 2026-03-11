@@ -35,7 +35,7 @@ import {
   monthlyPerformance,
   targetAuditLog,
 } from "@shared/schema";
-import { eq, and, desc, gte, lte, isNull, inArray } from "drizzle-orm";
+import { eq, and, desc, gte, lte, isNull, isNotNull, inArray } from "drizzle-orm";
 import { db, hasDb } from "./db";
 import { hashPassword } from "./lib/password";
 
@@ -79,6 +79,7 @@ export interface IStorage {
   getInsuranceLead(id: string): Promise<InsuranceLead | undefined>;
   getInsuranceLeadsByEmployee(employeeId: string, fromDate?: string, toDate?: string): Promise<InsuranceLead[]>;
   getAllInsuranceLeads(filters?: { employeeId?: string; fromDate?: string; toDate?: string }): Promise<InsuranceLead[]>;
+  getInsuranceLeadsExpiringSoon(employeeIds: string[], withinDays: number): Promise<InsuranceLead[]>;
   updateInsuranceLead(id: string, data: Partial<InsertInsuranceLead>): Promise<InsuranceLead | undefined>;
   deleteInsuranceLead(id: string): Promise<void>;
 
@@ -530,6 +531,30 @@ export class DrizzleStorage implements IStorage {
       .from(insuranceLeads)
       .where(and(...conditions))
       .orderBy(desc(insuranceLeads.date), desc(insuranceLeads.createdAt));
+  }
+
+  async getInsuranceLeadsExpiringSoon(employeeIds: string[], withinDays: number): Promise<InsuranceLead[]> {
+    await guardDb();
+    if (employeeIds.length === 0) return [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const startStr = today.toISOString().slice(0, 10);
+    const end = new Date(today);
+    end.setDate(end.getDate() + withinDays);
+    const endStr = end.toISOString().slice(0, 10);
+    return db
+      .select()
+      .from(insuranceLeads)
+      .where(
+        and(
+          inArray(insuranceLeads.employeeId, employeeIds),
+          isNotNull(insuranceLeads.policyEndDate),
+          gte(insuranceLeads.policyEndDate, startStr),
+          lte(insuranceLeads.policyEndDate, endStr),
+          isNull(insuranceLeads.renewedAt)
+        )
+      )
+      .orderBy(insuranceLeads.policyEndDate, desc(insuranceLeads.createdAt));
   }
 
   async updateInsuranceLead(id: string, data: Partial<InsertInsuranceLead>): Promise<InsuranceLead | undefined> {
@@ -1078,6 +1103,10 @@ class NoDbStorage implements IStorage {
     return [];
   }
   async getAllInsuranceLeads() {
+    this.guard();
+    return [];
+  }
+  async getInsuranceLeadsExpiringSoon() {
     this.guard();
     return [];
   }

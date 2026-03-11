@@ -4,6 +4,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -22,7 +32,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { staffJson } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useMyDashboardInvalidate } from "./staff-layout";
-import { Plus, ArrowLeft, FileText, Shield, MapPin, Pencil } from "lucide-react";
+import { Plus, ArrowLeft, FileText, Shield, MapPin, Pencil, AlertCircle } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
   LOAN_TYPES,
@@ -105,6 +115,14 @@ type InsuranceLead = {
   miscellaneousExpenses: string | null;
   status: string;
   notes: string | null;
+  policyNumber?: string | null;
+  policy_number?: string | null;
+  policyStartDate?: string | null;
+  policy_start_date?: string | null;
+  policyEndDate?: string | null;
+  policy_end_date?: string | null;
+  renewedAt?: string | null;
+  renewed_at?: string | null;
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -206,6 +224,9 @@ const defaultInsuranceForm = () => ({
   miscellaneousExpenses: "",
   status: "Open",
   notes: "",
+  policyNumber: "",
+  policyStartDate: "",
+  policyEndDate: "",
 });
 
 export default function StaffMyLeads() {
@@ -224,6 +245,9 @@ export default function StaffMyLeads() {
   const [insuranceForm, setInsuranceForm] = useState(defaultInsuranceForm);
   const [editLoanLeadId, setEditLoanLeadId] = useState<string | null>(null);
   const [editInsuranceLeadId, setEditInsuranceLeadId] = useState<string | null>(null);
+  const [upcomingRenewals, setUpcomingRenewals] = useState<InsuranceLead[]>([]);
+  const [showRenewalReminder, setShowRenewalReminder] = useState(true);
+  const [renewalMarkingId, setRenewalMarkingId] = useState<string | null>(null);
 
   function mapLeadToLoanForm(l: Lead): ReturnType<typeof defaultLoanForm> {
     const dateVal = (l as { date?: string }).date;
@@ -284,6 +308,9 @@ export default function StaffMyLeads() {
       miscellaneousExpenses: l.miscellaneousExpenses ?? "",
       status: l.status ?? "Open",
       notes: l.notes ?? "",
+      policyNumber: l.policyNumber ?? (l as any).policy_number ?? "",
+      policyStartDate: (l.policyStartDate ?? (l as any).policy_start_date) ? String(l.policyStartDate ?? (l as any).policy_start_date).slice(0, 10) : "",
+      policyEndDate: (l.policyEndDate ?? (l as any).policy_end_date) ? String(l.policyEndDate ?? (l as any).policy_end_date).slice(0, 10) : "",
     };
   }
 
@@ -316,16 +343,44 @@ export default function StaffMyLeads() {
     Promise.all([
       staffJson<Lead[]>("/staff/leads/me?from=" + from + "&to=" + to),
       staffJson<InsuranceLead[]>("/staff/insurance-leads/me?from=" + from + "&to=" + to),
+      staffJson<InsuranceLead[]>("/staff/insurance-leads/upcoming-renewals?days=3"),
     ])
-      .then(([loanList, insList]) => {
+      .then(([loanList, insList, renewals]) => {
         setLeads(loanList);
         setInsuranceLeads(insList);
+        const list = Array.isArray(renewals) ? renewals : [];
+        setUpcomingRenewals(list);
+        if (list.length > 0) setShowRenewalReminder(true);
       })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : "Failed to load leads";
         toast({ title: msg, variant: "destructive", description: msg.includes("Database schema") ? "See docs/MYSQL_VPS_COMMANDS.md" : undefined });
       })
       .finally(() => setLoading(false));
+  }
+
+  async function markPolicyRenewed(leadId: string) {
+    setRenewalMarkingId(leadId);
+    try {
+      await staffJson("/staff/insurance-leads/" + leadId, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ renewedAt: true }),
+      });
+      toast({ title: "Policy marked as renewed" });
+      const renewals = await staffJson<InsuranceLead[]>("/staff/insurance-leads/upcoming-renewals?days=3");
+      setUpcomingRenewals(Array.isArray(renewals) ? renewals : []);
+      load();
+    } catch (e) {
+      toast({ title: e instanceof Error ? e.message : "Failed to update", variant: "destructive" });
+    } finally {
+      setRenewalMarkingId(null);
+    }
+  }
+
+  function getPolicyEndDate(l: InsuranceLead): string | null {
+    const d = l.policyEndDate ?? (l as any).policy_end_date;
+    return d ? String(d).slice(0, 10) : null;
   }
 
   useEffect(() => load(), []);
@@ -479,6 +534,9 @@ export default function StaffMyLeads() {
         status: insuranceForm.status || "open",
         notes: insuranceForm.notes || null,
         formLocation: capturedFormAddress || (capturedFormLocation ? `${capturedFormLocation.latitude}, ${capturedFormLocation.longitude}` : null) || undefined,
+        policyNumber: insuranceForm.policyNumber?.trim() || null,
+        policyStartDate: insuranceForm.policyStartDate?.trim() ? insuranceForm.policyStartDate.trim().slice(0, 10) : null,
+        policyEndDate: insuranceForm.policyEndDate?.trim() ? insuranceForm.policyEndDate.trim().slice(0, 10) : null,
       };
       if (editInsuranceLeadId) {
         await staffJson("/staff/insurance-leads/" + editInsuranceLeadId, {
@@ -511,6 +569,46 @@ export default function StaffMyLeads() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      <AlertDialog open={showRenewalReminder && upcomingRenewals.length > 0} onOpenChange={(open) => { if (!open) setShowRenewalReminder(false); }}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-500" />
+              Policy renewal reminder
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              The following insurance policies are expiring within 3 days. Mark as renewed once done so this reminder stops.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="max-h-[50vh] overflow-y-auto space-y-3 py-2">
+            {upcomingRenewals.map((r) => (
+              <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">
+                <div>
+                  <span className="font-medium">{r.customerName ?? "—"}</span>
+                  {r.policyNumber ?? (r as any).policy_number ? (
+                    <span className="text-muted-foreground ml-2">Policy: {r.policyNumber ?? (r as any).policy_number}</span>
+                  ) : null}
+                  <div className="text-muted-foreground text-xs mt-0.5">
+                    Ends: {getPolicyEndDate(r) ?? "—"}
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={renewalMarkingId === r.id}
+                  onClick={() => markPolicyRenewed(r.id)}
+                >
+                  {renewalMarkingId === r.id ? "Updating…" : "Mark as renewed"}
+                </Button>
+              </div>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowRenewalReminder(false)}>Remind me later</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl sm:text-2xl font-bold">My leads</h1>
         <Button onClick={() => openDialog()} disabled={gettingLocationForForm}>
@@ -689,6 +787,18 @@ export default function StaffMyLeads() {
                         <span className="text-muted-foreground shrink-0 w-[110px]">Status</span>
                         <span className="text-right font-medium">{l.status ?? "—"}</span>
                       </div>
+                      {(l.policyNumber ?? (l as any).policy_number) && (
+                        <div className="flex justify-between gap-3">
+                          <span className="text-muted-foreground shrink-0 w-[110px]">Policy number</span>
+                          <span className="text-right font-mono text-xs truncate">{l.policyNumber ?? (l as any).policy_number}</span>
+                        </div>
+                      )}
+                      {getPolicyEndDate(l) && (
+                        <div className="flex justify-between gap-3">
+                          <span className="text-muted-foreground shrink-0 w-[110px]">Policy ends</span>
+                          <span className="text-right">{getPolicyEndDate(l)}</span>
+                        </div>
+                      )}
                       {getFormLocationDisplay(l) && (
                         <div className="flex justify-between gap-3">
                           <span className="text-muted-foreground shrink-0 w-[110px]">Generated at</span>
@@ -715,6 +825,8 @@ export default function StaffMyLeads() {
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Contact</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Insurance type</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Vehicle no.</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Policy no.</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Ends on</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Premium quoted</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Premium collected</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Difference</th>
@@ -732,6 +844,8 @@ export default function StaffMyLeads() {
                         <td className="py-2.5 pr-3">{l.contactNum ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.insuranceType ?? "—"}</td>
                         <td className="py-2.5 pr-3 font-mono text-xs">{getVehicleNumberDisplay(l) ?? "—"}</td>
+                        <td className="py-2.5 pr-3 font-mono text-xs">{l.policyNumber ?? (l as any).policy_number ?? "—"}</td>
+                        <td className="py-2.5 pr-3">{getPolicyEndDate(l) ?? "—"}</td>
                         <td className="py-2.5 pr-3 tabular-nums">{l.premiumQuoted ?? "—"}</td>
                         <td className="py-2.5 pr-3 tabular-nums">{l.premiumCollected ?? "—"}</td>
                         <td className="py-2.5 pr-3 tabular-nums">{l.difference ?? "—"}</td>
@@ -1589,6 +1703,38 @@ export default function StaffMyLeads() {
                         setInsuranceForm((f) => ({ ...f, miscellaneousExpenses: e.target.value }))
                       }
                       placeholder="Enter amount or details"
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label>Policy Number</Label>
+                    <Input
+                      value={insuranceForm.policyNumber}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({ ...f, policyNumber: e.target.value }))
+                      }
+                      placeholder="Policy number"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Starts From</Label>
+                    <Input
+                      type="date"
+                      value={insuranceForm.policyStartDate || ""}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({ ...f, policyStartDate: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Ends On</Label>
+                    <Input
+                      type="date"
+                      value={insuranceForm.policyEndDate || ""}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({ ...f, policyEndDate: e.target.value }))
+                      }
                     />
                   </div>
                 </div>

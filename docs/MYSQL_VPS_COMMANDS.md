@@ -433,6 +433,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
 | Application number (loan form – manual entry) | **Application number (loan form)** ALTER block below |
 | Insurance product type (Motor/Non-Motor: Car, Two Wheeler, Fire, Health, etc.) | **Product type (Motor/Non-Motor options)** ALTER block below |
 | Vehicle number (Motor insurance) | **Vehicle number (Motor insurance)** ALTER block below |
+| Policy details & renewal reminder (policy_number, policy_start_date, policy_end_date, renewed_at) | **Policy details and renewal reminder** ALTER block below |
 | Admin expenses (office ledger) | **Admin Expenses** CREATE TABLE block below |
 
 **Lead form location (where lead was generated):** To store the address/location where the employee opened the lead form (e.g. "Hyderabad, Telangana, India"):
@@ -475,6 +476,18 @@ ALTER TABLE insurance_leads ADD COLUMN insurance_product_type_other VARCHAR(255)
 USE expressfinloans;
 
 ALTER TABLE insurance_leads ADD COLUMN vehicle_number VARCHAR(50) NULL AFTER insurance_product_type_other;
+```
+
+**Policy details and renewal reminder (insurance):** Policy number, start/end dates, and renewed-at for “expiring in 3 days” reminder:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE insurance_leads
+  ADD COLUMN policy_number VARCHAR(100) NULL,
+  ADD COLUMN policy_start_date DATE NULL,
+  ADD COLUMN policy_end_date DATE NULL,
+  ADD COLUMN renewed_at TIMESTAMP NULL;
 ```
 
 **Admin Expenses (office ledger – Rent, Electricity, Water, Other):** To track admin expenses with purpose, address, month, amount, payment date, transaction detail, bank name, and remarks:

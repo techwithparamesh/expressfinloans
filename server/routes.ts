@@ -601,6 +601,9 @@ export async function registerRoutes(
         status: body.status ?? "open",
         notes: body.notes ?? null,
         formLocation: formLocation ?? undefined,
+        policyNumber: body.policyNumber && String(body.policyNumber).trim() ? String(body.policyNumber).trim().slice(0, 100) : null,
+        policyStartDate: body.policyStartDate && String(body.policyStartDate).trim() ? String(body.policyStartDate).trim().slice(0, 10) : null,
+        policyEndDate: body.policyEndDate && String(body.policyEndDate).trim() ? String(body.policyEndDate).trim().slice(0, 10) : null,
       });
       res.status(201).json(lead);
     } catch (e) {
@@ -633,6 +636,19 @@ export async function registerRoutes(
           employeeNumber: byId[l.employeeId]?.number ?? "",
         }))
       );
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/insurance-leads/upcoming-renewals", requireAuth, async (req, res, next) => {
+    try {
+      const days = Math.min(31, Math.max(1, parseInt(String(req.query.days || "3"), 10) || 3));
+      const visibleIds = await getVisibleEmployeeIds(req);
+      const userId = (req.user as any).id;
+      const employeeIds = visibleIds === null ? (await storage.listEmployees()).map((u) => u.id) : [userId, ...visibleIds];
+      const list = await storage.getInsuranceLeadsExpiringSoon(employeeIds, days);
+      res.json(list);
     } catch (e) {
       next(e);
     }
@@ -687,6 +703,10 @@ export async function registerRoutes(
       if (body.status !== undefined) data.status = body.status;
       if (body.notes !== undefined) data.notes = body.notes;
       if (body.formLocation !== undefined) data.formLocation = body.formLocation;
+      if (body.policyNumber !== undefined) data.policyNumber = body.policyNumber && String(body.policyNumber).trim() ? String(body.policyNumber).trim().slice(0, 100) : null;
+      if (body.policyStartDate !== undefined) data.policyStartDate = body.policyStartDate && String(body.policyStartDate).trim() ? String(body.policyStartDate).trim().slice(0, 10) : null;
+      if (body.policyEndDate !== undefined) data.policyEndDate = body.policyEndDate && String(body.policyEndDate).trim() ? String(body.policyEndDate).trim().slice(0, 10) : null;
+      if (body.renewedAt !== undefined) data.renewedAt = body.renewedAt === true || body.renewedAt === "true" ? new Date() : body.renewedAt === false || body.renewedAt === "false" ? null : undefined;
       if (isAdmin) {
         if (body.collectedPremium !== undefined) data.collectedPremium = body.collectedPremium;
         if (body.actualPremium !== undefined) data.actualPremium = body.actualPremium;
@@ -2839,6 +2859,9 @@ export async function registerRoutes(
             status: String(iAny.status ?? i.status ?? ""),
             notes: String(iAny.notes ?? i.notes ?? ""),
             formLocation: String(iAny.formLocation ?? (i as any).form_location ?? ""),
+            policyNumber: String(iAny.policyNumber ?? (i as any).policy_number ?? ""),
+            policyStartDate: toDateStr(iAny.policyStartDate ?? (i as any).policy_start_date),
+            policyEndDate: toDateStr(iAny.policyEndDate ?? (i as any).policy_end_date),
             collectedPremium: String(iAny.collectedPremium ?? (i as any).collectedPremium ?? ""),
             actualPremium: String(iAny.actualPremium ?? (i as any).actualPremium ?? ""),
             finalRemarks: String(iAny.finalRemarks ?? (i as any).finalRemarks ?? ""),
@@ -2953,6 +2976,9 @@ export async function registerRoutes(
           { header: "Status", key: "status", width: 10 },
           { header: "Notes", key: "notes", width: 24 },
           { header: "Form Location", key: "formLocation", width: 28 },
+          { header: "Policy Number", key: "policyNumber", width: 16 },
+          { header: "Policy Start", key: "policyStartDate", width: 14 },
+          { header: "Policy End", key: "policyEndDate", width: 14 },
           { header: "Collected Premium", key: "collectedPremium", width: 14 },
           { header: "Actual Premium", key: "actualPremium", width: 14 },
           { header: "Final Remarks", key: "finalRemarks", width: 24 },
@@ -3085,8 +3111,8 @@ export async function registerRoutes(
         const leadKeys = ["employeeNumber", "employeeName", "date", "customerName", "dateOfBirth", "customerPhone", "customerEmail", "location", "loanType", "subLoanType", "incomeType", "incomeComments", "amount", "cibil", "companyLogged", "applicationNumber", "tenure", "roi", "loanDisbursed", "loanSanctionedAt", "loanDisbursedAt", "status", "notes", "formLocation", "payoutPercent", "payoutAmount", "reconsil", "paymentStatus"];
         const leadWidths = leadKeys.map(() => 16);
         drawTable("Leads (full)", leadHeaders, leadWidths, leadRows, leadKeys);
-        const insHeaders = ["Emp ID", "Name", "Date", "Customer", "DOB", "Contact", "Email", "Loc", "Type", "Cat", "Prod", "Prod Oth", "Vehicle", "Sub", "Sub Oth", "Profile", "Prof Cmt", "Biz", "Biz Cmt", "Pay Mode", "Pay Cmt", "Pay By", "Pay By Cmt", "Income", "Quoted", "Coll", "Diff", "Misc", "Status", "Notes", "Form Loc", "Coll Prem", "Actual", "Remarks"];
-        const insKeys = ["employeeNumber", "employeeName", "date", "customerName", "dateOfBirth", "contactNum", "mailId", "location", "insuranceType", "insuranceCategory", "insuranceProductType", "insuranceProductTypeOther", "vehicleNumber", "insuranceSubtype", "insuranceSubtypeOther", "profileType", "profileComments", "businessType", "businessTypeComments", "paymentMode", "paymentModeComments", "paymentDoneBy", "paymentDoneByComments", "incomeType", "premiumQuoted", "premiumCollected", "difference", "miscellaneousExpenses", "status", "notes", "formLocation", "collectedPremium", "actualPremium", "finalRemarks"];
+        const insHeaders = ["Emp ID", "Name", "Date", "Customer", "DOB", "Contact", "Email", "Loc", "Type", "Cat", "Prod", "Prod Oth", "Vehicle", "Sub", "Sub Oth", "Profile", "Prof Cmt", "Biz", "Biz Cmt", "Pay Mode", "Pay Cmt", "Pay By", "Pay By Cmt", "Income", "Quoted", "Coll", "Diff", "Misc", "Status", "Notes", "Form Loc", "Pol No", "Pol Start", "Pol End", "Coll Prem", "Actual", "Remarks"];
+        const insKeys = ["employeeNumber", "employeeName", "date", "customerName", "dateOfBirth", "contactNum", "mailId", "location", "insuranceType", "insuranceCategory", "insuranceProductType", "insuranceProductTypeOther", "vehicleNumber", "insuranceSubtype", "insuranceSubtypeOther", "profileType", "profileComments", "businessType", "businessTypeComments", "paymentMode", "paymentModeComments", "paymentDoneBy", "paymentDoneByComments", "incomeType", "premiumQuoted", "premiumCollected", "difference", "miscellaneousExpenses", "status", "notes", "formLocation", "policyNumber", "policyStartDate", "policyEndDate", "collectedPremium", "actualPremium", "finalRemarks"];
         const insWidths = insKeys.map(() => 14);
         drawTable("Insurance Leads (full)", insHeaders, insWidths, insuranceRows, insKeys);
         const attHeaders = ["Emp ID", "Name", "Date", "Login", "Logout", "Login loc", "Logout loc", "Leads"];
