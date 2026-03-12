@@ -62,6 +62,35 @@ function roleLabel(role: string): string {
   return role;
 }
 
+/** Format DOB for form input: show as MM/DD/YYYY */
+function formatDobForInput(val: string | null | undefined): string {
+  if (val == null || String(val).trim() === "") return "";
+  const s = String(val).trim().slice(0, 10);
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+  if (iso) return `${Number(iso[2])}/${Number(iso[3])}/${iso[1]}`;
+  return s;
+}
+
+/** Parse DOB from input (MM/DD/YYYY) to YYYY-MM-DD for API */
+function parseDobInput(val: string): string | null {
+  const s = String(val).trim();
+  if (s === "") return null;
+  const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+  const dash = /^(\d{1,2})-(\d{1,2})-(\d{4})$/.exec(s);
+  const parts = slash || dash;
+  if (parts) {
+    const m = Number(parts[1]);
+    const d = Number(parts[2]);
+    const y = Number(parts[3]);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31 && y >= 1900 && y <= 2100) {
+      const pad = (n: number) => String(n).padStart(2, "0");
+      return `${y}-${pad(m)}-${pad(d)}`;
+    }
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return null;
+}
+
 function fetchEmployees() {
   return staffJson<Employee[]>("/staff/employees").catch(() => []);
 }
@@ -169,7 +198,7 @@ export default function StaffEmployees() {
         dateOfJoining: editForm.dateOfJoining.trim() || null,
         department: editForm.department.trim() || null,
         location: editForm.location.trim() || null,
-        dateOfBirth: editForm.dateOfBirth.trim() || null,
+        dateOfBirth: (parseDobInput(editForm.dateOfBirth) ?? (editForm.dateOfBirth.trim().match(/^\d{4}-\d{2}-\d{2}$/) ? editForm.dateOfBirth.trim() : null)) || null,
         gender: editForm.gender.trim() || null,
       };
       if (editEmployee.role === "employee") {
@@ -565,9 +594,17 @@ export default function StaffEmployees() {
                     <Label htmlFor="edit-dateOfBirth">Date of birth</Label>
                     <Input
                       id="edit-dateOfBirth"
-                      type="date"
-                      value={editForm.dateOfBirth}
-                      onChange={(e) => setEditForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
+                      type="text"
+                      placeholder="MM/DD/YYYY"
+                      value={formatDobForInput(editForm.dateOfBirth)}
+                      onChange={(e) => {
+                        const parsed = parseDobInput(e.target.value);
+                        setEditForm((f) => ({ ...f, dateOfBirth: parsed ?? e.target.value }));
+                      }}
+                      onBlur={(e) => {
+                        const parsed = parseDobInput(e.target.value);
+                        if (parsed) setEditForm((f) => ({ ...f, dateOfBirth: parsed }));
+                      }}
                     />
                   </div>
                   <div className="space-y-2">

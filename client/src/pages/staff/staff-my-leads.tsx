@@ -172,6 +172,49 @@ function daysBetween(from: string, to: string): number | null {
   return diff >= 0 ? diff : null;
 }
 
+/** Format DOB for display: always MM/DD/YYYY. Accepts YYYY-MM-DD or already MM/DD/YYYY. */
+function formatDobDisplay(val: string | null | undefined): string {
+  if (val == null || String(val).trim() === "") return "—";
+  const s = String(val).trim();
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+  if (iso) return `${Number(iso[2])}/${Number(iso[3])}/${iso[1]}`;
+  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+  if (us) return `${Number(us[1])}/${Number(us[2])}/${us[3]}`;
+  return s;
+}
+
+/** Format DOB for form input value: show as MM/DD/YYYY. Internal storage remains YYYY-MM-DD. */
+function formatDobForInput(val: string | null | undefined): string {
+  if (val == null || String(val).trim() === "") return "";
+  const s = String(val).trim().slice(0, 10);
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+  if (iso) return `${Number(iso[2])}/${Number(iso[3])}/${iso[1]}`;
+  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+  if (us) return s;
+  return s;
+}
+
+/** Parse DOB from input (MM/DD/YYYY or MM-DD-YYYY) to YYYY-MM-DD for API. Returns null if invalid. */
+function parseDobInput(val: string): string | null {
+  const s = String(val).trim();
+  if (s === "") return null;
+  const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+  const dash = /^(\d{1,2})-(\d{1,2})-(\d{4})$/.exec(s);
+  const parts = slash || dash;
+  if (parts) {
+    const m = Number(parts[1]);
+    const d = Number(parts[2]);
+    const y = Number(parts[3]);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31 && y >= 1900 && y <= 2100) {
+      const pad = (n: number) => String(n).padStart(2, "0");
+      return `${y}-${pad(m)}-${pad(d)}`;
+    }
+  }
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+  if (iso) return s.slice(0, 10);
+  return null;
+}
+
 const defaultLoanForm = () => ({
   date: today(),
   customerName: "",
@@ -425,8 +468,9 @@ export default function StaffMyLeads() {
 
   async function handleLoanSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!loanForm.dateOfBirth?.trim()) {
-      toast({ title: "Date of Birth is required", variant: "destructive" });
+    const dobNormalized = parseDobInput(loanForm.dateOfBirth) ?? (loanForm.dateOfBirth?.trim().match(/^\d{4}-\d{2}-\d{2}$/) ? loanForm.dateOfBirth.trim() : null);
+    if (!dobNormalized) {
+      toast({ title: "Date of Birth is required (MM/DD/YYYY)", variant: "destructive" });
       return;
     }
     if (!loanForm.loanType?.trim()) {
@@ -446,7 +490,7 @@ export default function StaffMyLeads() {
       const payload = {
         date: loanForm.date,
         customerName: loanForm.customerName || null,
-        dateOfBirth: loanForm.dateOfBirth?.trim() || null,
+        dateOfBirth: dobNormalized,
         customerPhone: loanForm.customerPhone || null,
         customerEmail: loanForm.customerEmail || null,
         location: loanForm.location || null,
@@ -498,10 +542,11 @@ export default function StaffMyLeads() {
     e.preventDefault();
     setSaving(true);
     try {
+      const insuranceDob = parseDobInput(insuranceForm.dateOfBirth) ?? (insuranceForm.dateOfBirth?.trim().match(/^\d{4}-\d{2}-\d{2}$/) ? insuranceForm.dateOfBirth.trim() : null);
       const payload = {
         date: insuranceForm.date,
         customerName: insuranceForm.customerName || null,
-        dateOfBirth: insuranceForm.dateOfBirth?.trim() || null,
+        dateOfBirth: insuranceDob || null,
         contactNum: insuranceForm.contactNum || null,
         mailId: insuranceForm.mailId || null,
         location: insuranceForm.location || null,
@@ -646,7 +691,7 @@ export default function StaffMyLeads() {
                       </div>
                       <div className="flex justify-between gap-3">
                         <span className="text-muted-foreground shrink-0 w-[100px]">DOB</span>
-                        <span className="text-right">{l.dateOfBirth ?? "—"}</span>
+                        <span className="text-right">{formatDobDisplay(l.dateOfBirth)}</span>
                       </div>
                       <div className="flex justify-between gap-3">
                         <span className="text-muted-foreground shrink-0 w-[100px]">Contact</span>
@@ -716,7 +761,7 @@ export default function StaffMyLeads() {
                       <tr key={l.id} className="border-b">
                         <td className="py-2.5 pr-3">{l.date}</td>
                         <td className="py-2.5 pr-3">{l.customerName ?? "—"}</td>
-                        <td className="py-2.5 pr-3">{l.dateOfBirth ?? "—"}</td>
+                        <td className="py-2.5 pr-3">{formatDobDisplay(l.dateOfBirth)}</td>
                         <td className="py-2.5 pr-3">{l.customerPhone ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.loanType ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.subLoanType ?? "—"}</td>
@@ -967,9 +1012,17 @@ export default function StaffMyLeads() {
                       <Label htmlFor="loan-dob">Date of Birth <span className="text-red-500">*</span></Label>
                       <Input
                         id="loan-dob"
-                        type="date"
-                        value={loanForm.dateOfBirth}
-                        onChange={(e) => setLoanForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
+                        type="text"
+                        placeholder="MM/DD/YYYY"
+                        value={formatDobForInput(loanForm.dateOfBirth)}
+                        onChange={(e) => {
+                          const parsed = parseDobInput(e.target.value);
+                          setLoanForm((f) => ({ ...f, dateOfBirth: parsed ?? e.target.value }));
+                        }}
+                        onBlur={(e) => {
+                          const parsed = parseDobInput(e.target.value);
+                          if (parsed) setLoanForm((f) => ({ ...f, dateOfBirth: parsed }));
+                        }}
                         required
                       />
                     </div>
@@ -1297,11 +1350,17 @@ export default function StaffMyLeads() {
                   <div className="space-y-1">
                     <Label>Date of birth</Label>
                     <Input
-                      type="date"
-                      value={insuranceForm.dateOfBirth}
-                      onChange={(e) =>
-                        setInsuranceForm((f) => ({ ...f, dateOfBirth: e.target.value }))
-                      }
+                      type="text"
+                      placeholder="MM/DD/YYYY"
+                      value={formatDobForInput(insuranceForm.dateOfBirth)}
+                      onChange={(e) => {
+                        const parsed = parseDobInput(e.target.value);
+                        setInsuranceForm((f) => ({ ...f, dateOfBirth: parsed ?? e.target.value }));
+                      }}
+                      onBlur={(e) => {
+                        const parsed = parseDobInput(e.target.value);
+                        if (parsed) setInsuranceForm((f) => ({ ...f, dateOfBirth: parsed }));
+                      }}
                     />
                   </div>
                 </div>

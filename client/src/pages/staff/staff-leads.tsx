@@ -297,7 +297,7 @@ export default function StaffLeads() {
                     <td className="py-2 px-2">{l.status}</td>
                     <td className="py-2 px-2">{l.amount ?? "—"}</td>
                     <td className="py-2 px-2 max-w-[120px] truncate" title={l.customerName ?? undefined}>{l.customerName ?? "—"}</td>
-                    <td className="py-2 px-2 whitespace-nowrap">{l.dateOfBirth ?? "—"}</td>
+                    <td className="py-2 px-2 whitespace-nowrap">{formatDobDisplay(l.dateOfBirth)}</td>
                     <td className="py-2 px-2">{l.customerPhone ?? "—"}</td>
                     <td className="py-2 px-2">{l.loanType ?? "—"}</td>
                     <td className="py-2 px-2">{l.subLoanType ?? "—"}</td>
@@ -344,7 +344,7 @@ export default function StaffLeads() {
                 <h3 className="text-sm font-semibold text-slate-700 border-b pb-2 mb-2">Customer &amp; contact</h3>
                 <div className="space-y-0 text-sm">
                   <DetailRow label="Customer name" value={viewLead.customerName} />
-                  <DetailRow label="Date of birth" value={viewLead.dateOfBirth ? String(viewLead.dateOfBirth).slice(0, 10) : null} />
+                  <DetailRow label="Date of birth" value={viewLead.dateOfBirth ? formatDobDisplay(viewLead.dateOfBirth) : null} />
                   <DetailRow label="Phone" value={viewLead.customerPhone} />
                   <DetailRow label="Email" value={viewLead.customerEmail} />
                   <DetailRow label="Location" value={viewLead.location} />
@@ -505,6 +505,17 @@ function formatDate(dateStr: string): string {
   } catch {
     return "—";
   }
+}
+
+/** Format DOB for display: MM/DD/YYYY */
+function formatDobDisplay(val: string | null | undefined): string {
+  if (val == null || String(val).trim() === "") return "—";
+  const s = String(val).trim();
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+  if (iso) return `${Number(iso[2])}/${Number(iso[3])}/${iso[1]}`;
+  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+  if (us) return `${Number(us[1])}/${Number(us[2])}/${us[3]}`;
+  return s;
 }
 
 function getMonthStart(): string {
