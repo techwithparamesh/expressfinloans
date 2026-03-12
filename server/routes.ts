@@ -2755,7 +2755,7 @@ export async function registerRoutes(
         return String(v).slice(0, 10);
       };
       const roleLabel = (r: string) => (r === "team_lead" ? "Team leader" : r === "admin" ? "Admin" : "Employee");
-      const rows: { employeeId: string; employeeNumber: string; name: string; role: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number; disbursedAmount: number }[] = [];
+      const rows: { employeeId: string; employeeNumber: string; name: string; role: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number; disbursedAmount: number; ftdLeads: number; overallLeads: number; loggedCount: number; disbursedCount: number }[] = [];
       const leadRows: Record<string, string>[] = [];
       const insuranceRows: Record<string, string>[] = [];
       const attendanceRows: { employeeNumber: string; employeeName: string; date: string; loginAt: string; logoutAt: string; status: string; loginLocation: string; logoutLocation: string; leadsCount: number }[] = [];
@@ -2780,6 +2780,11 @@ export async function registerRoutes(
           }
         }
         const disbursedAmount = leadsList.reduce((sum, l) => sum + getLeadAmount(l as any), 0);
+        const getLeadStatus = (l: { status?: string | null }) => (l.status || "").toLowerCase().trim();
+        const loggedCount = leadsList.filter((l) => getLeadStatus(l as any) === "logged").length;
+        const disbursedCount = leadsList.filter((l) => getLeadStatus(l as any) === "disbursed").length;
+        const ftdLeads = leadsList.length;
+        const overallLeads = leadsList.length + insList.length;
         rows.push({
           employeeId: uid,
           employeeNumber: empNum,
@@ -2790,6 +2795,10 @@ export async function registerRoutes(
           insuranceLeadsCount: insList.length,
           leaveDays,
           disbursedAmount,
+          ftdLeads,
+          overallLeads,
+          loggedCount,
+          disbursedCount,
         });
         for (const l of leadsList) {
           const lAny = l as Record<string, unknown>;
@@ -2906,6 +2915,10 @@ export async function registerRoutes(
           { header: "Insurance Leads", key: "insuranceLeadsCount", width: 16 },
           { header: "Leave Days", key: "leaveDays", width: 12 },
           { header: "Disbursed Amount", key: "disbursedAmount", width: 16 },
+          { header: "FTD Leads", key: "ftdLeads", width: 12 },
+          { header: "Overall Leads", key: "overallLeads", width: 14 },
+          { header: "Logged how many", key: "loggedCount", width: 16 },
+          { header: "Disbursed how many", key: "disbursedCount", width: 18 },
         ];
         summarySheet.addRows(rows);
         summarySheet.getRow(1).font = { bold: true };
@@ -3031,8 +3044,8 @@ export async function registerRoutes(
         doc.moveDown(0.5);
         doc.fontSize(10).text("Summary", { continued: false });
         doc.fontSize(smallFont);
-        const summaryHeaders = ["Emp ID", "Name", "Role", "Present", "Leads", "Ins", "Leave", "Disbursed"];
-        const summaryCols = [45, 85, 130, 175, 215, 250, 285, 345];
+        const summaryHeaders = ["Emp ID", "Name", "Role", "Present", "Leads", "Ins", "Leave", "Disb Amt", "FTD", "Overall", "Logged", "Disb #"];
+        const summaryCols = [40, 72, 102, 128, 152, 172, 192, 222, 252, 282, 312, 342];
         let y = doc.y + 6;
         doc.font("Helvetica-Bold");
         for (let i = 0; i < summaryHeaders.length; i++) {
@@ -3058,6 +3071,10 @@ export async function registerRoutes(
           doc.text(String(r.insuranceLeadsCount), summaryCols[5], y);
           doc.text(String(r.leaveDays), summaryCols[6], y);
           doc.text(disbStr.slice(0, 10), summaryCols[7], y);
+          doc.text(String(r.ftdLeads ?? r.leadsCount), summaryCols[8], y);
+          doc.text(String(r.overallLeads ?? r.leadsCount + r.insuranceLeadsCount), summaryCols[9], y);
+          doc.text(String(r.loggedCount ?? 0), summaryCols[10], y);
+          doc.text(String(r.disbursedCount ?? 0), summaryCols[11], y);
           y += ROW_HEIGHT;
         }
         doc.moveDown(1);
