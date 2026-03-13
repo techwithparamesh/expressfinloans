@@ -1186,17 +1186,26 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Valid month and year required" });
       }
       const company = await storage.getCompanyMonthlyTarget(month, year);
-      if (company && company.isLocked === 1) {
+      if (company && (company.isLocked === 1 || (company as any).is_locked === 1)) {
         return res.status(400).json({ message: "Targets are locked for this month" });
       }
-      const totalBudget = company ? parseAmount(company.totalBudget) : 0;
+      const rawCompanyBudget = company && ((company as any).totalBudget ?? (company as any).total_budget);
+      const totalBudget = rawCompanyBudget != null && String(rawCompanyBudget).trim() !== "" ? parseAmount(rawCompanyBudget) : 0;
       const leaderTargets = Array.isArray(body.leaderTargets) ? body.leaderTargets : [];
       let sumBudget = 0;
       for (const lt of leaderTargets) {
         const b = parseAmount(lt.assignedBudget);
         if (!Number.isNaN(b)) sumBudget += b;
       }
-      const budgetMatch = Math.abs(sumBudget - totalBudget) < 0.01;
+      if (totalBudget <= 0 && sumBudget > 0) {
+        return res.status(400).json({
+          message: "Save the company target (Step 1) first, then save leader targets.",
+          totalBudget,
+          sumBudget,
+        });
+      }
+      const diff = Math.abs(sumBudget - totalBudget);
+      const budgetMatch = diff < 0.02 || (totalBudget > 0 && diff / totalBudget < 1e-9);
       if (!budgetMatch) {
         return res.status(400).json({
           message: "Sum of leader budgets must equal company budget",
@@ -1780,10 +1789,9 @@ export async function registerRoutes(
         const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
         const teamLeadId = (req.user as any).id;
         const leaderOwnTarget = await storage.getMonthlyTarget(teamLeadId, month, year);
-        const leaderAssignedLeads = leaderOwnTarget ? leaderOwnTarget.assignedLeads : 0;
-        const leaderAssignedBudget = leaderOwnTarget && leaderOwnTarget.assignedBudget
-          ? parseAmount(leaderOwnTarget.assignedBudget)
-          : 0;
+        const leaderAssignedLeads = leaderOwnTarget ? (leaderOwnTarget.assignedLeads ?? (leaderOwnTarget as any).assigned_leads ?? 0) : 0;
+        const rawBudget = leaderOwnTarget && ((leaderOwnTarget as any).assignedBudget ?? (leaderOwnTarget as any).assigned_budget);
+        const leaderAssignedBudget = rawBudget != null && String(rawBudget).trim() !== "" ? parseAmount(rawBudget) : 0;
         let overallTarget = 0;
         const teamMembersSummary: { employeeId: string; employeeName: string; employeeNumber: string; monthlyTarget: number; leadsThisMonth: number; achievementPct: number; leadsConverted: number }[] = [];
         let teamLeadsThisMonth = 0;
