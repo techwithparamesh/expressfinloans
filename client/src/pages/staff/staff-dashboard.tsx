@@ -2,12 +2,27 @@ import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { getAuthMe, staffJson } from "@/lib/api";
+import { getAuthMe, staffJson, staffFetch } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
 import { useMonthlyTargetPopup, useConveyancePolicyPopup } from "./staff-layout";
 import { Calendar, Download, Target, TrendingUp, Percent, DollarSign, Car, Activity, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type TeamMemberSummary = {
   employeeId: string;
@@ -58,6 +73,32 @@ type ExpenditureData = {
   miscellaneous: number;
   total: number;
   monthLabel: string;
+};
+
+type LeaderExpenseRequest = {
+  id: string;
+  purpose: string;
+  purposeOther?: string | null;
+  purpose_other?: string | null;
+  address: string | null;
+  month: string;
+  amount: string | null;
+  paymentDate?: string | null;
+  payment_date?: string | null;
+  transactionDetail: string | null;
+  transaction_detail?: string | null;
+  bankName: string | null;
+  bank_name?: string | null;
+  remarks: string | null;
+  requestedBy?: string | null;
+  requested_by?: string | null;
+  status: string;
+  approvedBy?: string | null;
+  approved_by?: string | null;
+  approvedAt?: string | null;
+  approved_at?: string | null;
+  createdAt?: string | null;
+  created_at?: string | null;
 };
 
 type FtdPeriod = { ftd: number; mtd: number; ytd: number };
@@ -165,6 +206,27 @@ export default function StaffDashboard() {
   });
   const [reportsTo, setReportsTo] = useState(() => new Date().toISOString().slice(0, 10));
 
+  // Leader expense requests (team lead)
+  const [leaderExpenses, setLeaderExpenses] = useState<LeaderExpenseRequest[]>([]);
+  const [leaderExpensesLoading, setLeaderExpensesLoading] = useState(false);
+  const [leaderExpenseMonth, setLeaderExpenseMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [leaderExpenseDialogOpen, setLeaderExpenseDialogOpen] = useState(false);
+  const [leaderExpenseSaving, setLeaderExpenseSaving] = useState(false);
+  const [leaderExpenseForm, setLeaderExpenseForm] = useState(() => ({
+    purpose: "",
+    purposeOther: "",
+    address: "",
+    month: leaderExpenseMonth,
+    amount: "",
+    paymentDate: "",
+    transactionDetail: "",
+    bankName: "",
+    remarks: "",
+  }));
+
   useEffect(() => {
     getAuthMe().then((res) => setUser(res?.user ?? null));
   }, []);
@@ -184,6 +246,18 @@ export default function StaffDashboard() {
       }
     }).finally(() => setLoading(false));
   }, []);
+
+  // Load leader expense requests for team lead
+  useEffect(() => {
+    if (!user || user.role !== "team_lead") return;
+    setLeaderExpensesLoading(true);
+    const params = new URLSearchParams();
+    if (leaderExpenseMonth) params.set("month", leaderExpenseMonth);
+    staffJson<LeaderExpenseRequest[]>(`/staff/leader-expense-requests?${params.toString()}`)
+      .then((list) => setLeaderExpenses(Array.isArray(list) ? list : []))
+      .catch(() => setLeaderExpenses([]))
+      .finally(() => setLeaderExpensesLoading(false));
+  }, [user, leaderExpenseMonth]);
 
   useEffect(() => {
     if (!user || user.role !== "admin") return;
@@ -792,6 +866,231 @@ export default function StaffDashboard() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {user?.role === "team_lead" && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <div>
+              <CardTitle>My miscellaneous expense requests</CardTitle>
+              <CardDescription>Requests you raised for office / team expenses. Admin approval is required before they are counted.</CardDescription>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="leader-expense-month" className="text-xs text-slate-600">Month</Label>
+                <Input
+                  id="leader-expense-month"
+                  type="month"
+                  value={leaderExpenseMonth}
+                  onChange={(e) => {
+                    setLeaderExpenseMonth(e.target.value);
+                    setLeaderExpenseForm((f) => ({ ...f, month: e.target.value || f.month }));
+                  }}
+                  className="h-9 w-[150px] text-xs [color-scheme:light]"
+                  style={{ colorScheme: "light" }}
+                />
+              </div>
+              <Button size="sm" onClick={() => { setLeaderExpenseForm((f) => ({ ...f, month: leaderExpenseMonth || f.month })); setLeaderExpenseDialogOpen(true); }}>
+                Add request
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {leaderExpensesLoading ? (
+              <p className="text-slate-500 text-sm py-2">Loading expense requests…</p>
+            ) : leaderExpenses.length === 0 ? (
+              <p className="text-slate-500 text-sm py-2">No expense requests for this month yet.</p>
+            ) : (
+              <div className="rounded-md border overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-slate-50">
+                      <th className="text-left p-3 font-medium min-w-[90px]">Month</th>
+                      <th className="text-left p-3 font-medium min-w-[120px]">Purpose</th>
+                      <th className="text-left p-3 font-medium min-w-[120px]">Amount (₹)</th>
+                      <th className="text-left p-3 font-medium min-w-[110px]">Status</th>
+                      <th className="text-left p-3 font-medium min-w-[140px]">Payment date</th>
+                      <th className="text-left p-3 font-medium min-w-[180px]">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderExpenses.map((e) => {
+                      const status = (e.status || "").toLowerCase();
+                      const amount = (e.amount ?? (e as any).amount ?? "").toString();
+                      const paymentDate = (e.paymentDate ?? (e as any).payment_date ?? "") || "";
+                      const remarks = e.remarks ?? "";
+                      const statusLabel =
+                        status === "approved" ? "Approved" : status === "rejected" ? "Rejected" : "Pending";
+                      const statusClass =
+                        status === "approved"
+                          ? "text-green-700 bg-green-50 border-green-200"
+                          : status === "rejected"
+                          ? "text-red-700 bg-red-50 border-red-200"
+                          : "text-amber-700 bg-amber-50 border-amber-200";
+                      return (
+                        <tr key={e.id} className="border-b last:border-0">
+                          <td className="p-3">{e.month}</td>
+                          <td className="p-3">{e.purpose}</td>
+                          <td className="p-3">
+                            {amount
+                              ? "₹ " + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(amount.replace(/[,₹\s]/g, "") || "0"))
+                              : "—"}
+                          </td>
+                          <td className="p-3">
+                            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${statusClass}`}>
+                              {statusLabel}
+                            </span>
+                          </td>
+                          <td className="p-3">{paymentDate || "—"}</td>
+                          <td className="p-3 truncate max-w-xs" title={remarks || ""}>{remarks || "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {user?.role === "team_lead" && (
+        <Dialog open={leaderExpenseDialogOpen} onOpenChange={(open) => { setLeaderExpenseDialogOpen(open); if (!open) setLeaderExpenseForm((f) => ({ ...f, purpose: "", purposeOther: "", address: "", amount: "", paymentDate: "", transactionDetail: "", bankName: "", remarks: "", month: leaderExpenseMonth })); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add expense request</DialogTitle>
+              <DialogDescription>Submit a miscellaneous expense for this month. Admin will review and approve or reject.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-3 py-2">
+              <div className="space-y-1">
+                <Label className="text-sm">Purpose</Label>
+                <Select
+                  value={leaderExpenseForm.purpose}
+                  onValueChange={(v) => setLeaderExpenseForm((f) => ({ ...f, purpose: v, purposeOther: v === "Other" ? f.purposeOther : "" }))}
+                >
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Select purpose" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Rent">Rent</SelectItem>
+                    <SelectItem value="Electricity Bill">Electricity Bill</SelectItem>
+                    <SelectItem value="Water Bill">Water Bill</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {leaderExpenseForm.purpose === "Other" && (
+                <div className="space-y-1">
+                  <Label className="text-sm">Specify other purpose</Label>
+                  <Input
+                    value={leaderExpenseForm.purposeOther}
+                    onChange={(e) => setLeaderExpenseForm((f) => ({ ...f, purposeOther: e.target.value }))}
+                    className="h-9 text-sm"
+                  />
+                </div>
+              )}
+              <div className="space-y-1">
+                <Label className="text-sm">Month</Label>
+                <Input
+                  type="month"
+                  value={leaderExpenseForm.month}
+                  onChange={(e) => setLeaderExpenseForm((f) => ({ ...f, month: e.target.value }))}
+                  className="h-9 text-sm [color-scheme:light]"
+                  style={{ colorScheme: "light" }}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-sm">Amount (₹)</Label>
+                <Input
+                  value={leaderExpenseForm.amount}
+                  onChange={(e) => setLeaderExpenseForm((f) => ({ ...f, amount: e.target.value }))}
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-sm">Payment date (optional)</Label>
+                <Input
+                  type="date"
+                  value={leaderExpenseForm.paymentDate}
+                  onChange={(e) => setLeaderExpenseForm((f) => ({ ...f, paymentDate: e.target.value }))}
+                  className="h-9 text-sm [color-scheme:light]"
+                  style={{ colorScheme: "light" }}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-sm">Address / location (optional)</Label>
+                <Input
+                  value={leaderExpenseForm.address}
+                  onChange={(e) => setLeaderExpenseForm((f) => ({ ...f, address: e.target.value }))}
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-sm">Transaction detail (optional)</Label>
+                <Input
+                  value={leaderExpenseForm.transactionDetail}
+                  onChange={(e) => setLeaderExpenseForm((f) => ({ ...f, transactionDetail: e.target.value }))}
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-sm">Bank name (optional)</Label>
+                <Input
+                  value={leaderExpenseForm.bankName}
+                  onChange={(e) => setLeaderExpenseForm((f) => ({ ...f, bankName: e.target.value }))}
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-sm">Remarks (optional)</Label>
+                <Input
+                  value={leaderExpenseForm.remarks}
+                  onChange={(e) => setLeaderExpenseForm((f) => ({ ...f, remarks: e.target.value }))}
+                  className="h-9 text-sm"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setLeaderExpenseDialogOpen(false)}
+                disabled={leaderExpenseSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={async () => {
+                  if (!leaderExpenseForm.purpose || !leaderExpenseForm.month) {
+                    alert("Purpose and month are required.");
+                    return;
+                  }
+                  setLeaderExpenseSaving(true);
+                  try {
+                    await staffFetch("/staff/leader-expense-requests", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(leaderExpenseForm),
+                    });
+                    setLeaderExpenseDialogOpen(false);
+                    setLeaderExpenseForm((f) => ({ ...f, purpose: "", purposeOther: "", address: "", amount: "", paymentDate: "", transactionDetail: "", bankName: "", remarks: "", month: leaderExpenseMonth }));
+                    // Reload current month
+                    const params = new URLSearchParams();
+                    if (leaderExpenseMonth) params.set("month", leaderExpenseMonth);
+                    const list = await staffJson<LeaderExpenseRequest[]>(`/staff/leader-expense-requests?${params.toString()}`).catch(() => []);
+                    setLeaderExpenses(Array.isArray(list) ? list : []);
+                  } finally {
+                    setLeaderExpenseSaving(false);
+                  }
+                }}
+                disabled={leaderExpenseSaving}
+              >
+                {leaderExpenseSaving ? "Saving…" : "Submit for approval"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       <Card>

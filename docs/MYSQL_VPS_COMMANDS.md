@@ -513,6 +513,33 @@ CREATE TABLE IF NOT EXISTS admin_expenses (
 );
 ```
 
+**Leader Expense Requests (raised by team leaders, require admin approval):**
+
+```sql
+USE expressfinloans;
+
+CREATE TABLE IF NOT EXISTS leader_expense_requests (
+  id VARCHAR(36) PRIMARY KEY,
+  purpose VARCHAR(100) NOT NULL,
+  purpose_other VARCHAR(255) NULL,
+  address VARCHAR(500) NULL,
+  month VARCHAR(7) NOT NULL,
+  amount VARCHAR(50) NULL,
+  payment_date DATE NULL,
+  transaction_detail VARCHAR(500) NULL,
+  bank_name VARCHAR(255) NULL,
+  remarks TEXT NULL,
+  requested_by VARCHAR(36) NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  approved_by VARCHAR(36) NULL,
+  approved_at TIMESTAMP NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL
+);
+```
+
 If the table already exists without `purpose_other`, add it:
 
 ```sql

@@ -421,6 +421,43 @@ export const insertAdminExpenseSchema = createInsertSchema(adminExpenses).pick({
 export type AdminExpense = typeof adminExpenses.$inferSelect;
 export type InsertAdminExpense = z.infer<typeof insertAdminExpenseSchema>;
 
+// --- Leader Expense Requests (raised by team leaders, approved by admin) ---
+export const leaderExpenseRequests = mysqlTable("leader_expense_requests", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  purpose: varchar("purpose", { length: 100 }).notNull(),
+  purposeOther: varchar("purpose_other", { length: 255 }),
+  address: varchar("address", { length: 500 }),
+  month: varchar("month", { length: 7 }).notNull(), // YYYY-MM
+  amount: varchar("amount", { length: 50 }),
+  paymentDate: date("payment_date"),
+  transactionDetail: varchar("transaction_detail", { length: 500 }),
+  bankName: varchar("bank_name", { length: 255 }),
+  remarks: text("remarks"),
+  requestedBy: varchar("requested_by", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, approved, rejected
+  approvedBy: varchar("approved_by", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export const insertLeaderExpenseRequestSchema = createInsertSchema(leaderExpenseRequests).pick({
+  purpose: true,
+  purposeOther: true,
+  address: true,
+  month: true,
+  amount: true,
+  paymentDate: true,
+  transactionDetail: true,
+  bankName: true,
+  remarks: true,
+  requestedBy: true,
+  status: true,
+});
+
+export type LeaderExpenseRequest = typeof leaderExpenseRequests.$inferSelect;
+export type InsertLeaderExpenseRequest = z.infer<typeof insertLeaderExpenseRequestSchema>;
+
 // --- Hierarchical Monthly Target Allocation ---
 // Budget in rupees (e.g. 5 crore = 50000000). Leads = count.
 // Admin sets overall for the company (one row per month).

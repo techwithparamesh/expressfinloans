@@ -11,6 +11,8 @@ import {
   type InsertLeaveRequest,
   type AdminExpense,
   type InsertAdminExpense,
+  type LeaderExpenseRequest,
+  type InsertLeaderExpenseRequest,
   type SalaryStructure,
   type InsertSalaryStructure,
   type PayrollEntry,
@@ -27,6 +29,7 @@ import {
   insuranceLeads,
   leaveRequests,
   adminExpenses,
+  leaderExpenseRequests,
   salaryStructures,
   payrollEntries,
   payslips,
@@ -94,6 +97,12 @@ export interface IStorage {
   createAdminExpense(data: InsertAdminExpense): Promise<AdminExpense>;
   updateAdminExpense(id: string, data: Partial<InsertAdminExpense>): Promise<AdminExpense | undefined>;
   deleteAdminExpense(id: string): Promise<void>;
+
+  getLeaderExpenseRequests(filters?: { month?: string; status?: string; requestedBy?: string }): Promise<LeaderExpenseRequest[]>;
+  getLeaderExpenseRequest(id: string): Promise<LeaderExpenseRequest | undefined>;
+  createLeaderExpenseRequest(data: InsertLeaderExpenseRequest): Promise<LeaderExpenseRequest>;
+  updateLeaderExpenseRequest(id: string, data: Partial<InsertLeaderExpenseRequest>): Promise<LeaderExpenseRequest | undefined>;
+  deleteLeaderExpenseRequest(id: string): Promise<void>;
 
   getSalaryStructure(employeeId: string): Promise<SalaryStructure | undefined>;
   upsertSalaryStructure(data: InsertSalaryStructure): Promise<SalaryStructure>;
@@ -603,6 +612,44 @@ export class DrizzleStorage implements IStorage {
   async deleteAdminExpense(id: string): Promise<void> {
     await guardDb();
     await db.delete(adminExpenses).where(eq(adminExpenses.id, id));
+  }
+
+  async getLeaderExpenseRequests(filters?: { month?: string; status?: string; requestedBy?: string }): Promise<LeaderExpenseRequest[]> {
+    await guardDb();
+    const conditions = [];
+    if (filters?.month) conditions.push(eq(leaderExpenseRequests.month, filters.month));
+    if (filters?.status) conditions.push(eq(leaderExpenseRequests.status, filters.status));
+    if (filters?.requestedBy) conditions.push(eq(leaderExpenseRequests.requestedBy, filters.requestedBy));
+    const query = conditions.length
+      ? db.select().from(leaderExpenseRequests).where(and(...conditions)).orderBy(desc(leaderExpenseRequests.month), desc(leaderExpenseRequests.createdAt))
+      : db.select().from(leaderExpenseRequests).orderBy(desc(leaderExpenseRequests.month), desc(leaderExpenseRequests.createdAt));
+    return query;
+  }
+
+  async getLeaderExpenseRequest(id: string): Promise<LeaderExpenseRequest | undefined> {
+    await guardDb();
+    const [r] = await db.select().from(leaderExpenseRequests).where(eq(leaderExpenseRequests.id, id)).limit(1);
+    return r;
+  }
+
+  async createLeaderExpenseRequest(data: InsertLeaderExpenseRequest): Promise<LeaderExpenseRequest> {
+    await guardDb();
+    const id = crypto.randomUUID();
+    await db.insert(leaderExpenseRequests).values({ ...data, id } as any);
+    const row = await this.getLeaderExpenseRequest(id);
+    if (!row) throw new Error("Failed to create leader expense request");
+    return row;
+  }
+
+  async updateLeaderExpenseRequest(id: string, data: Partial<InsertLeaderExpenseRequest>): Promise<LeaderExpenseRequest | undefined> {
+    await guardDb();
+    await db.update(leaderExpenseRequests).set({ ...data, updatedAt: new Date() }).where(eq(leaderExpenseRequests.id, id));
+    return this.getLeaderExpenseRequest(id);
+  }
+
+  async deleteLeaderExpenseRequest(id: string): Promise<void> {
+    await guardDb();
+    await db.delete(leaderExpenseRequests).where(eq(leaderExpenseRequests.id, id));
   }
 
   async getSalaryStructure(employeeId: string): Promise<SalaryStructure | undefined> {
@@ -1134,6 +1181,25 @@ class NoDbStorage implements IStorage {
     return undefined;
   }
   async deleteAdminExpense() {
+    this.guard();
+  }
+  async getLeaderExpenseRequests() {
+    this.guard();
+    return [];
+  }
+  async getLeaderExpenseRequest() {
+    this.guard();
+    return undefined;
+  }
+  async createLeaderExpenseRequest() {
+    this.guard();
+    throw new Error("Not implemented");
+  }
+  async updateLeaderExpenseRequest() {
+    this.guard();
+    return undefined;
+  }
+  async deleteLeaderExpenseRequest() {
     this.guard();
   }
   async getSalaryStructure() {

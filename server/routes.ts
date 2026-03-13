@@ -844,6 +844,127 @@ export async function registerRoutes(
     }
   });
 
+  // --- Staff: leader expense requests (team leads create, admin approves/rejects) ---
+  app.get("/api/staff/leader-expense-requests", requireAuth, async (req, res, next) => {
+    try {
+      const userId = (req.user as any).id;
+      const role = (req.user as any).role;
+      const month = (req.query.month as string)?.trim() || undefined;
+      const status = (req.query.status as string)?.trim() || undefined;
+      const requestedByParam = (req.query.requestedBy as string)?.trim() || undefined;
+
+      if (role === "team_lead") {
+        const list = await storage.getLeaderExpenseRequests({ month, status, requestedBy: userId });
+        return res.json(list);
+      }
+
+      if (role === "admin") {
+        const list = await storage.getLeaderExpenseRequests({
+          month,
+          status,
+          requestedBy: requestedByParam,
+        });
+        return res.json(list);
+      }
+
+      return res.status(403).json({ message: "Only admins and team leaders can view leader expense requests" });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.post("/api/staff/leader-expense-requests", requireAuth, async (req, res, next) => {
+    try {
+      const userId = (req.user as any).id;
+      const role = (req.user as any).role;
+      if (role !== "team_lead") {
+        return res.status(403).json({ message: "Only team leaders can create expense requests" });
+      }
+      const body = req.body || {};
+      const purpose = (body.purpose as string)?.trim();
+      const month = (body.month as string)?.trim();
+      if (!purpose || !month) {
+        return res.status(400).json({ message: "Purpose and month are required" });
+      }
+      if (!/^\d{4}-\d{2}$/.test(month)) {
+        return res.status(400).json({ message: "Month must be YYYY-MM" });
+      }
+      const row = await storage.createLeaderExpenseRequest({
+        purpose,
+        purposeOther: (body.purposeOther as string)?.trim() || null,
+        month,
+        address: (body.address as string)?.trim() || null,
+        amount: (body.amount as string)?.trim() || null,
+        paymentDate: (body.paymentDate as string)?.trim()?.slice(0, 10) || null,
+        transactionDetail: (body.transactionDetail as string)?.trim() || null,
+        bankName: (body.bankName as string)?.trim() || null,
+        remarks: (body.remarks as string)?.trim() || null,
+        requestedBy: userId,
+        status: "pending",
+      } as any);
+      res.status(201).json(row);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.patch("/api/staff/leader-expense-requests/:id", requireAuth, async (req, res, next) => {
+    try {
+      const userId = (req.user as any).id;
+      const role = (req.user as any).role;
+      const id = req.params.id;
+      const existing = await storage.getLeaderExpenseRequest(id);
+      if (!existing) return res.status(404).json({ message: "Leader expense request not found" });
+
+      if (role !== "admin") {
+        return res.status(403).json({ message: "Only admin can approve or reject leader expense requests" });
+      }
+
+      const body = req.body || {};
+      const status = (body.status as string)?.trim().toLowerCase();
+      if (!status || !["approved", "rejected"].includes(status)) {
+        return res.status(400).json({ message: "Status must be 'approved' or 'rejected'" });
+      }
+      if ((existing as any).status && (existing as any).status !== "pending") {
+        return res.status(400).json({ message: "Only pending requests can be approved or rejected" });
+      }
+
+      const nowIso = new Date().toISOString();
+      const updated = await storage.updateLeaderExpenseRequest(id, {
+        status,
+        approvedBy: userId,
+        approvedAt: nowIso as any,
+      } as any);
+
+      // On approve, optionally copy into admin_expenses so it appears in admin ledger and expenditure.
+      if (status === "approved" && updated) {
+        const u: any = updated;
+        try {
+          await storage.createAdminExpense({
+            purpose: u.purpose,
+            purposeOther: u.purposeOther ?? null,
+            month: u.month,
+            address: u.address ?? null,
+            amount: u.amount ?? null,
+            paymentDate: u.paymentDate ?? null,
+            transactionDetail: u.transactionDetail ?? null,
+            bankName: u.bankName ?? null,
+            remarks: u.remarks ?? null,
+            createdBy: userId,
+          } as any);
+        } catch (err) {
+          // Do not fail the approval if the admin expense insert fails; just log.
+          // eslint-disable-next-line no-console
+          console.error("Failed to create admin expense from leader request", err);
+        }
+      }
+
+      res.json(updated);
+    } catch (e) {
+      next(e);
+    }
+  });
+
   // --- Staff: leave requests ---
   app.post("/api/staff/leave", requireAuth, async (req, res, next) => {
     try {
