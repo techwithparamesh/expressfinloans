@@ -71,11 +71,11 @@ function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Parse amount from string (handles currency symbols, commas, spaces). Returns 0 if invalid. */
+/** Parse amount from string (handles currency symbols, commas, spaces). Returns 0 if invalid. Do not remove decimal point. */
 function parseAmount(value: string | number | null | undefined): number {
   if (value == null) return 0;
   const s = String(value)
-    .replace(/[\s₹Rs.$]/gi, "")
+    .replace(/[\s₹Rs$]/gi, "")
     .replace(/,/g, "")
     .trim();
   const n = parseFloat(s);
