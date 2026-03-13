@@ -15,6 +15,9 @@ type MyDashboard = {
   insuranceLeadsThisMonth?: number;
   monthTarget: number;
   achievementPct: number;
+  assignedBudget?: number;
+  disbursedAmount?: number;
+  budgetAchievementPct?: number;
   daysPresent: number;
   daysLogged: number;
   leadsLast7Days: { date: string; count: number }[];
@@ -80,6 +83,34 @@ export default function StaffMyDashboard() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Your assigned budget (₹)</CardTitle>
+            <Target className="h-4 w-4 text-slate-500" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              {data.assignedBudget != null && data.assignedBudget > 0
+                ? new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(data.assignedBudget)
+                : "—"}
+            </p>
+            <p className="text-xs text-slate-500">Allocated by admin / team lead</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Disbursed amount</CardTitle>
+            <TrendingUp className="h-4 w-4 text-slate-500" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              {data.disbursedAmount != null && data.disbursedAmount > 0
+                ? "₹ " + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(data.disbursedAmount)
+                : "—"}
+            </p>
+            <p className="text-xs text-slate-500">Loan disbursed/sanctioned this month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Insurance leads this month</CardTitle>
             <FileText className="h-4 w-4 text-slate-500" />
           </CardHeader>
@@ -104,8 +135,16 @@ export default function StaffMyDashboard() {
             <TrendingUp className="h-4 w-4 text-slate-500" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{data.achievementPct}%</p>
-            <p className="text-xs text-slate-500">Loan: {data.leadsThisMonth} of {data.monthTarget}</p>
+            <p className="text-2xl font-bold">
+              {data.budgetAchievementPct != null && data.budgetAchievementPct > 0
+                ? `${data.budgetAchievementPct}%`
+                : `${data.achievementPct}%`}
+            </p>
+            <p className="text-xs text-slate-500">
+              {data.assignedBudget && data.assignedBudget > 0
+                ? `Budget: ₹ ${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(data.disbursedAmount ?? 0)} of ₹ ${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(data.assignedBudget)}`
+                : `Loan: ${data.leadsThisMonth} of ${data.monthTarget}`}
+            </p>
           </CardContent>
         </Card>
         <Card>

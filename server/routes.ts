@@ -1541,6 +1541,9 @@ export async function registerRoutes(
       const insuranceLeadsThisMonth = await storage.getInsuranceLeadsByEmployee(userId, monthStart, monthEnd);
       const achievement = leadsThisMonth.length;
       const achievementPct = monthTarget > 0 ? Math.round((achievement / monthTarget) * 100) : 0;
+      const { achievedBudget, achievedLeads } = await storage.getAchievedBudgetAndLeads(userId, month, year);
+      const assignedBudget = getTargetBudget(allocatedTarget);
+      const budgetAchievementPct = assignedBudget > 0 ? Math.round((achievedBudget / assignedBudget) * 100) : 0;
       const attendanceLogs = await storage.getAttendanceLogsByEmployee(userId, monthStart, monthEnd);
       const daysPresent = attendanceLogs.filter((a) => (a.status || "").toLowerCase() === "present").length;
       const daysLogged = attendanceLogs.length;
@@ -1573,6 +1576,9 @@ export async function registerRoutes(
         insuranceLeadsThisMonth: insuranceLeadsThisMonth.length,
         monthTarget,
         achievementPct,
+        assignedBudget,
+        disbursedAmount: achievedBudget,
+        budgetAchievementPct,
         daysPresent,
         daysLogged,
         leadsLast7Days,
