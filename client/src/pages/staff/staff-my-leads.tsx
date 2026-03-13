@@ -809,7 +809,7 @@ export default function StaffMyLeads() {
                       {getVehicleNumberDisplay(l) && (
                         <div className="flex justify-between gap-3">
                           <span className="text-muted-foreground shrink-0 w-[110px]">Vehicle number</span>
-                          <span className="text-right font-mono text-xs truncate">{getVehicleNumberDisplay(l)}</span>
+                          <span className="text-right text-xs truncate">{getVehicleNumberDisplay(l)}</span>
                         </div>
                       )}
                       <div className="flex justify-between gap-3">
@@ -835,7 +835,7 @@ export default function StaffMyLeads() {
                       {(l.policyNumber ?? (l as any).policy_number) && (
                         <div className="flex justify-between gap-3">
                           <span className="text-muted-foreground shrink-0 w-[110px]">Policy number</span>
-                          <span className="text-right font-mono text-xs truncate">{l.policyNumber ?? (l as any).policy_number}</span>
+                          <span className="text-right text-xs truncate">{l.policyNumber ?? (l as any).policy_number}</span>
                         </div>
                       )}
                       {getPolicyEndDate(l) && (
@@ -888,8 +888,8 @@ export default function StaffMyLeads() {
                         <td className="py-2.5 pr-3">{l.customerName ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.contactNum ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.insuranceType ?? "—"}</td>
-                        <td className="py-2.5 pr-3 font-mono text-xs">{getVehicleNumberDisplay(l) ?? "—"}</td>
-                        <td className="py-2.5 pr-3 font-mono text-xs">{l.policyNumber ?? (l as any).policy_number ?? "—"}</td>
+                        <td className="py-2.5 pr-3 text-xs">{getVehicleNumberDisplay(l) ?? "—"}</td>
+                        <td className="py-2.5 pr-3 text-xs">{l.policyNumber ?? (l as any).policy_number ?? "—"}</td>
                         <td className="py-2.5 pr-3">{getPolicyEndDate(l) ?? "—"}</td>
                         <td className="py-2.5 pr-3 tabular-nums">{l.premiumQuoted ?? "—"}</td>
                         <td className="py-2.5 pr-3 tabular-nums">{l.premiumCollected ?? "—"}</td>
