@@ -1819,7 +1819,7 @@ export async function registerRoutes(
         const leaderTargetLeads = getTargetLeads(leaderOwnTarget);
         let overallTarget = 0;
         let teamDisbursedAmount = 0;
-        const teamMembersSummary: { employeeId: string; employeeName: string; employeeNumber: string; monthlyTarget: number; leadsThisMonth: number; disbursedAmount: number; achievementPct: number; leadsConverted: number; isTeamLead?: boolean }[] = [];
+        const teamMembersSummary: { employeeId: string; employeeName: string; employeeNumber: string; monthlyTarget: number; assignedBudget: number; leadsThisMonth: number; disbursedAmount: number; achievementPct: number; leadsConverted: number; isTeamLead?: boolean }[] = [];
         let teamLeadsThisMonth = 0;
         let teamLeadsConverted = 0;
         const leaderOwnLeads = await storage.getLeadsByEmployee(teamLeadId, monthStart, monthEnd);
@@ -1832,7 +1832,9 @@ export async function registerRoutes(
           }
         }
         const leaderConverted = leaderOwnLeads.filter((l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned").length;
-        const leaderAchievementPct = leaderTargetLeads > 0 ? Math.round((leaderOwnLeads.length / leaderTargetLeads) * 100) : 0;
+        const leaderAchievementPct = leaderTargetLeads > 0
+          ? Math.round((leaderOwnLeads.length / leaderTargetLeads) * 100)
+          : (leaderAssignedBudget > 0 ? Math.round((leaderDisbursedAmount / leaderAssignedBudget) * 100) : 0);
         const leaderUser = await storage.getUser(teamLeadId);
         const leaderName = leaderUser ? ((leaderUser as any).fullName?.trim() || leaderUser.username || teamLeadId) : (byId[teamLeadId]?.name ?? (req.user as any).fullName ?? (req.user as any).username ?? "Team lead");
         const leaderEmpNum = leaderUser ? String((leaderUser as any).employeeNumber ?? "") : (byId[teamLeadId]?.number ?? "");
@@ -1852,12 +1854,16 @@ export async function registerRoutes(
           }
           teamLeadsThisMonth += empLeads.length;
           teamLeadsConverted += converted;
-          const achievementPct = target > 0 ? Math.round((empLeads.length / target) * 100) : 0;
+          const empAssignedBudget = getTargetBudget(mt);
+          const achievementPct = target > 0
+            ? Math.round((empLeads.length / target) * 100)
+            : (empAssignedBudget > 0 ? Math.round((empDisbursedAmount / empAssignedBudget) * 100) : 0);
           teamMembersSummary.push({
             employeeId: emp.id,
             employeeName: byId[emp.id]?.name ?? emp.id,
             employeeNumber: byId[emp.id]?.number ?? "",
             monthlyTarget: target,
+            assignedBudget: empAssignedBudget,
             leadsThisMonth: empLeads.length,
             disbursedAmount: empDisbursedAmount,
             achievementPct,
@@ -1867,7 +1873,9 @@ export async function registerRoutes(
         if (employees.length === 0 && leaderAssignedLeads > 0) {
           overallTarget = leaderAssignedLeads;
         }
-        const achievementPct = overallTarget > 0 ? Math.round((teamLeadsThisMonth / overallTarget) * 100) : 0;
+        const achievementPct = overallTarget > 0
+          ? Math.round((teamLeadsThisMonth / overallTarget) * 100)
+          : (leaderAssignedBudget > 0 ? Math.round((teamDisbursedAmount / leaderAssignedBudget) * 100) : 0);
         const jointVisits = await storage.getJointVisitsCount(teamLeadId, monthStart, monthEnd);
         let conveyancePct = 0;
         if (jointVisits >= 4 && teamLeadsThisMonth >= 10) {
@@ -1879,6 +1887,7 @@ export async function registerRoutes(
           employeeName: leaderName,
           employeeNumber: leaderEmpNum,
           monthlyTarget: leaderTargetLeads,
+          assignedBudget: leaderAssignedBudget,
           leadsThisMonth: leaderOwnLeads.length,
           disbursedAmount: leaderDisbursedAmount,
           achievementPct: leaderAchievementPct,

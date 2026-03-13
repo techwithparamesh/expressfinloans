@@ -14,6 +14,7 @@ type TeamMemberSummary = {
   employeeName: string;
   employeeNumber: string;
   monthlyTarget: number;
+  assignedBudget?: number;
   leadsThisMonth: number;
   disbursedAmount?: number;
   achievementPct: number;
@@ -727,7 +728,11 @@ export default function StaffDashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">{data.achievementPct ?? 0}%</p>
-              <p className="text-xs text-slate-500">{data.teamLeadsThisMonth ?? 0} of {data.overallTarget ?? 0} leads</p>
+              <p className="text-xs text-slate-500">
+                {(data.overallTarget ?? 0) > 0
+                  ? `${data.teamLeadsThisMonth ?? 0} of ${data.overallTarget ?? 0} leads`
+                  : "Disbursed vs assigned budget"}
+              </p>
             </CardContent>
           </Card>
           <Card>
