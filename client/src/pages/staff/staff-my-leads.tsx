@@ -421,11 +421,6 @@ export default function StaffMyLeads() {
     }
   }
 
-  function getPolicyEndDate(l: InsuranceLead): string | null {
-    const d = l.policyEndDate ?? (l as any).policy_end_date;
-    return d ? String(d).slice(0, 10) : null;
-  }
-
   useEffect(() => load(), []);
 
   async function openDialog() {
@@ -464,6 +459,19 @@ export default function StaffMyLeads() {
 
   function getVehicleNumberDisplay(lead: InsuranceLead): string | null {
     return lead.vehicleNumber ?? lead.vehicle_number ?? null;
+  }
+
+  function formatDateDdMmYyyy(val: string | null | undefined): string | null {
+    if (!val) return null;
+    const s = String(val).slice(0, 10); // expect YYYY-MM-DD or ISO
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const [y, m, d] = s.split("-");
+    return `${d}/${m}/${y}`;
+  }
+
+  function getPolicyEndDate(l: InsuranceLead): string | null {
+    const d = l.policyEndDate ?? (l as any).policy_end_date;
+    return formatDateDdMmYyyy(d);
   }
 
   async function handleLoanSubmit(e: React.FormEvent) {
@@ -759,7 +767,7 @@ export default function StaffMyLeads() {
                   <tbody>
                     {leads.map((l) => (
                       <tr key={l.id} className="border-b">
-                        <td className="py-2.5 pr-3">{l.date}</td>
+                        <td className="py-2.5 pr-3">{formatDateDdMmYyyy(l.date) ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.customerName ?? "—"}</td>
                         <td className="py-2.5 pr-3">{formatDobDisplay(l.dateOfBirth)}</td>
                         <td className="py-2.5 pr-3">{l.customerPhone ?? "—"}</td>
@@ -884,7 +892,7 @@ export default function StaffMyLeads() {
                   <tbody>
                     {insuranceLeads.map((l) => (
                       <tr key={l.id} className="border-b">
-                        <td className="py-2.5 pr-3">{l.date}</td>
+                        <td className="py-2.5 pr-3">{formatDateDdMmYyyy(l.date) ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.customerName ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.contactNum ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.insuranceType ?? "—"}</td>
