@@ -125,11 +125,11 @@ async function guardDb() {
   if (!hasDb || !db) throw new Error("Database not configured (DATABASE_URL required for staff portal).");
 }
 
-/** Parse amount from string (handles currency symbols, commas). Returns 0 if invalid. */
+/** Parse amount from string (handles currency symbols, commas). Returns 0 if invalid. Do not strip decimal point. */
 function parseLeadAmount(value: string | number | null | undefined): number {
   if (value == null) return 0;
   const s = String(value)
-    .replace(/[\s₹Rs.$]/gi, "")
+    .replace(/[\s₹Rs$]/gi, "")
     .replace(/,/g, "")
     .trim();
   const n = parseFloat(s);

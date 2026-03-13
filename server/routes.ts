@@ -96,6 +96,27 @@ function getLeadRequestAmount(lead: { amount?: string | null }): number {
   return parseAmount((lead as any).amount);
 }
 
+/** Read assigned budget from a monthly target row (camelCase or snake_case from DB). */
+function getTargetBudget(row: { assignedBudget?: string | number | null; assigned_budget?: string | number | null } | null | undefined): number {
+  if (row == null) return 0;
+  const v = (row as any).assignedBudget ?? (row as any).assigned_budget;
+  return v != null && String(v).trim() !== "" ? parseAmount(v) : 0;
+}
+
+/** Read total budget from a company monthly target row (camelCase or snake_case from DB). */
+function getCompanyBudget(row: { totalBudget?: string | number | null; total_budget?: string | number | null } | null | undefined): number {
+  if (row == null) return 0;
+  const v = (row as any).totalBudget ?? (row as any).total_budget;
+  return v != null && String(v).trim() !== "" ? parseAmount(v) : 0;
+}
+
+/** Read assigned leads from a monthly target row (camelCase or snake_case from DB). */
+function getTargetLeads(row: { assignedLeads?: number | null; assigned_leads?: number | null } | null | undefined): number {
+  if (row == null) return 0;
+  const v = (row as any).assignedLeads ?? (row as any).assigned_leads;
+  return typeof v === "number" && !Number.isNaN(v) ? v : (typeof v === "string" ? parseInt(String(v), 10) || 0 : 0);
+}
+
 /** Get list of { month, year } (month 1-12) between fromDate and toDate (YYYY-MM-DD). */
 function getMonthsInRange(fromDate: string, toDate: string): { month: number; year: number }[] {
   const out: { month: number; year: number }[] = [];
@@ -1167,8 +1188,8 @@ export async function registerRoutes(
           userId: u.id,
           fullName: (u as any).fullName || (u as any).username,
           username: (u as any).username,
-          assignedBudget: t ? String(t.assignedBudget) : "0",
-          assignedLeads: t?.assignedLeads ?? 0,
+          assignedBudget: t ? String((t as any).assignedBudget ?? (t as any).assigned_budget ?? "0") : "0",
+          assignedLeads: getTargetLeads(t),
         };
       });
       res.json({ leaders: list });
@@ -1189,8 +1210,7 @@ export async function registerRoutes(
       if (company && (company.isLocked === 1 || (company as any).is_locked === 1)) {
         return res.status(400).json({ message: "Targets are locked for this month" });
       }
-      const rawCompanyBudget = company && ((company as any).totalBudget ?? (company as any).total_budget);
-      const totalBudget = rawCompanyBudget != null && String(rawCompanyBudget).trim() !== "" ? parseAmount(rawCompanyBudget) : 0;
+      const totalBudget = getCompanyBudget(company);
       const leaderTargets = Array.isArray(body.leaderTargets) ? body.leaderTargets : [];
       let sumBudget = 0;
       for (const lt of leaderTargets) {
@@ -1252,8 +1272,8 @@ export async function registerRoutes(
           fullName: (u as any).fullName || (u as any).username,
           username: (u as any).username,
           employeeNumber: (u as any).employeeNumber,
-          assignedBudget: t ? String(t.assignedBudget) : "0",
-          assignedLeads: t?.assignedLeads ?? 0,
+          assignedBudget: t ? String((t as any).assignedBudget ?? (t as any).assigned_budget ?? "0") : "0",
+          assignedLeads: getTargetLeads(t),
         };
       });
       res.json({ employees: list });
@@ -1276,8 +1296,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Valid month and year required" });
       }
       const leaderTarget = await storage.getMonthlyTarget(leaderId, month, year);
-      const leaderBudget = leaderTarget ? parseAmount(leaderTarget.assignedBudget) : 0;
-      const leaderLeads = leaderTarget?.assignedLeads ?? 0;
+      const leaderBudget = getTargetBudget(leaderTarget);
+      const leaderLeads = getTargetLeads(leaderTarget);
       const company = await storage.getCompanyMonthlyTarget(month, year);
       if (company && company.isLocked === 1) {
         return res.status(400).json({ message: "Targets are locked for this month" });
@@ -1351,7 +1371,7 @@ export async function registerRoutes(
       }
       const target = await storage.getMonthlyTarget(userId, month, year);
       const { achievedBudget, achievedLeads } = await storage.getAchievedBudgetAndLeads(userId, month, year);
-      const assignedBudget = target ? parseAmount(target.assignedBudget) : 0;
+      const assignedBudget = getTargetBudget(target);
       const achievementPct = assignedBudget > 0 ? Math.round((achievedBudget / assignedBudget) * 10000) / 100 : 0;
       await storage.upsertMonthlyPerformance({
         userId,
@@ -1365,8 +1385,8 @@ export async function registerRoutes(
         userId,
         month,
         year,
-        assignedBudget: target ? String(target.assignedBudget) : "0",
-        assignedLeads: target?.assignedLeads ?? 0,
+        assignedBudget: target ? String((target as any).assignedBudget ?? (target as any).assigned_budget ?? "0") : "0",
+        assignedLeads: getTargetLeads(target),
         achievedBudget,
         achievedLeads,
         achievementPercentage: achievementPct,
@@ -1790,8 +1810,7 @@ export async function registerRoutes(
         const teamLeadId = (req.user as any).id;
         const leaderOwnTarget = await storage.getMonthlyTarget(teamLeadId, month, year);
         const leaderAssignedLeads = leaderOwnTarget ? (leaderOwnTarget.assignedLeads ?? (leaderOwnTarget as any).assigned_leads ?? 0) : 0;
-        const rawBudget = leaderOwnTarget && ((leaderOwnTarget as any).assignedBudget ?? (leaderOwnTarget as any).assigned_budget);
-        const leaderAssignedBudget = rawBudget != null && String(rawBudget).trim() !== "" ? parseAmount(rawBudget) : 0;
+        const leaderAssignedBudget = getTargetBudget(leaderOwnTarget);
         let overallTarget = 0;
         let teamDisbursedAmount = 0;
         const teamMembersSummary: { employeeId: string; employeeName: string; employeeNumber: string; monthlyTarget: number; leadsThisMonth: number; disbursedAmount: number; achievementPct: number; leadsConverted: number }[] = [];
@@ -1803,7 +1822,7 @@ export async function registerRoutes(
         }
         for (const emp of employees) {
           const mt = await storage.getMonthlyTarget(emp.id, month, year);
-          const target = mt ? mt.assignedLeads : ((emp as any).monthlyLeadTarget != null && !Number.isNaN(Number((emp as any).monthlyLeadTarget))
+          const target = mt ? getTargetLeads(mt) : ((emp as any).monthlyLeadTarget != null && !Number.isNaN(Number((emp as any).monthlyLeadTarget))
             ? Number((emp as any).monthlyLeadTarget)
             : DEFAULT_MONTHLY_TARGET_LEADS);
           overallTarget += target;
@@ -1864,7 +1883,7 @@ export async function registerRoutes(
         let companyAchievedYtd = 0;
         for (let m = 1; m <= month; m++) {
           const ct = await storage.getCompanyMonthlyTarget(m, year);
-          if (ct?.totalBudget) companyTargetYtd += parseAmount(ct.totalBudget);
+          companyTargetYtd += getCompanyBudget(ct);
         }
         const leadsYtd = await storage.getAllLeads({ fromDate: ytdStart, toDate: ytdEnd });
         const disbursedYtd = leadsYtd.filter(
@@ -1873,7 +1892,7 @@ export async function registerRoutes(
         for (const l of disbursedYtd) companyAchievedYtd += getLeadAmount(l as any);
 
         const ctMtd = await storage.getCompanyMonthlyTarget(month, year);
-        const companyTargetMtd = ctMtd?.totalBudget ? parseAmount(ctMtd.totalBudget) : 0;
+        const companyTargetMtd = getCompanyBudget(ctMtd);
         const leadsMtd = await storage.getAllLeads({ fromDate: monthStart, toDate: monthEnd });
         const disbursedMtd = leadsMtd.filter(
           (l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned"
@@ -1896,8 +1915,8 @@ export async function registerRoutes(
         const targetByUser = new Map(targetsThisMonth.map((t) => [t.userId, t]));
         for (const emp of employees) {
           const mt = targetByUser.get(emp.id);
-          const targetLeads = mt ? mt.assignedLeads : (Number((emp as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
-          const assignedBudget = mt ? parseAmount(mt.assignedBudget) : 0;
+          const targetLeads = mt ? getTargetLeads(mt) : (Number((emp as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+          const assignedBudget = getTargetBudget(mt);
           const { achievedBudget, achievedLeads } = await storage.getAchievedBudgetAndLeads(emp.id, month, year);
           const achievementPct = targetLeads > 0 ? Math.round((achievedLeads / targetLeads) * 100) : 0;
           const empLeads = await storage.getLeadsByEmployee(emp.id, monthStart, monthEnd);
@@ -1939,7 +1958,7 @@ export async function registerRoutes(
             let overallTarget = 0;
             for (const m of teamMembers) {
               const mt = targetByUser.get(m.id);
-              const t = mt ? mt.assignedLeads : (Number((m as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+              const t = mt ? getTargetLeads(mt) : (Number((m as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
               overallTarget += t;
               const leads = await storage.getLeadsByEmployee(m.id, monthStart, monthEnd);
               teamLeadsThisMonth += leads.length;
@@ -2033,7 +2052,7 @@ export async function registerRoutes(
         const attendanceWithTargets = await Promise.all(
           attendanceTodayFiltered.map(async (a) => {
             const mt = targetByUser.get(a.employeeId);
-            const targetLeads = mt ? mt.assignedLeads : (Number((employees.find((e) => e.id === a.employeeId) as any)?.monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+            const targetLeads = mt ? getTargetLeads(mt) : (Number((employees.find((e) => e.id === a.employeeId) as any)?.monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
             const { achievedLeads } = await storage.getAchievedBudgetAndLeads(a.employeeId, month, year);
             const achievementPct = targetLeads > 0 ? Math.round((achievedLeads / targetLeads) * 100) : 0;
             return {
@@ -2090,8 +2109,8 @@ export async function registerRoutes(
           let assignedBudget = 0;
           for (const { month: m, year: y } of monthsInRange) {
             const mt = await storage.getMonthlyTarget(emp.id, m, y);
-            targetLeads += mt ? mt.assignedLeads : (Number((emp as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
-            assignedBudget += mt ? parseAmount(mt.assignedBudget) : 0;
+            targetLeads += mt ? getTargetLeads(mt) : (Number((emp as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+            assignedBudget += getTargetBudget(mt);
           }
           const empLeads = await storage.getLeadsByEmployee(emp.id, monthStart, monthEnd);
           let achievedBudget = 0;
@@ -2117,8 +2136,8 @@ export async function registerRoutes(
         const targetByUser = new Map(targetsThisMonth.map((t) => [t.userId, t]));
         for (const emp of employees) {
           const mt = targetByUser.get(emp.id);
-          const targetLeads = mt ? mt.assignedLeads : (Number((emp as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
-          const assignedBudget = mt ? parseAmount(mt.assignedBudget) : 0;
+          const targetLeads = mt ? getTargetLeads(mt) : (Number((emp as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+          const assignedBudget = getTargetBudget(mt);
           const { achievedBudget, achievedLeads } = await storage.getAchievedBudgetAndLeads(emp.id, month, year);
           const achievementPct = targetLeads > 0 ? Math.round((achievedLeads / targetLeads) * 100) : 0;
           const empLeads = await storage.getLeadsByEmployee(emp.id, monthStart, monthEnd);
@@ -2184,7 +2203,7 @@ export async function registerRoutes(
             for (const m of teamMembers) {
               for (const { month: mo, year: y } of monthsInRange) {
                 const mt = await storage.getMonthlyTarget(m.id, mo, y);
-                overallTarget += mt ? mt.assignedLeads : (Number((m as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+                overallTarget += mt ? getTargetLeads(mt) : (Number((m as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
               }
               const leads = await storage.getLeadsByEmployee(m.id, monthStart, monthEnd);
               teamLeadsThisMonth += leads.length;
@@ -2196,7 +2215,7 @@ export async function registerRoutes(
             const targetByUser = new Map(targetsThisMonth.map((t) => [t.userId, t]));
             for (const m of teamMembers) {
               const mt = targetByUser.get(m.id);
-              overallTarget += mt ? mt.assignedLeads : (Number((m as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+              overallTarget += mt ? getTargetLeads(mt) : (Number((m as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
               const leads = await storage.getLeadsByEmployee(m.id, monthStart, monthEnd);
               teamLeadsThisMonth += leads.length;
             }
@@ -2774,11 +2793,11 @@ export async function registerRoutes(
       let reportBudget = 0;
       if (role === "admin") {
         const companyTarget = await storage.getCompanyMonthlyTarget(exportMonth, exportYear);
-        reportBudget = companyTarget ? parseAmount((companyTarget as any).totalBudget) : 0;
+        reportBudget = getCompanyBudget(companyTarget);
       } else if (role === "team_lead" && filtered.length > 0) {
         for (const u of filtered) {
           const mt = await storage.getMonthlyTarget(u.id, exportMonth, exportYear);
-          reportBudget += mt ? parseAmount((mt as any).assignedBudget) : 0;
+          reportBudget += getTargetBudget(mt);
         }
       }
       /** Normalize date to YYYY-MM-DD for consistent export and correct range comparison. */
