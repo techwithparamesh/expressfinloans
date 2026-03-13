@@ -82,13 +82,18 @@ function parseAmount(value: string | number | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-/** Get disbursed/sanctioned amount from a lead (checks loanDisbursed, amount; supports camelCase and snake_case). */
+/** Get disbursed amount from a lead (loanDisbursed or amount; camelCase/snake_case). */
 function getLeadAmount(lead: { loanDisbursed?: string | null; loan_disbursed?: string | null; amount?: string | null }): number {
   const amt =
     (lead as { loanDisbursed?: string | null }).loanDisbursed ??
     (lead as { loan_disbursed?: string | null }).loan_disbursed ??
     (lead as { amount?: string | null }).amount;
   return parseAmount(amt);
+}
+
+/** Get request amount from a lead (amount field only). */
+function getLeadRequestAmount(lead: { amount?: string | null }): number {
+  return parseAmount((lead as { amount?: string | null }).amount);
 }
 
 /** Get list of { month, year } (month 1-12) between fromDate and toDate (YYYY-MM-DD). */
@@ -2747,6 +2752,18 @@ export async function registerRoutes(
         : employees;
       const rangeStart = new Date(monthStart).getTime();
       const rangeEnd = new Date(monthEnd).getTime();
+      const exportYear = parseInt(monthStart.slice(0, 4), 10);
+      const exportMonth = parseInt(monthStart.slice(5, 7), 10);
+      let reportBudget = 0;
+      if (role === "admin") {
+        const companyTarget = await storage.getCompanyMonthlyTarget(exportMonth, exportYear);
+        reportBudget = companyTarget ? parseAmount((companyTarget as any).totalBudget) : 0;
+      } else if (role === "team_lead" && filtered.length > 0) {
+        for (const u of filtered) {
+          const mt = await storage.getMonthlyTarget(u.id, exportMonth, exportYear);
+          reportBudget += mt ? parseAmount((mt as any).assignedBudget) : 0;
+        }
+      }
       /** Normalize date to YYYY-MM-DD for consistent export and correct range comparison. */
       const toDateStr = (v: unknown): string => {
         if (v == null) return "";
@@ -2754,8 +2771,9 @@ export async function registerRoutes(
         if (v instanceof Date) return v.toISOString().slice(0, 10);
         return String(v).slice(0, 10);
       };
+      const todayStr = new Date().toISOString().slice(0, 10);
       const roleLabel = (r: string) => (r === "team_lead" ? "Team leader" : r === "admin" ? "Admin" : "Employee");
-      const rows: { employeeId: string; employeeNumber: string; name: string; role: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number; disbursedAmount: number; ftdLeads: number; overallLeads: number; loggedCount: number; disbursedCount: number }[] = [];
+      const rows: { employeeId: string; employeeNumber: string; name: string; role: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number; disbursedAmount: number; ftdLeads: number; overallLeads: number; loggedCount: number; disbursedCount: number; budget: number; achievement: number; ftdLoansValue: number; mtdLoansValue: number; loggedValue: number; sanctionedValue: number; disbursedValue: number; mtdInsuranceValue: number }[] = [];
       const leadRows: Record<string, string>[] = [];
       const insuranceRows: Record<string, string>[] = [];
       const attendanceRows: { employeeNumber: string; employeeName: string; date: string; loginAt: string; logoutAt: string; status: string; loginLocation: string; logoutLocation: string; leadsCount: number }[] = [];
@@ -2779,12 +2797,29 @@ export async function registerRoutes(
             if (t >= rangeStart && t <= rangeEnd) leaveDays++;
           }
         }
-        const disbursedAmount = leadsList.reduce((sum, l) => sum + getLeadAmount(l as any), 0);
         const getLeadStatus = (l: { status?: string | null }) => (l.status || "").toLowerCase().trim();
         const loggedCount = leadsList.filter((l) => getLeadStatus(l as any) === "logged").length;
         const disbursedCount = leadsList.filter((l) => getLeadStatus(l as any) === "disbursed").length;
         const ftdLeads = leadsList.length;
         const overallLeads = leadsList.length + insList.length;
+        const ftdLoansValue = leadsList
+          .filter((l) => toDateStr((l as any).date) === todayStr)
+          .reduce((sum, l) => sum + getLeadRequestAmount(l as any), 0);
+        const mtdLoansValue = leadsList.reduce((sum, l) => sum + getLeadRequestAmount(l as any), 0);
+        const loggedValue = leadsList
+          .filter((l) => getLeadStatus(l as any) === "logged")
+          .reduce((sum, l) => sum + getLeadRequestAmount(l as any), 0);
+        const sanctionedValue = leadsList
+          .filter((l) => getLeadStatus(l as any) === "sanctioned")
+          .reduce((sum, l) => sum + getLeadRequestAmount(l as any), 0);
+        const disbursedValue = leadsList
+          .filter((l) => getLeadStatus(l as any) === "disbursed")
+          .reduce((sum, l) => sum + getLeadAmount(l as any), 0);
+        const disbursedAmount = disbursedValue;
+        const mtdInsuranceValue = insList.reduce((sum, i) => {
+          const v = (i as any).premiumCollected ?? (i as any).premium_collected ?? (i as any).premiumQuoted ?? (i as any).premium_quoted;
+          return sum + parseAmount(v);
+        }, 0);
         rows.push({
           employeeId: uid,
           employeeNumber: empNum,
@@ -2799,6 +2834,14 @@ export async function registerRoutes(
           overallLeads,
           loggedCount,
           disbursedCount,
+          budget: reportBudget,
+          achievement: disbursedValue,
+          ftdLoansValue,
+          mtdLoansValue,
+          loggedValue,
+          sanctionedValue,
+          disbursedValue,
+          mtdInsuranceValue,
         });
         for (const l of leadsList) {
           const lAny = l as Record<string, unknown>;
@@ -2910,15 +2953,17 @@ export async function registerRoutes(
           { header: "Employee ID", key: "employeeNumber", width: 14 },
           { header: "Name", key: "name", width: 24 },
           { header: "Role", key: "role", width: 14 },
-          { header: "Days Present", key: "daysPresent", width: 14 },
-          { header: "Loan Leads", key: "leadsCount", width: 12 },
-          { header: "Insurance Leads", key: "insuranceLeadsCount", width: 16 },
-          { header: "Leave Days", key: "leaveDays", width: 12 },
-          { header: "Disbursed Amount", key: "disbursedAmount", width: 16 },
-          { header: "FTD Leads", key: "ftdLeads", width: 12 },
+          { header: "Budget", key: "budget", width: 14 },
+          { header: "Achievement", key: "achievement", width: 14 },
+          { header: "FTD Loans Value", key: "ftdLoansValue", width: 16 },
+          { header: "MTD Loans Value", key: "mtdLoansValue", width: 16 },
+          { header: "Logged Value", key: "loggedValue", width: 14 },
+          { header: "Sanctioned Value", key: "sanctionedValue", width: 16 },
+          { header: "Disbursed Value", key: "disbursedValue", width: 16 },
+          { header: "MTD Insurance Value", key: "mtdInsuranceValue", width: 18 },
           { header: "Overall Leads", key: "overallLeads", width: 14 },
-          { header: "Logged how many", key: "loggedCount", width: 16 },
-          { header: "Disbursed how many", key: "disbursedCount", width: 18 },
+          { header: "Days Present", key: "daysPresent", width: 14 },
+          { header: "Leave Days", key: "leaveDays", width: 12 },
         ];
         summarySheet.addRows(rows);
         summarySheet.getRow(1).font = { bold: true };
@@ -3044,8 +3089,8 @@ export async function registerRoutes(
         doc.moveDown(0.5);
         doc.fontSize(10).text("Summary", { continued: false });
         doc.fontSize(smallFont);
-        const summaryHeaders = ["Emp ID", "Name", "Role", "Present", "Leads", "Ins", "Leave", "Disb Amt", "FTD", "Overall", "Logged", "Disb #"];
-        const summaryCols = [40, 72, 102, 128, 152, 172, 192, 222, 252, 282, 312, 342];
+        const summaryHeaders = ["Emp ID", "Name", "Role", "Budget", "Achieve", "FTD Val", "MTD Val", "Logged", "Sanct", "Disb Val", "MTD Ins", "Overall"];
+        const summaryCols = [38, 68, 92, 118, 148, 178, 208, 238, 268, 298, 328, 368];
         let y = doc.y + 6;
         doc.font("Helvetica-Bold");
         for (let i = 0; i < summaryHeaders.length; i++) {
@@ -3062,19 +3107,18 @@ export async function registerRoutes(
             doc.font("Helvetica");
             y += ROW_HEIGHT;
           }
-          const disbStr = r.disbursedAmount != null && r.disbursedAmount > 0 ? String(r.disbursedAmount) : "";
-          doc.text((r.employeeNumber || "").slice(0, 8), summaryCols[0], y);
-          doc.text((r.name || "").slice(0, 10), summaryCols[1], y);
-          doc.text((r.role || "").slice(0, 8), summaryCols[2], y);
-          doc.text(String(r.daysPresent), summaryCols[3], y);
-          doc.text(String(r.leadsCount), summaryCols[4], y);
-          doc.text(String(r.insuranceLeadsCount), summaryCols[5], y);
-          doc.text(String(r.leaveDays), summaryCols[6], y);
-          doc.text(disbStr.slice(0, 10), summaryCols[7], y);
-          doc.text(String(r.ftdLeads ?? r.leadsCount), summaryCols[8], y);
-          doc.text(String(r.overallLeads ?? r.leadsCount + r.insuranceLeadsCount), summaryCols[9], y);
-          doc.text(String(r.loggedCount ?? 0), summaryCols[10], y);
-          doc.text(String(r.disbursedCount ?? 0), summaryCols[11], y);
+          doc.text((r.employeeNumber || "").slice(0, 6), summaryCols[0], y);
+          doc.text((r.name || "").slice(0, 8), summaryCols[1], y);
+          doc.text((r.role || "").slice(0, 6), summaryCols[2], y);
+          doc.text(String(r.budget ?? 0), summaryCols[3], y);
+          doc.text(String(r.achievement ?? 0), summaryCols[4], y);
+          doc.text(String(r.ftdLoansValue ?? 0), summaryCols[5], y);
+          doc.text(String(r.mtdLoansValue ?? 0), summaryCols[6], y);
+          doc.text(String(r.loggedValue ?? 0), summaryCols[7], y);
+          doc.text(String(r.sanctionedValue ?? 0), summaryCols[8], y);
+          doc.text(String(r.disbursedValue ?? 0), summaryCols[9], y);
+          doc.text(String(r.mtdInsuranceValue ?? 0), summaryCols[10], y);
+          doc.text(String(r.overallLeads ?? 0), summaryCols[11], y);
           y += ROW_HEIGHT;
         }
         doc.moveDown(1);
