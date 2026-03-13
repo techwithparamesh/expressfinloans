@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { staffJson } from "@/lib/api";
+import { formatDateDdMmYyyy } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -292,8 +293,8 @@ export default function StaffMyLeave() {
                   {list.map((lv) => (
                     <tr key={lv.id} className="border-b last:border-0">
                       <td className="p-3">{typeLabel(lv.leaveType)}</td>
-                      <td className="p-3">{String(lv.startDate).slice(0, 10)}</td>
-                      <td className="p-3">{String(lv.endDate).slice(0, 10)}</td>
+                      <td className="p-3">{formatDateDdMmYyyy(lv.startDate) ?? "—"}</td>
+                      <td className="p-3">{formatDateDdMmYyyy(lv.endDate) ?? "—"}</td>
                       <td className="p-3">{statusBadge(lv.status)}</td>
                       <td className="p-3">{lv.reason || "—"}</td>
                       <td className="p-3">

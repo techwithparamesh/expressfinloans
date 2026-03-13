@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { staffJson } from "@/lib/api";
+import { formatDateDdMmYyyy } from "@/lib/utils";
 import { Calendar } from "lucide-react";
 
 type Log = {
@@ -234,7 +235,7 @@ export default function StaffAttendance() {
                     <tr key={l.id} className="border-b">
                       <td className="py-2 px-2 sticky left-0 z-10 bg-white font-medium">{l.employeeNumber || "—"}</td>
                       <td className="py-2 px-2 sticky left-[72px] z-10 bg-white">{l.employeeName || l.employeeId}</td>
-                      <td className="py-2 px-2 whitespace-nowrap">{l.date}</td>
+                      <td className="py-2 px-2 whitespace-nowrap">{formatDateDdMmYyyy(l.date) ?? "—"}</td>
                       <td className="py-2 px-2">{l.loginAt ? new Date(l.loginAt).toLocaleTimeString() : "—"}</td>
                       <td className="py-2 px-2">{l.logoutAt ? new Date(l.logoutAt).toLocaleTimeString() : "—"}</td>
                       <td className="py-2 px-2 max-w-[180px] truncate" title={l.loginLocation ?? undefined}>{l.loginLocation ?? "—"}</td>

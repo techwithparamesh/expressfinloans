@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { staffJson, staffFetch, getAuthMe } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
+import { formatDateDdMmYyyy } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { Target, Eye } from "lucide-react";
@@ -293,7 +294,7 @@ export default function StaffLeads() {
                   <tr key={l.id} className="border-b">
                     <td className="py-2 px-2 sticky left-0 z-10 bg-white font-medium">{l.employeeNumber ?? "—"}</td>
                     <td className="py-2 px-2 sticky left-[72px] z-10 bg-white">{l.employeeName ?? l.employeeId}</td>
-                    <td className="py-2 px-2 whitespace-nowrap">{formatDate(l.date)}</td>
+                    <td className="py-2 px-2 whitespace-nowrap">{formatDateDdMmYyyy(l.date) ?? "—"}</td>
                     <td className="py-2 px-2">{l.status}</td>
                     <td className="py-2 px-2">{l.amount ?? "—"}</td>
                     <td className="py-2 px-2 max-w-[120px] truncate" title={l.customerName ?? undefined}>{l.customerName ?? "—"}</td>
@@ -348,7 +349,7 @@ export default function StaffLeads() {
                   <DetailRow label="Phone" value={viewLead.customerPhone} />
                   <DetailRow label="Email" value={viewLead.customerEmail} />
                   <DetailRow label="Location" value={viewLead.location} />
-                  <DetailRow label="Lead date" value={viewLead.date ? String(viewLead.date).slice(0, 10) : null} />
+                  <DetailRow label="Lead date" value={viewLead.date ? formatDateDdMmYyyy(viewLead.date) : null} />
                   <DetailRow label="Generated at" value={viewLead.formLocation ?? (viewLead as any).form_location} />
                 </div>
               </div>
@@ -366,8 +367,8 @@ export default function StaffLeads() {
                   <DetailRow label="Tenure" value={viewLead.tenure} />
                   <DetailRow label="ROI" value={viewLead.roi} />
                   <DetailRow label="Docs collected" value={viewLead.docsCollected} />
-                  <DetailRow label="Loan sanctioned" value={viewLead.loanSanctionedAt ? String(viewLead.loanSanctionedAt).slice(0, 10) : null} />
-                  <DetailRow label="Loan disbursed" value={viewLead.loanDisbursedAt ? String(viewLead.loanDisbursedAt).slice(0, 10) : null} />
+                  <DetailRow label="Loan sanctioned" value={viewLead.loanSanctionedAt ? formatDateDdMmYyyy(viewLead.loanSanctionedAt) : null} />
+                  <DetailRow label="Loan disbursed" value={viewLead.loanDisbursedAt ? formatDateDdMmYyyy(viewLead.loanDisbursedAt) : null} />
                   <DetailRow label="Loan disbursed amount" value={viewLead.loanDisbursed} />
                   <DetailRow label="Status" value={viewLead.status} />
                   <DetailRow label="Notes" value={viewLead.notes} />
@@ -498,24 +499,9 @@ export default function StaffLeads() {
   );
 }
 
-function formatDate(dateStr: string): string {
-  try {
-    const s = String(dateStr).slice(0, 10);
-    return s || "—";
-  } catch {
-    return "—";
-  }
-}
-
-/** Format DOB for display: MM/DD/YYYY */
+/** Format DOB for display: DD/MM/YYYY */
 function formatDobDisplay(val: string | null | undefined): string {
-  if (val == null || String(val).trim() === "") return "—";
-  const s = String(val).trim();
-  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
-  if (iso) return `${Number(iso[2])}/${Number(iso[3])}/${iso[1]}`;
-  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
-  if (us) return `${Number(us[1])}/${Number(us[2])}/${us[3]}`;
-  return s;
+  return formatDateDdMmYyyy(val) ?? "—";
 }
 
 function getMonthStart(): string {

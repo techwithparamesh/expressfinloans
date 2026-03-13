@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { staffJson } from "@/lib/api";
+import { formatDateDdMmYyyy } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useMyDashboardInvalidate } from "./staff-layout";
 import { Plus, ArrowLeft, FileText, Shield, MapPin, Pencil, AlertCircle } from "lucide-react";
@@ -172,29 +173,12 @@ function daysBetween(from: string, to: string): number | null {
   return diff >= 0 ? diff : null;
 }
 
-/** Format DOB for display: always MM/DD/YYYY. Accepts YYYY-MM-DD or already MM/DD/YYYY. */
+/** Format DOB for display: DD/MM/YYYY. */
 function formatDobDisplay(val: string | null | undefined): string {
-  if (val == null || String(val).trim() === "") return "—";
-  const s = String(val).trim();
-  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
-  if (iso) return `${Number(iso[2])}/${Number(iso[3])}/${iso[1]}`;
-  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
-  if (us) return `${Number(us[1])}/${Number(us[2])}/${us[3]}`;
-  return s;
+  return formatDateDdMmYyyy(val) ?? "—";
 }
 
-/** Format DOB for form input value: show as MM/DD/YYYY. Internal storage remains YYYY-MM-DD. */
-function formatDobForInput(val: string | null | undefined): string {
-  if (val == null || String(val).trim() === "") return "";
-  const s = String(val).trim().slice(0, 10);
-  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
-  if (iso) return `${Number(iso[2])}/${Number(iso[3])}/${iso[1]}`;
-  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
-  if (us) return s;
-  return s;
-}
-
-/** Parse DOB from input (MM/DD/YYYY or MM-DD-YYYY) to YYYY-MM-DD for API. Returns null if invalid. */
+/** Parse DOB from input (MM/DD/YYYY or YYYY-MM-DD) to YYYY-MM-DD for API. Returns null if invalid. */
 function parseDobInput(val: string): string | null {
   const s = String(val).trim();
   if (s === "") return null;
@@ -461,14 +445,6 @@ export default function StaffMyLeads() {
     return lead.vehicleNumber ?? lead.vehicle_number ?? null;
   }
 
-  function formatDateDdMmYyyy(val: string | null | undefined): string | null {
-    if (!val) return null;
-    const s = String(val).slice(0, 10); // expect YYYY-MM-DD or ISO
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    const [y, m, d] = s.split("-");
-    return `${d}/${m}/${y}`;
-  }
-
   function getPolicyEndDate(l: InsuranceLead): string | null {
     const d = l.policyEndDate ?? (l as any).policy_end_date;
     return formatDateDdMmYyyy(d);
@@ -478,7 +454,7 @@ export default function StaffMyLeads() {
     e.preventDefault();
     const dobNormalized = parseDobInput(loanForm.dateOfBirth) ?? (loanForm.dateOfBirth?.trim().match(/^\d{4}-\d{2}-\d{2}$/) ? loanForm.dateOfBirth.trim() : null);
     if (!dobNormalized) {
-      toast({ title: "Date of Birth is required (MM/DD/YYYY)", variant: "destructive" });
+      toast({ title: "Date of Birth is required (select from calendar)", variant: "destructive" });
       return;
     }
     if (!loanForm.loanType?.trim()) {
@@ -691,7 +667,7 @@ export default function StaffMyLeads() {
                     <div key={l.id} className="rounded-lg border bg-card p-3 space-y-2 text-sm">
                       <div className="flex justify-between gap-3">
                         <span className="text-muted-foreground shrink-0 w-[100px]">Date</span>
-                        <span className="text-right font-medium truncate min-w-0">{l.date ?? "—"}</span>
+                        <span className="text-right font-medium truncate min-w-0">{formatDateDdMmYyyy(l.date) ?? "—"}</span>
                       </div>
                       <div className="flex justify-between gap-3">
                         <span className="text-muted-foreground shrink-0 w-[100px]">Customer</span>
@@ -800,7 +776,7 @@ export default function StaffMyLeads() {
                     <div key={l.id} className="rounded-lg border bg-card p-3 space-y-2 text-sm">
                       <div className="flex justify-between gap-3">
                         <span className="text-muted-foreground shrink-0 w-[110px]">Date</span>
-                        <span className="text-right font-medium truncate min-w-0">{l.date ?? "—"}</span>
+                        <span className="text-right font-medium truncate min-w-0">{formatDateDdMmYyyy(l.date) ?? "—"}</span>
                       </div>
                       <div className="flex justify-between gap-3">
                         <span className="text-muted-foreground shrink-0 w-[110px]">Customer</span>
@@ -1020,17 +996,9 @@ export default function StaffMyLeads() {
                       <Label htmlFor="loan-dob">Date of Birth <span className="text-red-500">*</span></Label>
                       <Input
                         id="loan-dob"
-                        type="text"
-                        placeholder="MM/DD/YYYY"
-                        value={formatDobForInput(loanForm.dateOfBirth)}
-                        onChange={(e) => {
-                          const parsed = parseDobInput(e.target.value);
-                          setLoanForm((f) => ({ ...f, dateOfBirth: parsed ?? e.target.value }));
-                        }}
-                        onBlur={(e) => {
-                          const parsed = parseDobInput(e.target.value);
-                          if (parsed) setLoanForm((f) => ({ ...f, dateOfBirth: parsed }));
-                        }}
+                        type="date"
+                        value={loanForm.dateOfBirth ? String(loanForm.dateOfBirth).slice(0, 10) : ""}
+                        onChange={(e) => setLoanForm((f) => ({ ...f, dateOfBirth: e.target.value ? e.target.value.slice(0, 10) : "" }))}
                         required
                       />
                     </div>
@@ -1358,17 +1326,9 @@ export default function StaffMyLeads() {
                   <div className="space-y-1">
                     <Label>Date of birth</Label>
                     <Input
-                      type="text"
-                      placeholder="MM/DD/YYYY"
-                      value={formatDobForInput(insuranceForm.dateOfBirth)}
-                      onChange={(e) => {
-                        const parsed = parseDobInput(e.target.value);
-                        setInsuranceForm((f) => ({ ...f, dateOfBirth: parsed ?? e.target.value }));
-                      }}
-                      onBlur={(e) => {
-                        const parsed = parseDobInput(e.target.value);
-                        if (parsed) setInsuranceForm((f) => ({ ...f, dateOfBirth: parsed }));
-                      }}
+                      type="date"
+                      value={insuranceForm.dateOfBirth ? String(insuranceForm.dateOfBirth).slice(0, 10) : ""}
+                      onChange={(e) => setInsuranceForm((f) => ({ ...f, dateOfBirth: e.target.value ? e.target.value.slice(0, 10) : "" }))}
                     />
                   </div>
                 </div>

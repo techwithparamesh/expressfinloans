@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { staffJson, staffFetch } from "@/lib/api";
+import { formatDateDdMmYyyy } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Check, X } from "lucide-react";
 
@@ -161,8 +162,8 @@ export default function StaffLeaveRequests() {
                       <td className="p-3">{lv.employeeNumber || "—"}</td>
                       <td className="p-3">{lv.employeeName || lv.employeeId}</td>
                       <td className="p-3">{LEAVE_TYPES[lv.leaveType] ?? lv.leaveType}</td>
-                      <td className="p-3">{String(lv.startDate).slice(0, 10)}</td>
-                      <td className="p-3">{String(lv.endDate).slice(0, 10)}</td>
+                      <td className="p-3">{formatDateDdMmYyyy(lv.startDate) ?? "—"}</td>
+                      <td className="p-3">{formatDateDdMmYyyy(lv.endDate) ?? "—"}</td>
                       <td className="p-3">{statusBadge(lv.status)}</td>
                       <td className="p-3">
                         {lv.status === "pending" ? (

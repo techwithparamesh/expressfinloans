@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { staffJson } from "@/lib/api";
+import { formatDateDdMmYyyy } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { LogIn, LogOut, Calendar } from "lucide-react";
 
@@ -195,7 +196,7 @@ export default function StaffMyAttendance() {
                 <div key={l.id} className="rounded-lg border bg-card p-3 space-y-2 text-sm">
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground shrink-0 w-[90px]">Date</span>
-                    <span className="text-right font-medium">{formatShortDate(l.date)}</span>
+                    <span className="text-right font-medium">{formatDateDdMmYyyy(l.date) ?? "—"}</span>
                   </div>
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground shrink-0 w-[90px]">Login</span>
@@ -242,7 +243,7 @@ export default function StaffMyAttendance() {
               <tbody>
                 {logs.map((l) => (
                   <tr key={l.id} className="border-b">
-                    <td className="py-2.5 pr-3" title={l.date}>{formatShortDate(l.date)}</td>
+                    <td className="py-2.5 pr-3" title={l.date}>{formatDateDdMmYyyy(l.date) ?? "—"}</td>
                     <td className="py-2.5 pr-3">{l.loginAt ? new Date(l.loginAt).toLocaleTimeString() : "—"}</td>
                     <td className="py-2.5 pr-3">{l.logoutAt ? new Date(l.logoutAt).toLocaleTimeString() : "—"}</td>
                     <td className="py-2.5 pr-3 max-w-[180px] truncate" title={getLoginLocation(l) ?? undefined}>{getLoginLocation(l) ?? "—"}</td>
@@ -264,12 +265,4 @@ function getMonthStart(): string {
   const d = new Date();
   d.setDate(1);
   return d.toISOString().slice(0, 10);
-}
-
-/** Format date string (YYYY-MM-DD or ISO) to short form for mobile table. */
-function formatShortDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }

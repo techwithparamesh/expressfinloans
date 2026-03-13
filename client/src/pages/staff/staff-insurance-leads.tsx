@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { staffJson, staffFetch } from "@/lib/api";
+import { formatDateDdMmYyyy } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 type InsuranceLead = {
@@ -227,7 +228,7 @@ export default function StaffInsuranceLeads() {
                   <tr key={l.id} className="border-b">
                     <td className="py-2 px-2 sticky left-0 z-10 bg-white font-medium">{l.employeeNumber ?? "—"}</td>
                     <td className="py-2 px-2 sticky left-[72px] z-10 bg-white">{l.employeeName ?? l.employeeId}</td>
-                    <td className="py-2 px-2 whitespace-nowrap">{formatDate(l.date)}</td>
+                    <td className="py-2 px-2 whitespace-nowrap">{formatDateDdMmYyyy(l.date) ?? "—"}</td>
                     <td className="py-2 px-2">{l.status}</td>
                     <td className="py-2 px-2 max-w-[120px] truncate" title={l.customerName ?? undefined}>{l.customerName ?? "—"}</td>
                     <td className="py-2 px-2">{l.contactNum ?? "—"}</td>
@@ -330,14 +331,6 @@ export default function StaffInsuranceLeads() {
       </Dialog>
     </div>
   );
-}
-
-function formatDate(dateStr: string): string {
-  try {
-    return String(dateStr).slice(0, 10) || "—";
-  } catch {
-    return "—";
-  }
 }
 
 function getMonthStart(): string {

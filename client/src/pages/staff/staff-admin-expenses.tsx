@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatDateDdMmYyyy } from "@/lib/utils";
 import { staffJson, staffFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Receipt } from "lucide-react";
@@ -314,7 +315,7 @@ export default function StaffAdminExpenses() {
                       <td className="py-2.5 px-3 text-right tabular-nums font-medium">
                         {row.amount != null && row.amount !== "" ? new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(String(row.amount).replace(/,/g, ""))) : "—"}
                       </td>
-                      <td className="py-2.5 px-3 whitespace-nowrap">{paymentDate(row) ? String(paymentDate(row)).slice(0, 10) : "—"}</td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">{formatDateDdMmYyyy(paymentDate(row)) ?? "—"}</td>
                       <td className="py-2.5 px-3 max-w-[160px] truncate" title={transactionDetail(row) ?? undefined}>
                         {transactionDetail(row) ?? "—"}
                       </td>

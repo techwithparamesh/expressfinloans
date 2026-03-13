@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { getAuthMe, staffJson, staffFetch } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
+import { formatDateDdMmYyyy } from "@/lib/utils";
 import { useMonthlyTargetPopup, useConveyancePolicyPopup } from "./staff-layout";
 import { Calendar, Download, Target, TrendingUp, Percent, DollarSign, Car, Activity, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -941,7 +942,7 @@ export default function StaffDashboard() {
                               {statusLabel}
                             </span>
                           </td>
-                          <td className="p-3">{paymentDate || "—"}</td>
+                          <td className="p-3">{formatDateDdMmYyyy(paymentDate) ?? "—"}</td>
                           <td className="p-3 truncate max-w-xs" title={remarks || ""}>{remarks || "—"}</td>
                         </tr>
                       );
