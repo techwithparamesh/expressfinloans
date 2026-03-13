@@ -1190,24 +1190,18 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Targets are locked for this month" });
       }
       const totalBudget = company ? parseAmount(company.totalBudget) : 0;
-      const totalLeads = company?.totalLeads ?? 0;
       const leaderTargets = Array.isArray(body.leaderTargets) ? body.leaderTargets : [];
       let sumBudget = 0;
-      let sumLeads = 0;
       for (const lt of leaderTargets) {
         const b = parseAmount(lt.assignedBudget);
-        const l = Number(lt.assignedLeads) || 0;
         if (!Number.isNaN(b)) sumBudget += b;
-        sumLeads += l;
       }
       const budgetMatch = Math.abs(sumBudget - totalBudget) < 0.01;
-      if (!budgetMatch || sumLeads !== totalLeads) {
+      if (!budgetMatch) {
         return res.status(400).json({
-          message: "Sum of leader budgets must equal company budget and sum of leader leads must equal company leads",
+          message: "Sum of leader budgets must equal company budget",
           totalBudget,
-          totalLeads,
           sumBudget,
-          sumLeads,
         });
       }
       const adminId = (req.user as any).id;
