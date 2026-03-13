@@ -93,7 +93,7 @@ function getLeadAmount(lead: { loanDisbursed?: string | null; loan_disbursed?: s
 
 /** Get request amount from a lead (amount field only). */
 function getLeadRequestAmount(lead: { amount?: string | null }): number {
-  return parseAmount((lead as { amount?: string | null }).amount);
+  return parseAmount((lead as any).amount);
 }
 
 /** Get list of { month, year } (month 1-12) between fromDate and toDate (YYYY-MM-DD). */
@@ -2820,6 +2820,7 @@ export async function registerRoutes(
           const v = (i as any).premiumCollected ?? (i as any).premium_collected ?? (i as any).premiumQuoted ?? (i as any).premium_quoted;
           return sum + parseAmount(v);
         }, 0);
+        // Summary row sources (all from DB): budget=company_monthly_target.totalBudget (admin) or sum(monthly_targets.assignedBudget) (team); achievement/disbursedValue=leads.loan_disbursed/amount where status=disbursed; ftdLoansValue=leads.amount where date=today; mtdLoansValue=leads.amount in range; loggedValue/sanctionedValue=leads.amount where status=logged/sanctioned; mtdInsuranceValue=insurance_leads.premium_collected|premium_quoted; overallLeads=count(leads)+count(insurance_leads); daysPresent=attendance_logs count; leaveDays=approved leave_requests in range.
         rows.push({
           employeeId: uid,
           employeeNumber: empNum,
