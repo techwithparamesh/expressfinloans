@@ -1029,7 +1029,6 @@ export async function registerRoutes(
   });
 
   // --- Staff: monthly target (for employees + team_lead popup on login) ---
-  const DEFAULT_MONTHLY_TARGET_LEADS = 20;
   app.get("/api/staff/monthly-target", requireAuth, async (req, res, next) => {
     try {
       const userId = (req.user as any).id;
@@ -1038,21 +1037,24 @@ export async function registerRoutes(
         return res.json({ forStaffOnly: true });
       }
       const now = new Date();
+      const month = now.getMonth() + 1;
+      const year = now.getFullYear();
       const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
       const to = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
       const monthLabel = now.toLocaleString("default", { month: "long", year: "numeric" });
 
       if (role === "team_lead") {
         const employees = await storage.listEmployees({ teamLeadId: userId });
+        const targetsThisMonth = await storage.getMonthlyTargetsByMonth(month, year);
+        const targetByUser = new Map(targetsThisMonth.map((t) => [(t as any).userId ?? (t as any).user_id, t]));
         let overallTarget = 0;
         let teamLeadsThisMonth = 0;
         let teamLeadsConverted = 0;
         let teamLeadsOpen = 0;
         let teamSanctionAmount = 0;
         for (const emp of employees) {
-          const target = (emp as any).monthlyLeadTarget != null && !Number.isNaN(Number((emp as any).monthlyLeadTarget))
-            ? Number((emp as any).monthlyLeadTarget)
-            : DEFAULT_MONTHLY_TARGET_LEADS;
+          const mt = targetByUser.get(emp.id);
+          const target = mt ? getTargetLeads(mt) : (Number((emp as any).monthlyLeadTarget) || 0);
           overallTarget += target;
           const empLeads = await storage.getLeadsByEmployee(emp.id, from, to);
           teamLeadsThisMonth += empLeads.length;
@@ -1086,9 +1088,10 @@ export async function registerRoutes(
         });
       }
 
+      const allocatedTarget = await storage.getMonthlyTarget(userId, month, year);
       const user = await storage.getUser(userId);
-      const monthTargetFromDb = user && (user as any).monthlyLeadTarget != null ? Number((user as any).monthlyLeadTarget) : null;
-      const monthTarget = (monthTargetFromDb != null && !Number.isNaN(monthTargetFromDb)) ? monthTargetFromDb : DEFAULT_MONTHLY_TARGET_LEADS;
+      const monthTargetFromUser = user && (user as any).monthlyLeadTarget != null ? Number((user as any).monthlyLeadTarget) : null;
+      const monthTarget = allocatedTarget ? getTargetLeads(allocatedTarget) : ((monthTargetFromUser != null && !Number.isNaN(monthTargetFromUser)) ? monthTargetFromUser : 0);
       const leads = await storage.getLeadsByEmployee(userId, from, to);
       const overallLeadsGenerated = leads.length;
       const leadsConverted = leads.filter((l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned").length;
@@ -1404,12 +1407,15 @@ export async function registerRoutes(
       if (role === "admin" || role === "team_lead") {
         return res.status(404).json({ message: "Not for admin or team lead" });
       }
-      const user = await storage.getUser(userId);
-      const monthTargetFromDb = user && (user as any).monthlyLeadTarget != null ? Number((user as any).monthlyLeadTarget) : null;
-      const monthTarget = (monthTargetFromDb != null && !Number.isNaN(monthTargetFromDb)) ? monthTargetFromDb : DEFAULT_MONTHLY_TARGET_LEADS;
       const now = new Date();
+      const month = now.getMonth() + 1;
+      const year = now.getFullYear();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+      const allocatedTarget = await storage.getMonthlyTarget(userId, month, year);
+      const user = await storage.getUser(userId);
+      const monthTargetFromUser = user && (user as any).monthlyLeadTarget != null ? Number((user as any).monthlyLeadTarget) : null;
+      const monthTarget = allocatedTarget ? getTargetLeads(allocatedTarget) : ((monthTargetFromUser != null && !Number.isNaN(monthTargetFromUser)) ? monthTargetFromUser : 0);
       const leadsThisMonth = await storage.getLeadsByEmployee(userId, monthStart, monthEnd);
       const insuranceLeadsThisMonth = await storage.getInsuranceLeadsByEmployee(userId, monthStart, monthEnd);
       const achievement = leadsThisMonth.length;
@@ -1801,7 +1807,6 @@ export async function registerRoutes(
       };
       const role = (req.user as any).role;
       if (role === "team_lead") {
-        const DEFAULT_MONTHLY_TARGET_LEADS = 20;
         const now = new Date();
         const month = now.getMonth() + 1;
         const year = now.getFullYear();
@@ -1811,20 +1816,29 @@ export async function registerRoutes(
         const leaderOwnTarget = await storage.getMonthlyTarget(teamLeadId, month, year);
         const leaderAssignedLeads = leaderOwnTarget ? (leaderOwnTarget.assignedLeads ?? (leaderOwnTarget as any).assigned_leads ?? 0) : 0;
         const leaderAssignedBudget = getTargetBudget(leaderOwnTarget);
+        const leaderTargetLeads = getTargetLeads(leaderOwnTarget);
         let overallTarget = 0;
         let teamDisbursedAmount = 0;
-        const teamMembersSummary: { employeeId: string; employeeName: string; employeeNumber: string; monthlyTarget: number; leadsThisMonth: number; disbursedAmount: number; achievementPct: number; leadsConverted: number }[] = [];
+        const teamMembersSummary: { employeeId: string; employeeName: string; employeeNumber: string; monthlyTarget: number; leadsThisMonth: number; disbursedAmount: number; achievementPct: number; leadsConverted: number; isTeamLead?: boolean }[] = [];
         let teamLeadsThisMonth = 0;
         let teamLeadsConverted = 0;
         const leaderOwnLeads = await storage.getLeadsByEmployee(teamLeadId, monthStart, monthEnd);
+        let leaderDisbursedAmount = 0;
         for (const l of leaderOwnLeads) {
-          if ((l.status || "").toLowerCase() === "disbursed") teamDisbursedAmount += getLeadAmount(l as any);
+          if ((l.status || "").toLowerCase() === "disbursed") {
+            const amt = getLeadAmount(l as any);
+            leaderDisbursedAmount += amt;
+            teamDisbursedAmount += amt;
+          }
         }
+        const leaderConverted = leaderOwnLeads.filter((l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned").length;
+        const leaderAchievementPct = leaderTargetLeads > 0 ? Math.round((leaderOwnLeads.length / leaderTargetLeads) * 100) : 0;
+        const leaderUser = await storage.getUser(teamLeadId);
+        const leaderName = leaderUser ? ((leaderUser as any).fullName?.trim() || leaderUser.username || teamLeadId) : (byId[teamLeadId]?.name ?? (req.user as any).fullName ?? (req.user as any).username ?? "Team lead");
+        const leaderEmpNum = leaderUser ? String((leaderUser as any).employeeNumber ?? "") : (byId[teamLeadId]?.number ?? "");
         for (const emp of employees) {
           const mt = await storage.getMonthlyTarget(emp.id, month, year);
-          const target = mt ? getTargetLeads(mt) : ((emp as any).monthlyLeadTarget != null && !Number.isNaN(Number((emp as any).monthlyLeadTarget))
-            ? Number((emp as any).monthlyLeadTarget)
-            : DEFAULT_MONTHLY_TARGET_LEADS);
+          const target = mt ? getTargetLeads(mt) : (Number((emp as any).monthlyLeadTarget) || 0);
           overallTarget += target;
           const empLeads = await storage.getLeadsByEmployee(emp.id, monthStart, monthEnd);
           const converted = empLeads.filter((l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned").length;
@@ -1860,6 +1874,17 @@ export async function registerRoutes(
           if (achievementPct >= 100) conveyancePct = 120;
           else if (achievementPct >= 80) conveyancePct = 50;
         }
+        teamMembersSummary.unshift({
+          employeeId: teamLeadId,
+          employeeName: leaderName,
+          employeeNumber: leaderEmpNum,
+          monthlyTarget: leaderTargetLeads,
+          leadsThisMonth: leaderOwnLeads.length,
+          disbursedAmount: leaderDisbursedAmount,
+          achievementPct: leaderAchievementPct,
+          leadsConverted: leaderConverted,
+          isTeamLead: true,
+        });
         payload.overallTarget = overallTarget;
         payload.teamDisbursedAmount = teamDisbursedAmount;
         payload.teamLeadsThisMonth = teamLeadsThisMonth;
@@ -1877,8 +1902,6 @@ export async function registerRoutes(
         const monthEnd = new Date(year, now.getMonth() + 1, 0).toISOString().slice(0, 10);
         const ytdStart = `${year}-01-01`;
         const ytdEnd = today;
-        const DEFAULT_MONTHLY_TARGET_LEADS = 20;
-
         let companyTargetYtd = 0;
         let companyAchievedYtd = 0;
         for (let m = 1; m <= month; m++) {
@@ -1915,7 +1938,7 @@ export async function registerRoutes(
         const targetByUser = new Map(targetsThisMonth.map((t) => [t.userId, t]));
         for (const emp of employees) {
           const mt = targetByUser.get(emp.id);
-          const targetLeads = mt ? getTargetLeads(mt) : (Number((emp as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+          const targetLeads = mt ? getTargetLeads(mt) : (Number((emp as any).monthlyLeadTarget) || 0);
           const assignedBudget = getTargetBudget(mt);
           const { achievedBudget, achievedLeads } = await storage.getAchievedBudgetAndLeads(emp.id, month, year);
           const achievementPct = targetLeads > 0 ? Math.round((achievedLeads / targetLeads) * 100) : 0;
@@ -1958,7 +1981,7 @@ export async function registerRoutes(
             let overallTarget = 0;
             for (const m of teamMembers) {
               const mt = targetByUser.get(m.id);
-              const t = mt ? getTargetLeads(mt) : (Number((m as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+              const t = mt ? getTargetLeads(mt) : (Number((m as any).monthlyLeadTarget) || 0);
               overallTarget += t;
               const leads = await storage.getLeadsByEmployee(m.id, monthStart, monthEnd);
               teamLeadsThisMonth += leads.length;
@@ -2052,7 +2075,7 @@ export async function registerRoutes(
         const attendanceWithTargets = await Promise.all(
           attendanceTodayFiltered.map(async (a) => {
             const mt = targetByUser.get(a.employeeId);
-            const targetLeads = mt ? getTargetLeads(mt) : (Number((employees.find((e) => e.id === a.employeeId) as any)?.monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+            const targetLeads = mt ? getTargetLeads(mt) : (Number((employees.find((e) => e.id === a.employeeId) as any)?.monthlyLeadTarget) || 0);
             const { achievedLeads } = await storage.getAchievedBudgetAndLeads(a.employeeId, month, year);
             const achievementPct = targetLeads > 0 ? Math.round((achievedLeads / targetLeads) * 100) : 0;
             return {
@@ -2100,7 +2123,6 @@ export async function registerRoutes(
       for (const u of employees) {
         byId[u.id] = { name: (u as any).fullName?.trim() || u.username || u.id, number: (u as any).employeeNumber ?? "" };
       }
-      const DEFAULT_MONTHLY_TARGET_LEADS = 20;
       const rows: { employeeId: string; employeeName: string; employeeNumber: string; monthlyTarget: number; assignedBudget: number; achievedLeads: number; achievedBudget: number; achievementPct: number; leadsConverted: number }[] = [];
       if (useRange) {
         const monthsInRange = getMonthsInRange(monthStart, monthEnd);
@@ -2109,7 +2131,7 @@ export async function registerRoutes(
           let assignedBudget = 0;
           for (const { month: m, year: y } of monthsInRange) {
             const mt = await storage.getMonthlyTarget(emp.id, m, y);
-            targetLeads += mt ? getTargetLeads(mt) : (Number((emp as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+            targetLeads += mt ? getTargetLeads(mt) : (Number((emp as any).monthlyLeadTarget) || 0);
             assignedBudget += getTargetBudget(mt);
           }
           const empLeads = await storage.getLeadsByEmployee(emp.id, monthStart, monthEnd);
@@ -2136,7 +2158,7 @@ export async function registerRoutes(
         const targetByUser = new Map(targetsThisMonth.map((t) => [t.userId, t]));
         for (const emp of employees) {
           const mt = targetByUser.get(emp.id);
-          const targetLeads = mt ? getTargetLeads(mt) : (Number((emp as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+          const targetLeads = mt ? getTargetLeads(mt) : (Number((emp as any).monthlyLeadTarget) || 0);
           const assignedBudget = getTargetBudget(mt);
           const { achievedBudget, achievedLeads } = await storage.getAchievedBudgetAndLeads(emp.id, month, year);
           const achievementPct = targetLeads > 0 ? Math.round((achievedLeads / targetLeads) * 100) : 0;
@@ -2186,7 +2208,6 @@ export async function registerRoutes(
       for (const u of employees) {
         byId[u.id] = { name: (u as any).fullName?.trim() || u.username || u.id, number: (u as any).employeeNumber ?? "" };
       }
-      const DEFAULT_MONTHLY_TARGET_LEADS = 20;
       const teamLeads = await storage.listTeamLeads();
       const rows: { employeeId: string; employeeName: string; employeeNumber: string; isTeamLead: boolean; teamLeadsThisMonth: number; achievementPct: number; jointVisits: number; conveyancePct: number }[] = [];
       for (const emp of employees) {
@@ -2203,7 +2224,7 @@ export async function registerRoutes(
             for (const m of teamMembers) {
               for (const { month: mo, year: y } of monthsInRange) {
                 const mt = await storage.getMonthlyTarget(m.id, mo, y);
-                overallTarget += mt ? getTargetLeads(mt) : (Number((m as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+                overallTarget += mt ? getTargetLeads(mt) : (Number((m as any).monthlyLeadTarget) || 0);
               }
               const leads = await storage.getLeadsByEmployee(m.id, monthStart, monthEnd);
               teamLeadsThisMonth += leads.length;
@@ -2215,7 +2236,7 @@ export async function registerRoutes(
             const targetByUser = new Map(targetsThisMonth.map((t) => [t.userId, t]));
             for (const m of teamMembers) {
               const mt = targetByUser.get(m.id);
-              overallTarget += mt ? getTargetLeads(mt) : (Number((m as any).monthlyLeadTarget) || DEFAULT_MONTHLY_TARGET_LEADS);
+              overallTarget += mt ? getTargetLeads(mt) : (Number((m as any).monthlyLeadTarget) || 0);
               const leads = await storage.getLeadsByEmployee(m.id, monthStart, monthEnd);
               teamLeadsThisMonth += leads.length;
             }

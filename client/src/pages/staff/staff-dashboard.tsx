@@ -18,6 +18,7 @@ type TeamMemberSummary = {
   disbursedAmount?: number;
   achievementPct: number;
   leadsConverted: number;
+  isTeamLead?: boolean;
 };
 
 type AdminKpi = {
@@ -769,7 +770,7 @@ export default function StaffDashboard() {
                     {data.teamMembersSummary.map((m) => (
                       <tr key={m.employeeId} className="border-b last:border-0">
                         <td className="p-3">{m.employeeNumber || "—"}</td>
-                        <td className="p-3">{m.employeeName}</td>
+                        <td className="p-3">{m.employeeName}{m.isTeamLead ? " (You)" : ""}</td>
                         <td className="p-3">{m.monthlyTarget}</td>
                         <td className="p-3">
                           {m.disbursedAmount != null
