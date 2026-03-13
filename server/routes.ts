@@ -1793,9 +1793,14 @@ export async function registerRoutes(
         const rawBudget = leaderOwnTarget && ((leaderOwnTarget as any).assignedBudget ?? (leaderOwnTarget as any).assigned_budget);
         const leaderAssignedBudget = rawBudget != null && String(rawBudget).trim() !== "" ? parseAmount(rawBudget) : 0;
         let overallTarget = 0;
-        const teamMembersSummary: { employeeId: string; employeeName: string; employeeNumber: string; monthlyTarget: number; leadsThisMonth: number; achievementPct: number; leadsConverted: number }[] = [];
+        let teamDisbursedAmount = 0;
+        const teamMembersSummary: { employeeId: string; employeeName: string; employeeNumber: string; monthlyTarget: number; leadsThisMonth: number; disbursedAmount: number; achievementPct: number; leadsConverted: number }[] = [];
         let teamLeadsThisMonth = 0;
         let teamLeadsConverted = 0;
+        const leaderOwnLeads = await storage.getLeadsByEmployee(teamLeadId, monthStart, monthEnd);
+        for (const l of leaderOwnLeads) {
+          if ((l.status || "").toLowerCase() === "disbursed") teamDisbursedAmount += getLeadAmount(l as any);
+        }
         for (const emp of employees) {
           const mt = await storage.getMonthlyTarget(emp.id, month, year);
           const target = mt ? mt.assignedLeads : ((emp as any).monthlyLeadTarget != null && !Number.isNaN(Number((emp as any).monthlyLeadTarget))
@@ -1804,6 +1809,14 @@ export async function registerRoutes(
           overallTarget += target;
           const empLeads = await storage.getLeadsByEmployee(emp.id, monthStart, monthEnd);
           const converted = empLeads.filter((l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned").length;
+          let empDisbursedAmount = 0;
+          for (const l of empLeads) {
+            if ((l.status || "").toLowerCase() === "disbursed") {
+              const amt = getLeadAmount(l as any);
+              empDisbursedAmount += amt;
+              teamDisbursedAmount += amt;
+            }
+          }
           teamLeadsThisMonth += empLeads.length;
           teamLeadsConverted += converted;
           const achievementPct = target > 0 ? Math.round((empLeads.length / target) * 100) : 0;
@@ -1813,6 +1826,7 @@ export async function registerRoutes(
             employeeNumber: byId[emp.id]?.number ?? "",
             monthlyTarget: target,
             leadsThisMonth: empLeads.length,
+            disbursedAmount: empDisbursedAmount,
             achievementPct,
             leadsConverted: converted,
           });
@@ -1828,6 +1842,7 @@ export async function registerRoutes(
           else if (achievementPct >= 80) conveyancePct = 50;
         }
         payload.overallTarget = overallTarget;
+        payload.teamDisbursedAmount = teamDisbursedAmount;
         payload.teamLeadsThisMonth = teamLeadsThisMonth;
         payload.achievementPct = achievementPct;
         payload.conveyancePct = conveyancePct;

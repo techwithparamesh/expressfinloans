@@ -15,6 +15,7 @@ type TeamMemberSummary = {
   employeeNumber: string;
   monthlyTarget: number;
   leadsThisMonth: number;
+  disbursedAmount?: number;
   achievementPct: number;
   leadsConverted: number;
 };
@@ -102,6 +103,7 @@ type Dashboard = {
   totalClosures: number;
   leadsByEmployee?: { employeeId: string; employeeName: string; employeeNumber: string; count: number }[];
   overallTarget?: number;
+  teamDisbursedAmount?: number;
   teamLeadsThisMonth?: number;
   achievementPct?: number;
   conveyancePct?: number;
@@ -667,7 +669,7 @@ export default function StaffDashboard() {
         </>
       )}
 
-      {user?.role === "team_lead" && (data.overallTarget != null || (data.leaderAssignedBudget != null && data.leaderAssignedBudget > 0)) && (
+      {user?.role === "team_lead" && (data.overallTarget != null || data.teamDisbursedAmount != null || (data.leaderAssignedBudget != null && data.leaderAssignedBudget > 0)) && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -705,12 +707,16 @@ export default function StaffDashboard() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Overall target (leads)</CardTitle>
-              <Target className="h-4 w-4 text-slate-500" />
+              <CardTitle className="text-sm font-medium">Disbursed amount</CardTitle>
+              <DollarSign className="h-4 w-4 text-slate-500" />
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">{data.overallTarget ?? "—"}</p>
-              <p className="text-xs text-slate-500">{data.monthLabel ?? "This month"}</p>
+              <p className="text-2xl font-bold">
+                {data.teamDisbursedAmount != null
+                  ? "₹ " + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(data.teamDisbursedAmount)
+                  : "—"}
+              </p>
+              <p className="text-xs text-slate-500">Team achieved this month · {data.monthLabel ?? "This month"}</p>
             </CardContent>
           </Card>
           <Card>
@@ -741,7 +747,7 @@ export default function StaffDashboard() {
         <Card>
           <CardHeader>
             <CardTitle>Individual target</CardTitle>
-            <CardDescription>Per-member target, leads this month, achievement and converted count for {data.monthLabel ?? "this month"}.</CardDescription>
+            <CardDescription>Per-member target, disbursed value, achievement and converted count for {data.monthLabel ?? "this month"}.</CardDescription>
           </CardHeader>
           <CardContent>
             {data.teamMembersSummary.length === 0 ? (
@@ -754,7 +760,7 @@ export default function StaffDashboard() {
                       <th className="text-left p-3 font-medium min-w-[100px]">Employee ID</th>
                       <th className="text-left p-3 font-medium min-w-[140px]">Name</th>
                       <th className="text-left p-3 font-medium min-w-[90px]">Target</th>
-                      <th className="text-left p-3 font-medium min-w-[100px]">Leads this month</th>
+                      <th className="text-left p-3 font-medium min-w-[120px]">Disbursed value</th>
                       <th className="text-left p-3 font-medium min-w-[90px]">Achievement %</th>
                       <th className="text-left p-3 font-medium min-w-[80px]">Converted</th>
                     </tr>
@@ -765,7 +771,11 @@ export default function StaffDashboard() {
                         <td className="p-3">{m.employeeNumber || "—"}</td>
                         <td className="p-3">{m.employeeName}</td>
                         <td className="p-3">{m.monthlyTarget}</td>
-                        <td className="p-3">{m.leadsThisMonth}</td>
+                        <td className="p-3">
+                          {m.disbursedAmount != null
+                            ? "₹ " + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(m.disbursedAmount)
+                            : "—"}
+                        </td>
                         <td className="p-3">{m.achievementPct}%</td>
                         <td className="p-3">{m.leadsConverted}</td>
                       </tr>
