@@ -568,6 +568,9 @@ export default function StaffEmployees() {
                       type="date"
                       value={editForm.dateOfBirth ? String(editForm.dateOfBirth).slice(0, 10) : ""}
                       onChange={(e) => setEditForm((f) => ({ ...f, dateOfBirth: e.target.value ? e.target.value.slice(0, 10) : "" }))}
+                      onKeyDown={(e) => e.preventDefault()}
+                      readOnly
+                      title="Select date from calendar"
                     />
                   </div>
                   <div className="space-y-2">
@@ -577,6 +580,9 @@ export default function StaffEmployees() {
                       type="date"
                       value={editForm.dateOfJoining}
                       onChange={(e) => setEditForm((f) => ({ ...f, dateOfJoining: e.target.value }))}
+                      onKeyDown={(e) => e.preventDefault()}
+                      readOnly
+                      title="Select date from calendar"
                     />
                   </div>
                   <div className="space-y-2">

@@ -175,11 +175,11 @@ export default function StaffInsuranceLeads() {
           </div>
           <div className="space-y-2">
             <Label>From</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} onKeyDown={(e) => e.preventDefault()} readOnly title="Select date from calendar" />
           </div>
           <div className="space-y-2">
             <Label>To</Label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} onKeyDown={(e) => e.preventDefault()} readOnly title="Select date from calendar" />
           </div>
         </CardContent>
       </Card>

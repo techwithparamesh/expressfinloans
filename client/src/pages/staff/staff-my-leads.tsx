@@ -980,6 +980,9 @@ export default function StaffMyLeads() {
                         type="date"
                         value={loanForm.date}
                         onChange={(e) => setLoanForm((f) => ({ ...f, date: e.target.value }))}
+                        onKeyDown={(e) => e.preventDefault()}
+                        readOnly
+                        title="Select date from calendar"
                       />
                     </div>
                     <div className="space-y-1">
@@ -999,7 +1002,10 @@ export default function StaffMyLeads() {
                         type="date"
                         value={loanForm.dateOfBirth ? String(loanForm.dateOfBirth).slice(0, 10) : ""}
                         onChange={(e) => setLoanForm((f) => ({ ...f, dateOfBirth: e.target.value ? e.target.value.slice(0, 10) : "" }))}
+                        onKeyDown={(e) => e.preventDefault()}
+                        readOnly
                         required
+                        title="Select date from calendar"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1233,6 +1239,9 @@ export default function StaffMyLeads() {
                                 type="date"
                                 value={loanForm.loanSanctionedAt}
                                 onChange={(e) => setLoanForm((f) => ({ ...f, loanSanctionedAt: e.target.value }))}
+                                onKeyDown={(e) => e.preventDefault()}
+                                readOnly
+                                title="Select date from calendar"
                                 className="max-w-[180px]"
                               />
                             </td>
@@ -1249,6 +1258,9 @@ export default function StaffMyLeads() {
                                 type="date"
                                 value={loanForm.loanDisbursedAt}
                                 onChange={(e) => setLoanForm((f) => ({ ...f, loanDisbursedAt: e.target.value }))}
+                                onKeyDown={(e) => e.preventDefault()}
+                                readOnly
+                                title="Select date from calendar"
                                 className="max-w-[180px]"
                               />
                             </td>
@@ -1310,6 +1322,9 @@ export default function StaffMyLeads() {
                       type="date"
                       value={insuranceForm.date}
                       onChange={(e) => setInsuranceForm((f) => ({ ...f, date: e.target.value }))}
+                      onKeyDown={(e) => e.preventDefault()}
+                      readOnly
+                      title="Select date from calendar"
                     />
                   </div>
                   <div className="space-y-1">
@@ -1329,6 +1344,9 @@ export default function StaffMyLeads() {
                       type="date"
                       value={insuranceForm.dateOfBirth ? String(insuranceForm.dateOfBirth).slice(0, 10) : ""}
                       onChange={(e) => setInsuranceForm((f) => ({ ...f, dateOfBirth: e.target.value ? e.target.value.slice(0, 10) : "" }))}
+                      onKeyDown={(e) => e.preventDefault()}
+                      readOnly
+                      title="Select date from calendar"
                     />
                   </div>
                 </div>
@@ -1752,6 +1770,9 @@ export default function StaffMyLeads() {
                       onChange={(e) =>
                         setInsuranceForm((f) => ({ ...f, policyStartDate: e.target.value }))
                       }
+                      onKeyDown={(e) => e.preventDefault()}
+                      readOnly
+                      title="Select date from calendar"
                     />
                   </div>
                   <div className="space-y-1">
@@ -1762,6 +1783,9 @@ export default function StaffMyLeads() {
                       onChange={(e) =>
                         setInsuranceForm((f) => ({ ...f, policyEndDate: e.target.value }))
                       }
+                      onKeyDown={(e) => e.preventDefault()}
+                      readOnly
+                      title="Select date from calendar"
                     />
                   </div>
                 </div>

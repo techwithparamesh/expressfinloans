@@ -115,6 +115,9 @@ export default function StaffAttendance() {
                 type="date"
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
+                onKeyDown={(e) => e.preventDefault()}
+                readOnly
+                title="Select date from calendar"
                 className="min-w-[160px] h-10 text-base [color-scheme:light]"
                 style={{ colorScheme: "light" }}
                 aria-label="From date"
@@ -127,6 +130,9 @@ export default function StaffAttendance() {
                 type="date"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
+                onKeyDown={(e) => e.preventDefault()}
+                readOnly
+                title="Select date from calendar"
                 className="min-w-[160px] h-10 text-base [color-scheme:light]"
                 style={{ colorScheme: "light" }}
                 aria-label="To date"

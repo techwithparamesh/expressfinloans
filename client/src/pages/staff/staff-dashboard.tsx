@@ -520,6 +520,9 @@ export default function StaffDashboard() {
                   type="month"
                   value={adminLeaderExpenseMonth}
                   onChange={(e) => setAdminLeaderExpenseMonth(e.target.value)}
+                  onKeyDown={(e) => e.preventDefault()}
+                  readOnly
+                  title="Select month from picker"
                   className="h-9 w-[150px] text-xs [color-scheme:light]"
                   style={{ colorScheme: "light" }}
                 />
@@ -703,6 +706,9 @@ export default function StaffDashboard() {
                     type="month"
                     value={reportMonth}
                     onChange={(e) => setReportMonth(e.target.value)}
+                    onKeyDown={(e) => e.preventDefault()}
+                    readOnly
+                    title="Select month from picker"
                     className="min-w-[180px] h-10 px-3 text-base [color-scheme:light]"
                     style={{ colorScheme: "light" }}
                     aria-label="Select month for reports"
@@ -717,6 +723,9 @@ export default function StaffDashboard() {
                       type="date"
                       value={reportsFrom}
                       onChange={(e) => setReportsFrom(e.target.value)}
+                      onKeyDown={(e) => e.preventDefault()}
+                      readOnly
+                      title="Select date from calendar"
                       className="min-w-[140px] h-10 text-base [color-scheme:light]"
                       style={{ colorScheme: "light" }}
                     />
@@ -728,6 +737,9 @@ export default function StaffDashboard() {
                       type="date"
                       value={reportsTo}
                       onChange={(e) => setReportsTo(e.target.value)}
+                      onKeyDown={(e) => e.preventDefault()}
+                      readOnly
+                      title="Select date from calendar"
                       className="min-w-[140px] h-10 text-base [color-scheme:light]"
                       style={{ colorScheme: "light" }}
                     />
@@ -1063,6 +1075,9 @@ export default function StaffDashboard() {
                     setLeaderExpenseMonth(e.target.value);
                     setLeaderExpenseForm((f) => ({ ...f, month: e.target.value || f.month }));
                   }}
+                  onKeyDown={(e) => e.preventDefault()}
+                  readOnly
+                  title="Select month from picker"
                   className="h-9 w-[150px] text-xs [color-scheme:light]"
                   style={{ colorScheme: "light" }}
                 />
@@ -1172,6 +1187,9 @@ export default function StaffDashboard() {
                   type="month"
                   value={leaderExpenseForm.month}
                   onChange={(e) => setLeaderExpenseForm((f) => ({ ...f, month: e.target.value }))}
+                  onKeyDown={(e) => e.preventDefault()}
+                  readOnly
+                  title="Select month from picker"
                   className="h-9 text-sm [color-scheme:light]"
                   style={{ colorScheme: "light" }}
                 />
@@ -1190,6 +1208,9 @@ export default function StaffDashboard() {
                   type="date"
                   value={leaderExpenseForm.paymentDate}
                   onChange={(e) => setLeaderExpenseForm((f) => ({ ...f, paymentDate: e.target.value }))}
+                  onKeyDown={(e) => e.preventDefault()}
+                  readOnly
+                  title="Select date from calendar"
                   className="h-9 text-sm [color-scheme:light]"
                   style={{ colorScheme: "light" }}
                 />
@@ -1313,6 +1334,9 @@ export default function StaffDashboard() {
                   type="month"
                   value={exportMonth}
                   onChange={(e) => setExportMonth(e.target.value)}
+                  onKeyDown={(e) => e.preventDefault()}
+                  readOnly
+                  title="Select month from picker"
                   className="min-w-[180px] h-10 pl-10 pr-4 py-2.5 text-base [color-scheme:light]"
                   style={{ colorScheme: "light" }}
                   aria-label="Select month for export"
@@ -1328,6 +1352,9 @@ export default function StaffDashboard() {
                   type="date"
                   value={exportFrom}
                   onChange={(e) => setExportFrom(e.target.value)}
+                  onKeyDown={(e) => e.preventDefault()}
+                  readOnly
+                  title="Select date from calendar"
                   className="min-w-[160px] h-10 text-base [color-scheme:light]"
                   style={{ colorScheme: "light" }}
                 />
@@ -1339,6 +1366,9 @@ export default function StaffDashboard() {
                   type="date"
                   value={exportTo}
                   onChange={(e) => setExportTo(e.target.value)}
+                  onKeyDown={(e) => e.preventDefault()}
+                  readOnly
+                  title="Select date from calendar"
                   className="min-w-[160px] h-10 text-base [color-scheme:light]"
                   style={{ colorScheme: "light" }}
                 />

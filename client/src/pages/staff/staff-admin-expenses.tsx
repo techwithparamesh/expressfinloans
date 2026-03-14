@@ -440,6 +440,9 @@ export default function StaffAdminExpenses() {
                   type="date"
                   value={form.paymentDate}
                   onChange={(e) => setForm((f) => ({ ...f, paymentDate: e.target.value }))}
+                  onKeyDown={(e) => e.preventDefault()}
+                  readOnly
+                  title="Select date from calendar"
                   className="[color-scheme:light]"
                 />
               </div>

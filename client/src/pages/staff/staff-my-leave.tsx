@@ -240,6 +240,9 @@ export default function StaffMyLeave() {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  onKeyDown={(e) => e.preventDefault()}
+                  readOnly
+                  title="Select date from calendar"
                   required
                 />
               </div>
@@ -249,6 +252,9 @@ export default function StaffMyLeave() {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                  onKeyDown={(e) => e.preventDefault()}
+                  readOnly
+                  title="Select date from calendar"
                   required
                 />
               </div>
@@ -366,6 +372,9 @@ export default function StaffMyLeave() {
                   type="date"
                   value={editStartDate}
                   onChange={(e) => setEditStartDate(e.target.value)}
+                  onKeyDown={(e) => e.preventDefault()}
+                  readOnly
+                  title="Select date from calendar"
                   required
                 />
               </div>
@@ -375,6 +384,9 @@ export default function StaffMyLeave() {
                   type="date"
                   value={editEndDate}
                   onChange={(e) => setEditEndDate(e.target.value)}
+                  onKeyDown={(e) => e.preventDefault()}
+                  readOnly
+                  title="Select date from calendar"
                   required
                 />
               </div>
