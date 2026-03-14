@@ -929,11 +929,10 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Only pending requests can be approved or rejected" });
       }
 
-      const nowIso = new Date().toISOString();
       const updated = await storage.updateLeaderExpenseRequest(id, {
         status,
         approvedBy: userId,
-        approvedAt: nowIso as any,
+        approvedAt: new Date(),
       } as any);
 
       // On approve, optionally copy into admin_expenses so it appears in admin ledger and expenditure.
