@@ -14,12 +14,13 @@ export interface DateInputProps extends Omit<React.ComponentProps<"input">, "typ
  * Manual keyboard entry is disabled; users select the date via the calendar only.
  */
 const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
-  ({ className, wrapperClassName, onKeyDown, readOnly = true, ...props }, ref) => {
+  ({ className, wrapperClassName, onKeyDown, readOnly: _readOnly, ...props }, ref) => {
     const inputRef = React.useRef<HTMLInputElement>(null);
 
     const openPicker = React.useCallback(() => {
       const el = inputRef.current;
       if (!el) return;
+      // showPicker() cannot be used when input is readOnly (immutable). We block typing via onKeyDown instead.
       if (typeof el.showPicker === "function") {
         el.showPicker();
       } else {
@@ -36,7 +37,6 @@ const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
             if (typeof ref === "function") ref(node);
             else if (ref) (ref as React.MutableRefObject<HTMLInputElement | null>).current = node;
           }}
-          readOnly={readOnly}
           onKeyDown={(e) => {
             e.preventDefault();
             onKeyDown?.(e);
