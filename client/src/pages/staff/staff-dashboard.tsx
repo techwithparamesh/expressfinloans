@@ -228,6 +228,16 @@ export default function StaffDashboard() {
     remarks: "",
   }));
 
+  // Admin: leader expense requests for approval
+  const [adminLeaderExpenses, setAdminLeaderExpenses] = useState<LeaderExpenseRequest[]>([]);
+  const [adminLeaderExpensesLoading, setAdminLeaderExpensesLoading] = useState(false);
+  const [adminLeaderExpenseStatusFilter, setAdminLeaderExpenseStatusFilter] = useState<string>("pending");
+  const [adminLeaderExpenseMonth, setAdminLeaderExpenseMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [adminLeaderExpenseActionId, setAdminLeaderExpenseActionId] = useState<string | null>(null);
+
   useEffect(() => {
     getAuthMe().then((res) => setUser(res?.user ?? null));
   }, []);
@@ -259,6 +269,19 @@ export default function StaffDashboard() {
       .catch(() => setLeaderExpenses([]))
       .finally(() => setLeaderExpensesLoading(false));
   }, [user, leaderExpenseMonth]);
+
+  // Load leader expense requests for admin (for approval)
+  useEffect(() => {
+    if (!user || user.role !== "admin") return;
+    setAdminLeaderExpensesLoading(true);
+    const params = new URLSearchParams();
+    if (adminLeaderExpenseMonth) params.set("month", adminLeaderExpenseMonth);
+    if (adminLeaderExpenseStatusFilter && adminLeaderExpenseStatusFilter !== "all") params.set("status", adminLeaderExpenseStatusFilter);
+    staffJson<LeaderExpenseRequest[]>(`/staff/leader-expense-requests?${params.toString()}`)
+      .then((list) => setAdminLeaderExpenses(Array.isArray(list) ? list : []))
+      .catch(() => setAdminLeaderExpenses([]))
+      .finally(() => setAdminLeaderExpensesLoading(false));
+  }, [user, adminLeaderExpenseMonth, adminLeaderExpenseStatusFilter]);
 
   useEffect(() => {
     if (!user || user.role !== "admin") return;
@@ -478,6 +501,159 @@ export default function StaffDashboard() {
                 </tbody>
               </table>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {user?.role === "admin" && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <div>
+              <CardTitle>Miscellaneous expense approvals</CardTitle>
+              <CardDescription>Requests submitted by team leaders. Approve or reject so they appear in expenditure.</CardDescription>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="admin-expense-month" className="text-xs text-slate-600">Month</Label>
+                <Input
+                  id="admin-expense-month"
+                  type="month"
+                  value={adminLeaderExpenseMonth}
+                  onChange={(e) => setAdminLeaderExpenseMonth(e.target.value)}
+                  className="h-9 w-[150px] text-xs [color-scheme:light]"
+                  style={{ colorScheme: "light" }}
+                />
+              </div>
+              <Select value={adminLeaderExpenseStatusFilter} onValueChange={setAdminLeaderExpenseStatusFilter}>
+                <SelectTrigger className="h-9 w-[130px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {adminLeaderExpensesLoading ? (
+              <p className="text-slate-500 text-sm py-2">Loading…</p>
+            ) : adminLeaderExpenses.length === 0 ? (
+              <p className="text-slate-500 text-sm py-2">
+                {adminLeaderExpenseStatusFilter === "pending" ? "No pending expense requests for this month." : "No expense requests for this month."}
+              </p>
+            ) : (
+              <div className="rounded-md border overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-slate-50">
+                      <th className="text-left p-3 font-medium min-w-[90px]">Month</th>
+                      <th className="text-left p-3 font-medium min-w-[120px]">Purpose</th>
+                      <th className="text-left p-3 font-medium min-w-[100px]">Amount (₹)</th>
+                      <th className="text-left p-3 font-medium min-w-[120px]">Requested by</th>
+                      <th className="text-left p-3 font-medium min-w-[110px]">Status</th>
+                      <th className="text-left p-3 font-medium min-w-[140px]">Payment date</th>
+                      <th className="text-left p-3 font-medium min-w-[180px]">Remarks</th>
+                      <th className="text-left p-3 font-medium min-w-[140px]">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminLeaderExpenses.map((e) => {
+                      const status = (e.status || "").toLowerCase();
+                      const amount = (e.amount ?? (e as any).amount ?? "").toString();
+                      const paymentDate = (e.paymentDate ?? (e as any).payment_date ?? "") || "";
+                      const remarks = e.remarks ?? "";
+                      const statusLabel =
+                        status === "approved" ? "Approved" : status === "rejected" ? "Rejected" : "Pending";
+                      const statusClass =
+                        status === "approved"
+                          ? "text-green-700 bg-green-50 border-green-200"
+                          : status === "rejected"
+                          ? "text-red-700 bg-red-50 border-red-200"
+                          : "text-amber-700 bg-amber-50 border-amber-200";
+                      const requestedById = e.requestedBy ?? (e as any).requested_by ?? "";
+                      const requestedByName = requestedById ? (employees.find((emp) => emp.id === requestedById)?.fullName ?? requestedById) : "—";
+                      const isPending = status === "pending";
+                      const actioning = adminLeaderExpenseActionId === e.id;
+                      return (
+                        <tr key={e.id} className="border-b last:border-0">
+                          <td className="p-3">{e.month}</td>
+                          <td className="p-3">{e.purposeOther || e.purpose_other || e.purpose}</td>
+                          <td className="p-3">
+                            {amount
+                              ? "₹ " + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(amount.replace(/[,₹\s]/g, "") || "0"))
+                              : "—"}
+                          </td>
+                          <td className="p-3">{requestedByName}</td>
+                          <td className="p-3">
+                            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${statusClass}`}>
+                              {statusLabel}
+                            </span>
+                          </td>
+                          <td className="p-3">{formatDateDdMmYyyy(paymentDate) ?? "—"}</td>
+                          <td className="p-3 truncate max-w-xs" title={remarks || ""}>{remarks || "—"}</td>
+                          <td className="p-3">
+                              {isPending && (
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    className="bg-green-600 hover:bg-green-700"
+                                    disabled={actioning}
+                                    onClick={async () => {
+                                      setAdminLeaderExpenseActionId(e.id);
+                                      try {
+                                        await staffFetch(`/staff/leader-expense-requests/${e.id}`, {
+                                          method: "PATCH",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ status: "approved" }),
+                                        });
+                                        const params = new URLSearchParams();
+                                        if (adminLeaderExpenseMonth) params.set("month", adminLeaderExpenseMonth);
+                                        if (adminLeaderExpenseStatusFilter && adminLeaderExpenseStatusFilter !== "all") params.set("status", adminLeaderExpenseStatusFilter);
+                                        const list = await staffJson<LeaderExpenseRequest[]>(`/staff/leader-expense-requests?${params.toString()}`);
+                                        setAdminLeaderExpenses(Array.isArray(list) ? list : []);
+                                      } finally {
+                                        setAdminLeaderExpenseActionId(null);
+                                      }
+                                    }}
+                                  >
+                                    {actioning ? "…" : "Approve"}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    disabled={actioning}
+                                    onClick={async () => {
+                                      setAdminLeaderExpenseActionId(e.id);
+                                      try {
+                                        await staffFetch(`/staff/leader-expense-requests/${e.id}`, {
+                                          method: "PATCH",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ status: "rejected" }),
+                                        });
+                                        const params = new URLSearchParams();
+                                        if (adminLeaderExpenseMonth) params.set("month", adminLeaderExpenseMonth);
+                                        if (adminLeaderExpenseStatusFilter && adminLeaderExpenseStatusFilter !== "all") params.set("status", adminLeaderExpenseStatusFilter);
+                                        const list = await staffJson<LeaderExpenseRequest[]>(`/staff/leader-expense-requests?${params.toString()}`);
+                                        setAdminLeaderExpenses(Array.isArray(list) ? list : []);
+                                      } finally {
+                                        setAdminLeaderExpenseActionId(null);
+                                      }
+                                    }}
+                                  >
+                                    Reject
+                                  </Button>
+                                </div>
+                              )}
+                            </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
