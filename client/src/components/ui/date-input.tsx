@@ -43,6 +43,7 @@ const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
           }}
           className={cn(
             "flex h-9 w-full rounded-md border border-input bg-transparent pl-3 pr-10 py-1 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm [color-scheme:light]",
+            "[&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:pointer-events-none",
             className
           )}
           style={{ colorScheme: "light" }}
