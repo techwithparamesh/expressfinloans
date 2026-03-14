@@ -8,6 +8,7 @@ import { formatDateDdMmYyyy } from "@/lib/utils";
 import { useMonthlyTargetPopup, useConveyancePolicyPopup } from "./staff-layout";
 import { Calendar, Download, Target, TrendingUp, Percent, DollarSign, Car, Activity, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -718,30 +719,20 @@ export default function StaffDashboard() {
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-2">
                     <Label htmlFor="reports-from" className="text-sm text-slate-600 shrink-0">From</Label>
-                    <Input
+                    <DateInput
                       id="reports-from"
-                      type="date"
                       value={reportsFrom}
                       onChange={(e) => setReportsFrom(e.target.value)}
-                      onKeyDown={(e) => e.preventDefault()}
-                      readOnly
-                      title="Select date from calendar"
-                      className="min-w-[140px] h-10 text-base [color-scheme:light]"
-                      style={{ colorScheme: "light" }}
+                      className="min-w-[140px] h-10 text-base"
                     />
                   </div>
                   <div className="flex items-center gap-2">
                     <Label htmlFor="reports-to" className="text-sm text-slate-600 shrink-0">To</Label>
-                    <Input
+                    <DateInput
                       id="reports-to"
-                      type="date"
                       value={reportsTo}
                       onChange={(e) => setReportsTo(e.target.value)}
-                      onKeyDown={(e) => e.preventDefault()}
-                      readOnly
-                      title="Select date from calendar"
-                      className="min-w-[140px] h-10 text-base [color-scheme:light]"
-                      style={{ colorScheme: "light" }}
+                      className="min-w-[140px] h-10 text-base"
                     />
                   </div>
                 </div>
@@ -1204,15 +1195,10 @@ export default function StaffDashboard() {
               </div>
               <div className="space-y-1">
                 <Label className="text-sm">Payment date (optional)</Label>
-                <Input
-                  type="date"
+                <DateInput
                   value={leaderExpenseForm.paymentDate}
                   onChange={(e) => setLeaderExpenseForm((f) => ({ ...f, paymentDate: e.target.value }))}
-                  onKeyDown={(e) => e.preventDefault()}
-                  readOnly
-                  title="Select date from calendar"
-                  className="h-9 text-sm [color-scheme:light]"
-                  style={{ colorScheme: "light" }}
+                  className="h-9 text-sm"
                 />
               </div>
               <div className="space-y-1">
@@ -1347,30 +1333,20 @@ export default function StaffDashboard() {
             <div className="flex flex-wrap items-end gap-4">
               <div className="space-y-2">
                 <Label htmlFor="export-from">From date</Label>
-                <Input
+                <DateInput
                   id="export-from"
-                  type="date"
                   value={exportFrom}
                   onChange={(e) => setExportFrom(e.target.value)}
-                  onKeyDown={(e) => e.preventDefault()}
-                  readOnly
-                  title="Select date from calendar"
-                  className="min-w-[160px] h-10 text-base [color-scheme:light]"
-                  style={{ colorScheme: "light" }}
+                  className="min-w-[160px] h-10 text-base"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="export-to">To date</Label>
-                <Input
+                <DateInput
                   id="export-to"
-                  type="date"
                   value={exportTo}
                   onChange={(e) => setExportTo(e.target.value)}
-                  onKeyDown={(e) => e.preventDefault()}
-                  readOnly
-                  title="Select date from calendar"
-                  className="min-w-[160px] h-10 text-base [color-scheme:light]"
-                  style={{ colorScheme: "light" }}
+                  className="min-w-[160px] h-10 text-base"
                 />
               </div>
             </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -976,13 +977,9 @@ export default function StaffMyLeads() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label>Date</Label>
-                      <Input
-                        type="date"
+                      <DateInput
                         value={loanForm.date}
                         onChange={(e) => setLoanForm((f) => ({ ...f, date: e.target.value }))}
-                        onKeyDown={(e) => e.preventDefault()}
-                        readOnly
-                        title="Select date from calendar"
                       />
                     </div>
                     <div className="space-y-1">
@@ -997,15 +994,11 @@ export default function StaffMyLeads() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label htmlFor="loan-dob">Date of Birth <span className="text-red-500">*</span></Label>
-                      <Input
+                      <DateInput
                         id="loan-dob"
-                        type="date"
                         value={loanForm.dateOfBirth ? String(loanForm.dateOfBirth).slice(0, 10) : ""}
                         onChange={(e) => setLoanForm((f) => ({ ...f, dateOfBirth: e.target.value ? e.target.value.slice(0, 10) : "" }))}
-                        onKeyDown={(e) => e.preventDefault()}
-                        readOnly
                         required
-                        title="Select date from calendar"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1235,13 +1228,9 @@ export default function StaffMyLeads() {
                           <tr className="border-b">
                             <td className="py-2 px-3 font-medium">Loan Sanctioned</td>
                             <td className="py-2 px-3">
-                              <Input
-                                type="date"
+                              <DateInput
                                 value={loanForm.loanSanctionedAt}
                                 onChange={(e) => setLoanForm((f) => ({ ...f, loanSanctionedAt: e.target.value }))}
-                                onKeyDown={(e) => e.preventDefault()}
-                                readOnly
-                                title="Select date from calendar"
                                 className="max-w-[180px]"
                               />
                             </td>
@@ -1254,13 +1243,9 @@ export default function StaffMyLeads() {
                           <tr>
                             <td className="py-2 px-3 font-medium">Loan Disbursed</td>
                             <td className="py-2 px-3">
-                              <Input
-                                type="date"
+                              <DateInput
                                 value={loanForm.loanDisbursedAt}
                                 onChange={(e) => setLoanForm((f) => ({ ...f, loanDisbursedAt: e.target.value }))}
-                                onKeyDown={(e) => e.preventDefault()}
-                                readOnly
-                                title="Select date from calendar"
                                 className="max-w-[180px]"
                               />
                             </td>
@@ -1318,13 +1303,9 @@ export default function StaffMyLeads() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label>Date</Label>
-                    <Input
-                      type="date"
+                    <DateInput
                       value={insuranceForm.date}
                       onChange={(e) => setInsuranceForm((f) => ({ ...f, date: e.target.value }))}
-                      onKeyDown={(e) => e.preventDefault()}
-                      readOnly
-                      title="Select date from calendar"
                     />
                   </div>
                   <div className="space-y-1">
@@ -1340,13 +1321,9 @@ export default function StaffMyLeads() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label>Date of birth</Label>
-                    <Input
-                      type="date"
+                    <DateInput
                       value={insuranceForm.dateOfBirth ? String(insuranceForm.dateOfBirth).slice(0, 10) : ""}
                       onChange={(e) => setInsuranceForm((f) => ({ ...f, dateOfBirth: e.target.value ? e.target.value.slice(0, 10) : "" }))}
-                      onKeyDown={(e) => e.preventDefault()}
-                      readOnly
-                      title="Select date from calendar"
                     />
                   </div>
                 </div>
@@ -1764,28 +1741,20 @@ export default function StaffMyLeads() {
                   </div>
                   <div className="space-y-1">
                     <Label>Starts From</Label>
-                    <Input
-                      type="date"
+                    <DateInput
                       value={insuranceForm.policyStartDate || ""}
                       onChange={(e) =>
                         setInsuranceForm((f) => ({ ...f, policyStartDate: e.target.value }))
                       }
-                      onKeyDown={(e) => e.preventDefault()}
-                      readOnly
-                      title="Select date from calendar"
                     />
                   </div>
                   <div className="space-y-1">
                     <Label>Ends On</Label>
-                    <Input
-                      type="date"
+                    <DateInput
                       value={insuranceForm.policyEndDate || ""}
                       onChange={(e) =>
                         setInsuranceForm((f) => ({ ...f, policyEndDate: e.target.value }))
                       }
-                      onKeyDown={(e) => e.preventDefault()}
-                      readOnly
-                      title="Select date from calendar"
                     />
                   </div>
                 </div>

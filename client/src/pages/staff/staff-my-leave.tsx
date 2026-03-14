@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -236,25 +237,17 @@ export default function StaffMyLeave() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Start date</Label>
-                <Input
-                  type="date"
+                <DateInput
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  onKeyDown={(e) => e.preventDefault()}
-                  readOnly
-                  title="Select date from calendar"
                   required
                 />
               </div>
               <div className="space-y-2">
                 <Label>End date</Label>
-                <Input
-                  type="date"
+                <DateInput
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  onKeyDown={(e) => e.preventDefault()}
-                  readOnly
-                  title="Select date from calendar"
                   required
                 />
               </div>
@@ -368,25 +361,17 @@ export default function StaffMyLeave() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Start date</Label>
-                <Input
-                  type="date"
+                <DateInput
                   value={editStartDate}
                   onChange={(e) => setEditStartDate(e.target.value)}
-                  onKeyDown={(e) => e.preventDefault()}
-                  readOnly
-                  title="Select date from calendar"
                   required
                 />
               </div>
               <div className="space-y-2">
                 <Label>End date</Label>
-                <Input
-                  type="date"
+                <DateInput
                   value={editEndDate}
                   onChange={(e) => setEditEndDate(e.target.value)}
-                  onKeyDown={(e) => e.preventDefault()}
-                  readOnly
-                  title="Select date from calendar"
                   required
                 />
               </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -436,13 +437,9 @@ export default function StaffAdminExpenses() {
               </div>
               <div className="space-y-2">
                 <Label>Payment date</Label>
-                <Input
-                  type="date"
+                <DateInput
                   value={form.paymentDate}
                   onChange={(e) => setForm((f) => ({ ...f, paymentDate: e.target.value }))}
-                  onKeyDown={(e) => e.preventDefault()}
-                  readOnly
-                  title="Select date from calendar"
                   className="[color-scheme:light]"
                 />
               </div>

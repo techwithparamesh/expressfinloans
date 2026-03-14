@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -563,26 +564,18 @@ export default function StaffEmployees() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="edit-dateOfBirth">Date of birth</Label>
-                    <Input
+                    <DateInput
                       id="edit-dateOfBirth"
-                      type="date"
                       value={editForm.dateOfBirth ? String(editForm.dateOfBirth).slice(0, 10) : ""}
                       onChange={(e) => setEditForm((f) => ({ ...f, dateOfBirth: e.target.value ? e.target.value.slice(0, 10) : "" }))}
-                      onKeyDown={(e) => e.preventDefault()}
-                      readOnly
-                      title="Select date from calendar"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="edit-dateOfJoining">Date of joining</Label>
-                    <Input
+                    <DateInput
                       id="edit-dateOfJoining"
-                      type="date"
                       value={editForm.dateOfJoining}
                       onChange={(e) => setEditForm((f) => ({ ...f, dateOfJoining: e.target.value }))}
-                      onKeyDown={(e) => e.preventDefault()}
-                      readOnly
-                      title="Select date from calendar"
                     />
                   </div>
                   <div className="space-y-2">

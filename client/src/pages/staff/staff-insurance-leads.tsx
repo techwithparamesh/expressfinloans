@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
@@ -175,11 +176,11 @@ export default function StaffInsuranceLeads() {
           </div>
           <div className="space-y-2">
             <Label>From</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} onKeyDown={(e) => e.preventDefault()} readOnly title="Select date from calendar" />
+            <DateInput value={from} onChange={(e) => setFrom(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label>To</Label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} onKeyDown={(e) => e.preventDefault()} readOnly title="Select date from calendar" />
+            <DateInput value={to} onChange={(e) => setTo(e.target.value)} />
           </div>
         </CardContent>
       </Card>
