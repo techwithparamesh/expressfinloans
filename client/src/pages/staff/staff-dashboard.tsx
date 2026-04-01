@@ -360,6 +360,15 @@ export default function StaffDashboard() {
       const filename = exportRangeMode === "month"
         ? `monthly-report-${exportMonth}.${ext}`
         : `report-${exportFrom}-to-${exportTo}.${ext}`;
+      const isNative = !!((window as any)?.Capacitor?.isNativePlatform?.());
+
+      if (isNative) {
+        const saved = await saveBlobInNativeFilesystem(blob, filename);
+        if (!saved) {
+          throw new Error("Native save failed");
+        }
+        return;
+      }
 
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -368,21 +377,7 @@ export default function StaffDashboard() {
       document.body.appendChild(a);
       a.click();
       a.remove();
-
-      // Some mobile WebViews ignore download attribute; fallback to opening the file URL.
-      const isNative = !!((window as any)?.Capacitor?.isNativePlatform?.());
-      if (isNative) {
-        setTimeout(() => {
-          try {
-            window.open(objectUrl, "_blank");
-          } catch {
-            // noop
-          }
-        }, 120);
-        setTimeout(() => URL.revokeObjectURL(objectUrl), 15000);
-      } else {
-        URL.revokeObjectURL(objectUrl);
-      }
+      URL.revokeObjectURL(objectUrl);
     } catch {
       // ignore
     } finally {
@@ -1377,5 +1372,33 @@ export default function StaffDashboard() {
 
     </div>
   );
+}
+
+async function saveBlobInNativeFilesystem(blob: Blob, filename: string): Promise<boolean> {
+  try {
+    const cap = (window as any)?.Capacitor;
+    const fs = cap?.Plugins?.Filesystem;
+    if (!fs || typeof fs.writeFile !== "function") return false;
+
+    const base64 = await blobToBase64(blob);
+    const result = await fs.writeFile({
+      path: filename,
+      data: base64,
+      directory: "DOCUMENTS",
+      recursive: true,
+    });
+
+    return !!result?.uri;
+  } catch {
+    return false;
+  }
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
 }
 
