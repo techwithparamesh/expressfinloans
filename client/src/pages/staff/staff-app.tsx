@@ -19,6 +19,7 @@ import StaffTargetAllocation from "./staff-target-allocation";
 import StaffAdminExpenses from "./staff-admin-expenses";
 import StaffPayroll from "./staff-payroll";
 import StaffMyPayslips from "./staff-my-payslips";
+import StaffHolidays from "./staff-holidays";
 
 function StaffRedirect({ to }: { to: string }) {
   const [, setLocation] = useLocation();
@@ -80,6 +81,7 @@ export default function StaffApp({ basePath = "/staff" }: { basePath?: string })
         <Route path={p(basePath, "/target-allocation")} component={StaffTargetAllocation} />
         <Route path={p(basePath, "/admin-expenses")} component={StaffAdminExpenses} />
         <Route path={p(basePath, "/payroll")} component={StaffPayroll} />
+        <Route path={p(basePath, "/holidays")} component={StaffHolidays} />
         <Route path={p(basePath, "/my-payslips")} component={StaffMyPayslips} />
         <Route path={p(basePath, "/my-leads")} component={StaffMyLeads} />
         <Route path={p(basePath, "/my-attendance")} component={StaffMyAttendance} />

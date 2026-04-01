@@ -71,6 +71,26 @@ function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function isSecondSaturday(dateStr: string): boolean {
+  const d = new Date(dateStr + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return false;
+  return d.getDay() === 6 && d.getDate() >= 8 && d.getDate() <= 14;
+}
+
+function enumerateSecondSaturdays(fromDate: string, toDate: string): string[] {
+  const out: string[] = [];
+  const from = new Date(fromDate + "T00:00:00");
+  const to = new Date(toDate + "T00:00:00");
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) return out;
+  const cur = new Date(from);
+  while (cur <= to) {
+    const ds = cur.toISOString().slice(0, 10);
+    if (isSecondSaturday(ds)) out.push(ds);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return out;
+}
+
 /** Parse amount from string (handles currency symbols, commas, spaces). Returns 0 if invalid. Do not remove decimal point. */
 function parseAmount(value: string | number | null | undefined): number {
   if (value == null) return 0;
@@ -218,6 +238,10 @@ export async function registerRoutes(
     try {
       const userId = (req.user as any).id;
       const dateStr = (req.body?.date as string) || todayStr();
+      const holiday = await storage.isHoliday(dateStr);
+      if (holiday.isHoliday && holiday.holidayType === "full_day") {
+        return res.status(400).json({ message: `Today is a holiday${holiday.occasion ? ` (${holiday.occasion})` : ""}` });
+      }
       const body = req.body || {};
       const clientIp = getClientIp(req);
       const ipStr = clientIp ? clientIp.slice(0, 45) : null;
@@ -269,6 +293,10 @@ export async function registerRoutes(
     try {
       const userId = (req.user as any).id;
       const dateStr = (req.body?.date as string) || todayStr();
+      const holiday = await storage.isHoliday(dateStr);
+      if (holiday.isHoliday && holiday.holidayType === "full_day") {
+        return res.status(400).json({ message: `Today is a holiday${holiday.occasion ? ` (${holiday.occasion})` : ""}` });
+      }
       const body = req.body || {};
       const clientIp = getClientIp(req);
 
@@ -320,7 +348,44 @@ export async function registerRoutes(
       const from = (req.query.from as string) || undefined;
       const to = (req.query.to as string) || undefined;
       const logs = await storage.getAttendanceLogsByEmployee(userId, from, to);
-      res.json(logs);
+      const holidayRows: any[] = [];
+      if (from && to) {
+        const holidays = await storage.getHolidays(from, to);
+        const existingDates = new Set(logs.map((l) => String((l as any).date).slice(0, 10)));
+        for (const h of holidays) {
+          const ds = String((h as any).date).slice(0, 10);
+          if (!existingDates.has(ds)) {
+            holidayRows.push({
+              id: `holiday-${userId}-${ds}`,
+              employeeId: userId,
+              date: ds,
+              loginAt: null,
+              logoutAt: null,
+              leadsCount: 0,
+              status: "holiday",
+              holidayType: (h as any).holidayType ?? "full_day",
+              holidayName: (h as any).occasion ?? "Holiday",
+            });
+          }
+        }
+        for (const ds of enumerateSecondSaturdays(from, to)) {
+          if (!existingDates.has(ds)) {
+            holidayRows.push({
+              id: `holiday-${userId}-${ds}`,
+              employeeId: userId,
+              date: ds,
+              loginAt: null,
+              logoutAt: null,
+              leadsCount: 0,
+              status: "holiday",
+              holidayType: "half_day",
+              holidayName: "Second Saturday (Half Day)",
+            });
+          }
+        }
+      }
+      const merged = [...logs, ...holidayRows].sort((a: any, b: any) => String(b.date).localeCompare(String(a.date)));
+      res.json(merged);
     } catch (e) {
       next(e);
     }
@@ -343,13 +408,146 @@ export async function registerRoutes(
         };
       }
       const filteredLogs = visibleIds === null ? logs : logs.filter((l) => visibleIds.includes(l.employeeId));
-      res.json(
-        filteredLogs.map((l) => ({
-          ...l,
-          employeeName: byId[l.employeeId]?.name ?? l.employeeId,
-          employeeNumber: byId[l.employeeId]?.number ?? "",
-        }))
-      );
+      const mapped = filteredLogs.map((l) => ({
+        ...l,
+        employeeName: byId[l.employeeId]?.name ?? l.employeeId,
+        employeeNumber: byId[l.employeeId]?.number ?? "",
+      }));
+      const holidayRows: any[] = [];
+      if (from && to) {
+        const holidays = await storage.getHolidays(from, to);
+        const secondSaturdays = enumerateSecondSaturdays(from, to);
+        const targetEmployees = visibleIds === null ? employees.map((e) => e.id) : visibleIds;
+        const existingKeys = new Set(mapped.map((l: any) => `${l.employeeId}:${String(l.date).slice(0, 10)}`));
+        for (const eid of targetEmployees) {
+          for (const h of holidays) {
+            const ds = String((h as any).date).slice(0, 10);
+            const key = `${eid}:${ds}`;
+            if (!existingKeys.has(key)) {
+              holidayRows.push({
+                id: `holiday-${eid}-${ds}`,
+                employeeId: eid,
+                employeeName: byId[eid]?.name ?? eid,
+                employeeNumber: byId[eid]?.number ?? "",
+                date: ds,
+                loginAt: null,
+                logoutAt: null,
+                loginLocation: null,
+                logoutLocation: null,
+                leadsCount: 0,
+                status: "holiday",
+                holidayType: (h as any).holidayType ?? "full_day",
+                holidayName: (h as any).occasion ?? "Holiday",
+              });
+            }
+          }
+          for (const ds of secondSaturdays) {
+            const key = `${eid}:${ds}`;
+            if (!existingKeys.has(key)) {
+              holidayRows.push({
+                id: `holiday-${eid}-${ds}`,
+                employeeId: eid,
+                employeeName: byId[eid]?.name ?? eid,
+                employeeNumber: byId[eid]?.number ?? "",
+                date: ds,
+                loginAt: null,
+                logoutAt: null,
+                loginLocation: null,
+                logoutLocation: null,
+                leadsCount: 0,
+                status: "holiday",
+                holidayType: "half_day",
+                holidayName: "Second Saturday (Half Day)",
+              });
+            }
+          }
+        }
+      }
+      res.json([...mapped, ...holidayRows].sort((a: any, b: any) => String(b.date).localeCompare(String(a.date))));
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // --- Staff: holiday calendar ---
+  app.get("/api/staff/holidays", requireAuth, async (req, res, next) => {
+    try {
+      const from = (req.query.from as string) || undefined;
+      const to = (req.query.to as string) || undefined;
+      const list = await storage.getHolidays(from, to);
+      const out = Array.isArray(list) ? [...list] : [];
+      if (from && to) {
+        const explicit = new Set(out.map((h: any) => String((h as any).date).slice(0, 10)));
+        for (const ds of enumerateSecondSaturdays(from, to)) {
+          if (!explicit.has(ds)) {
+            out.push({
+              id: `second-saturday-${ds}`,
+              date: ds as any,
+              occasion: "Second Saturday (Half Day)",
+              holidayType: "half_day",
+              isActive: 1,
+            } as any);
+          }
+        }
+      }
+      out.sort((a: any, b: any) => String((a as any).date).localeCompare(String((b as any).date)));
+      res.json(out);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.post("/api/staff/holidays", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const body = req.body || {};
+      const date = (body.date as string)?.trim()?.slice(0, 10);
+      const occasion = (body.occasion as string)?.trim();
+      const holidayTypeRaw = (body.holidayType as string)?.trim()?.toLowerCase();
+      const holidayType = holidayTypeRaw === "half_day" ? "half_day" : "full_day";
+      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ message: "Valid date is required (YYYY-MM-DD)" });
+      if (!occasion) return res.status(400).json({ message: "Occasion is required" });
+      const row = await storage.createHoliday({
+        date: date as any,
+        occasion,
+        holidayType: holidayType as any,
+        isActive: 1,
+      } as any);
+      res.status(201).json(row);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.patch("/api/staff/holidays/:id", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const id = req.params.id;
+      const existing = await storage.getHoliday(id);
+      if (!existing) return res.status(404).json({ message: "Holiday not found" });
+      const body = req.body || {};
+      const data: Record<string, unknown> = {};
+      if (body.date !== undefined) {
+        const date = String(body.date || "").trim().slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ message: "Valid date is required (YYYY-MM-DD)" });
+        data.date = date;
+      }
+      if (body.occasion !== undefined) data.occasion = String(body.occasion || "").trim();
+      if (body.holidayType !== undefined) {
+        const t = String(body.holidayType || "").trim().toLowerCase();
+        if (!["full_day", "half_day"].includes(t)) return res.status(400).json({ message: "holidayType must be full_day or half_day" });
+        data.holidayType = t;
+      }
+      if (body.isActive !== undefined) data.isActive = Number(body.isActive) ? 1 : 0;
+      const updated = await storage.updateHoliday(id, data as any);
+      res.json(updated);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.delete("/api/staff/holidays/:id", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      await storage.deleteHoliday(req.params.id);
+      res.status(204).send();
     } catch (e) {
       next(e);
     }
@@ -1553,8 +1751,19 @@ export async function registerRoutes(
       const assignedBudget = getTargetBudget(allocatedTarget);
       const budgetAchievementPct = assignedBudget > 0 ? Math.round((achievedBudget / assignedBudget) * 100) : 0;
       const attendanceLogs = await storage.getAttendanceLogsByEmployee(userId, monthStart, monthEnd);
-      const daysPresent = attendanceLogs.filter((a) => (a.status || "").toLowerCase() === "present").length;
-      const daysLogged = attendanceLogs.length;
+      const holidayList = await storage.getHolidays(monthStart, monthEnd);
+      const holidayDates = new Set<string>([
+        ...holidayList.map((h: any) => String((h as any).date).slice(0, 10)),
+        ...enumerateSecondSaturdays(monthStart, monthEnd),
+      ]);
+      const daysPresent = attendanceLogs.filter((a) => {
+        const ds = String((a as any).date).slice(0, 10);
+        return (a.status || "").toLowerCase() === "present" && !holidayDates.has(ds);
+      }).length;
+      const daysLogged = attendanceLogs.filter((a) => {
+        const ds = String((a as any).date).slice(0, 10);
+        return !holidayDates.has(ds);
+      }).length;
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
       const from7 = sevenDaysAgo.toISOString().slice(0, 10);

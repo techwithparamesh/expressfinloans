@@ -23,6 +23,8 @@ import {
   type MonthlyTarget,
   type MonthlyPerformance,
   type TargetAuditLog,
+  type HolidayCalendar,
+  type InsertHolidayCalendar,
   users,
   attendanceLogs,
   leads,
@@ -37,6 +39,7 @@ import {
   monthlyTargets,
   monthlyPerformance,
   targetAuditLog,
+  holidayCalendar,
 } from "@shared/schema";
 import { eq, and, desc, gte, lte, isNull, isNotNull, inArray } from "drizzle-orm";
 import { db, hasDb } from "./db";
@@ -128,6 +131,12 @@ export interface IStorage {
   insertTargetAuditLog(entry: { monthlyTargetId?: string | null; userId?: string | null; month: number; year: number; action: string; changedBy?: string | null; oldValue?: string | null; newValue?: string | null }): Promise<TargetAuditLog>;
   upsertMonthlyPerformance(data: { userId: string; month: number; year: number; achievedBudget: number; achievedLeads: number; achievementPercentage: number }): Promise<MonthlyPerformance>;
   getMonthlyPerformance(userId: string, month: number, year: number): Promise<MonthlyPerformance | undefined>;
+  getHolidays(fromDate?: string, toDate?: string): Promise<HolidayCalendar[]>;
+  getHoliday(id: string): Promise<HolidayCalendar | undefined>;
+  createHoliday(data: InsertHolidayCalendar): Promise<HolidayCalendar>;
+  updateHoliday(id: string, data: Partial<InsertHolidayCalendar>): Promise<HolidayCalendar | undefined>;
+  deleteHoliday(id: string): Promise<void>;
+  isHoliday(dateStr: string): Promise<{ isHoliday: boolean; holidayType?: "full_day" | "half_day"; occasion?: string }>;
 }
 
 async function guardDb() {
@@ -143,6 +152,12 @@ function parseLeadAmount(value: string | number | null | undefined): number {
     .trim();
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : 0;
+}
+
+function isSecondSaturdayDateString(dateStr: string): boolean {
+  const d = new Date(dateStr + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return false;
+  return d.getDay() === 6 && d.getDate() >= 8 && d.getDate() <= 14;
 }
 
 export class DrizzleStorage implements IStorage {
@@ -305,6 +320,10 @@ export class DrizzleStorage implements IStorage {
     options?: { loginLocation?: string | null; loginIp?: string | null; loginLat?: string | null; loginLng?: string | null }
   ): Promise<AttendanceLog> {
     await guardDb();
+    const holiday = await this.isHoliday(dateStr);
+    if (holiday.isHoliday && holiday.holidayType === "full_day") {
+      throw new Error(`Holiday: ${holiday.occasion ?? "Office holiday"}`);
+    }
     const existing = await this.getAttendanceLog(employeeId, dateStr);
     const now = new Date();
     const locationFields = {
@@ -338,6 +357,10 @@ export class DrizzleStorage implements IStorage {
     options?: { logoutLocation?: string | null; logoutLat?: string | null; logoutLng?: string | null }
   ): Promise<AttendanceLog> {
     await guardDb();
+    const holiday = await this.isHoliday(dateStr);
+    if (holiday.isHoliday && holiday.holidayType === "full_day") {
+      throw new Error(`Holiday: ${holiday.occasion ?? "Office holiday"}`);
+    }
     const existing = await this.getAttendanceLog(employeeId, dateStr);
     const now = new Date();
     const logoutFields = {
@@ -366,6 +389,8 @@ export class DrizzleStorage implements IStorage {
 
   async updateAttendanceFromLeadsCount(employeeId: string, dateStr: string, count: number): Promise<void> {
     await guardDb();
+    const holiday = await this.isHoliday(dateStr);
+    if (holiday.isHoliday && holiday.holidayType === "full_day") return;
     const existing = await this.getAttendanceLog(employeeId, dateStr);
     if (existing) {
       await db
@@ -380,6 +405,55 @@ export class DrizzleStorage implements IStorage {
         status: "present",
       });
     }
+  }
+
+  async getHolidays(fromDate?: string, toDate?: string): Promise<HolidayCalendar[]> {
+    await guardDb();
+    const conditions = [eq(holidayCalendar.isActive, 1)];
+    if (fromDate) conditions.push(gte(holidayCalendar.date, fromDate));
+    if (toDate) conditions.push(lte(holidayCalendar.date, toDate));
+    return db.select().from(holidayCalendar).where(and(...conditions)).orderBy(desc(holidayCalendar.date));
+  }
+
+  async getHoliday(id: string): Promise<HolidayCalendar | undefined> {
+    await guardDb();
+    const [r] = await db.select().from(holidayCalendar).where(eq(holidayCalendar.id, id)).limit(1);
+    return r;
+  }
+
+  async createHoliday(data: InsertHolidayCalendar): Promise<HolidayCalendar> {
+    await guardDb();
+    const id = crypto.randomUUID();
+    await db.insert(holidayCalendar).values({ ...data, id } as any);
+    const row = await this.getHoliday(id);
+    if (!row) throw new Error("Failed to create holiday");
+    return row;
+  }
+
+  async updateHoliday(id: string, data: Partial<InsertHolidayCalendar>): Promise<HolidayCalendar | undefined> {
+    await guardDb();
+    await db.update(holidayCalendar).set({ ...data, updatedAt: new Date() }).where(eq(holidayCalendar.id, id));
+    return this.getHoliday(id);
+  }
+
+  async deleteHoliday(id: string): Promise<void> {
+    await guardDb();
+    await db.delete(holidayCalendar).where(eq(holidayCalendar.id, id));
+  }
+
+  async isHoliday(dateStr: string): Promise<{ isHoliday: boolean; holidayType?: "full_day" | "half_day"; occasion?: string }> {
+    await guardDb();
+    if (isSecondSaturdayDateString(dateStr)) {
+      return { isHoliday: true, holidayType: "half_day", occasion: "Second Saturday (Half Day)" };
+    }
+    const [r] = await db
+      .select()
+      .from(holidayCalendar)
+      .where(and(eq(holidayCalendar.date, dateStr), eq(holidayCalendar.isActive, 1)))
+      .limit(1);
+    if (!r) return { isHoliday: false };
+    const t = ((r as any).holidayType ?? "full_day") as "full_day" | "half_day";
+    return { isHoliday: true, holidayType: t, occasion: (r as any).occasion ?? "Holiday" };
   }
 
   async createLead(data: InsertLead): Promise<Lead> {
@@ -1284,6 +1358,29 @@ class NoDbStorage implements IStorage {
   async getMonthlyPerformance() {
     this.guard();
     return undefined;
+  }
+  async getHolidays() {
+    this.guard();
+    return [];
+  }
+  async getHoliday() {
+    this.guard();
+    return undefined;
+  }
+  async createHoliday() {
+    this.guard();
+    throw new Error("Not implemented");
+  }
+  async updateHoliday() {
+    this.guard();
+    return undefined;
+  }
+  async deleteHoliday() {
+    this.guard();
+  }
+  async isHoliday() {
+    this.guard();
+    return { isHoliday: false } as const;
   }
 }
 

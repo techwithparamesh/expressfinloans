@@ -92,6 +92,27 @@ export const insertAttendanceLogSchema = createInsertSchema(attendanceLogs).pick
 export type AttendanceLog = typeof attendanceLogs.$inferSelect;
 export type InsertAttendanceLog = z.infer<typeof insertAttendanceLogSchema>;
 
+// --- Holiday calendar (admin-managed) ---
+export const holidayCalendar = mysqlTable("holiday_calendar", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  date: date("date").notNull(),
+  occasion: varchar("occasion", { length: 255 }).notNull(),
+  holidayType: varchar("holiday_type", { length: 20 }).notNull().default("full_day"), // full_day | half_day
+  isActive: int("is_active").notNull().default(1),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export const insertHolidayCalendarSchema = createInsertSchema(holidayCalendar).pick({
+  date: true,
+  occasion: true,
+  holidayType: true,
+  isActive: true,
+});
+
+export type HolidayCalendar = typeof holidayCalendar.$inferSelect;
+export type InsertHolidayCalendar = z.infer<typeof insertHolidayCalendarSchema>;
+
 export const leads = mysqlTable("leads", {
   id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
   employeeId: varchar("employee_id", { length: 36 })
