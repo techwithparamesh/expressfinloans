@@ -6,7 +6,8 @@ import { getAuthMe, staffJson, staffFetch } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
 import { formatDateDdMmYyyy } from "@/lib/utils";
 import { useMonthlyTargetPopup, useConveyancePolicyPopup } from "./staff-layout";
-import { Calendar, Download, Target, TrendingUp, Percent, DollarSign, Car, Activity, Search } from "lucide-react";
+import { Calendar, Download, Share2, Target, TrendingUp, Percent, DollarSign, Car, Activity, Search } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -342,8 +343,18 @@ export default function StaffDashboard() {
   const displayName = user?.fullName || user?.username || "Admin";
   const roleLabel = user?.role === "team_lead" ? "Team Lead" : "Admin";
 
-  async function handleExport(format: "xlsx" | "pdf") {
-    setExporting(format);
+  const isCapacitorNative =
+    typeof window !== "undefined" &&
+    typeof (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform ===
+      "function" &&
+    Boolean(
+      (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()
+    );
+
+  async function handleExport(format: "xlsx" | "pdf", nativeAction?: "save" | "share") {
+    const busyKey =
+      isCapacitorNative && nativeAction ? `${format}-${nativeAction}` : format;
+    setExporting(busyKey);
     try {
       const ext = format === "xlsx" ? "xlsx" : "pdf";
       const filename = exportRangeMode === "month"
@@ -354,10 +365,11 @@ export default function StaffDashboard() {
       const isNative = typeof cap?.isNativePlatform === "function" && cap.isNativePlatform();
 
       if (isNative) {
+        const action = nativeAction ?? "save";
         const FS = cap.Plugins.Filesystem as {
           downloadFile?: (o: Record<string, unknown>) => Promise<unknown>;
           getUri?: (o: Record<string, unknown>) => Promise<{ uri: string }>;
-          Directory?: { Cache?: string };
+          Directory?: { Cache?: string; External?: string; Data?: string };
         };
         if (!FS?.downloadFile) throw new Error("Filesystem.downloadFile not available — add @capacitor/filesystem and npx cap sync");
 
@@ -379,22 +391,33 @@ export default function StaffDashboard() {
         const origin = window.location.origin.replace(/\/$/, "");
         const dlUrl = `${origin}/api/staff/export/monthly-file?token=${encodeURIComponent(tokenJson.token)}`;
         const dirCache = FS.Directory?.Cache || "CACHE";
+        const dirPersistent = FS.Directory?.External || FS.Directory?.Data || dirCache;
 
-        await FS.downloadFile({
-          url: dlUrl,
-          path: filename,
-          directory: dirCache,
-          recursive: true,
-        });
-
-        try {
+        if (action === "save") {
+          const relPath = `MonthlyReports/${filename}`;
+          await FS.downloadFile({
+            url: dlUrl,
+            path: relPath,
+            directory: dirPersistent,
+            recursive: true,
+          });
+          toast({
+            title: "File saved",
+            description: `${filename} — open Files and browse this app’s folder (e.g. MonthlyReports).`,
+          });
+        } else {
+          await FS.downloadFile({
+            url: dlUrl,
+            path: filename,
+            directory: dirCache,
+            recursive: true,
+          });
           const SharePlugin = cap?.Plugins?.Share as { share?: (o: Record<string, unknown>) => Promise<unknown> } | undefined;
-          if (FS.getUri && SharePlugin?.share) {
-            const fileUri = await FS.getUri({ path: filename, directory: dirCache });
-            await SharePlugin.share({ url: fileUri.uri, title: filename });
+          if (!FS.getUri || !SharePlugin?.share) {
+            throw new Error("Share is not available on this device.");
           }
-        } catch (shareErr) {
-          console.warn("Export saved to app storage; share sheet skipped:", shareErr);
+          const fileUri = await FS.getUri({ path: filename, directory: dirCache });
+          await SharePlugin.share({ url: fileUri.uri, title: filename });
         }
       } else {
         const params = new URLSearchParams({ format });
@@ -419,6 +442,11 @@ export default function StaffDashboard() {
       }
     } catch (error) {
       console.error("Export Error:", error);
+      toast({
+        title: "Export failed",
+        description: error instanceof Error ? error.message : "Something went wrong",
+        variant: "destructive",
+      });
     } finally {
       setExporting(null);
     }
@@ -1336,7 +1364,11 @@ export default function StaffDashboard() {
             <Download className="h-5 w-5" />
             Export monthly data
           </CardTitle>
-          <CardDescription>Download employee data (attendance, leads, leave) in Excel or PDF. Choose by month or custom date range.</CardDescription>
+          <CardDescription>
+            {isCapacitorNative
+              ? "Export attendance, leads, and leave as Excel or PDF. Save stores the file on your device; Share opens WhatsApp, Gmail, and other apps."
+              : "Download employee data (attendance, leads, leave) in Excel or PDF. Choose by month or custom date range."}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-4">
@@ -1398,14 +1430,65 @@ export default function StaffDashboard() {
               </div>
             </div>
           )}
-          <div className="flex gap-2">
-            <Button onClick={() => handleExport("xlsx")} disabled={!!exporting} variant="outline">
-              {exporting === "xlsx" ? "Exporting…" : "Download Excel"}
-            </Button>
-            <Button onClick={() => handleExport("pdf")} disabled={!!exporting}>
-              {exporting === "pdf" ? "Exporting…" : "Download PDF"}
-            </Button>
-          </div>
+          {isCapacitorNative ? (
+            <div className="space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                <span className="text-sm font-medium text-slate-700 sm:min-w-[4.5rem]">Excel</span>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => handleExport("xlsx", "save")}
+                    disabled={!!exporting}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <Download className="h-4 w-4 shrink-0" />
+                    {exporting === "xlsx-save" ? "Saving…" : "Save to device"}
+                  </Button>
+                  <Button
+                    onClick={() => handleExport("xlsx", "share")}
+                    disabled={!!exporting}
+                    variant="secondary"
+                    className="gap-2"
+                  >
+                    <Share2 className="h-4 w-4 shrink-0" />
+                    {exporting === "xlsx-share" ? "Opening…" : "Share"}
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                <span className="text-sm font-medium text-slate-700 sm:min-w-[4.5rem]">PDF</span>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => handleExport("pdf", "save")}
+                    disabled={!!exporting}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <Download className="h-4 w-4 shrink-0" />
+                    {exporting === "pdf-save" ? "Saving…" : "Save to device"}
+                  </Button>
+                  <Button
+                    onClick={() => handleExport("pdf", "share")}
+                    disabled={!!exporting}
+                    variant="secondary"
+                    className="gap-2"
+                  >
+                    <Share2 className="h-4 w-4 shrink-0" />
+                    {exporting === "pdf-share" ? "Opening…" : "Share"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => handleExport("xlsx")} disabled={!!exporting} variant="outline">
+                {exporting === "xlsx" ? "Exporting…" : "Download Excel"}
+              </Button>
+              <Button onClick={() => handleExport("pdf")} disabled={!!exporting}>
+                {exporting === "pdf" ? "Exporting…" : "Download PDF"}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
