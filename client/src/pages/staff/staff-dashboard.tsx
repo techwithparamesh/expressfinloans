@@ -25,6 +25,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Capacitor } from "@capacitor/core";
+import { Filesystem, Directory } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 
 type TeamMemberSummary = {
   employeeId: string;
@@ -361,14 +364,32 @@ export default function StaffDashboard() {
         ? `monthly-report-${exportMonth}.${ext}`
         : `report-${exportFrom}-to-${exportTo}.${ext}`;
 
-      const objectUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = objectUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(objectUrl);
+      if (Capacitor.isNativePlatform()) {
+        const base64 = await blobToBase64(blob);
+        const written = await Filesystem.writeFile({
+          path: filename,
+          data: base64,
+          directory: Directory.Documents,
+          recursive: true,
+        });
+        if (written.uri) {
+          await Share.share({
+            title: "Monthly report",
+            text: filename,
+            url: written.uri,
+            dialogTitle: "Save or share report",
+          });
+        }
+      } else {
+        const objectUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = objectUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(objectUrl);
+      }
     } catch {
       // ignore
     } finally {
@@ -1365,4 +1386,13 @@ export default function StaffDashboard() {
   );
 }
 
+async function blobToBase64(blob: Blob): Promise<string> {
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
 
