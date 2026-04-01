@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { staffJson } from "@/lib/api";
+import { requireCurrentPosition } from "@/lib/location";
 import { formatDateDdMmYyyy } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { LogIn, LogOut, Calendar } from "lucide-react";
@@ -25,25 +26,6 @@ function getLoginLocation(log: Log): string | null {
 
 function getLogoutLocation(log: Log): string | null {
   return log.logoutLocation ?? log.logout_location ?? null;
-}
-
-/** Get current position if user allows; returns null on deny/error so server can fall back to IP. */
-function getCurrentPositionAsync(): Promise<{ latitude: number; longitude: number } | null> {
-  if (!navigator?.geolocation) return Promise.resolve(null);
-  return new Promise((resolve) => {
-    const timeout = setTimeout(() => resolve(null), 15000);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        clearTimeout(timeout);
-        resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-      },
-      () => {
-        clearTimeout(timeout);
-        resolve(null);
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-    );
-  });
 }
 
 export default function StaffMyAttendance() {
@@ -79,20 +61,20 @@ export default function StaffMyAttendance() {
     setLoginLoading(true);
     setGettingLocation(true);
     try {
-      const coords = await getCurrentPositionAsync();
+      const coords = await requireCurrentPosition();
       setGettingLocation(false);
-      const body: { date: string; latitude?: number; longitude?: number } = { date: today };
-      if (coords) {
-        body.latitude = coords.latitude;
-        body.longitude = coords.longitude;
-      }
+      const body: { date: string; latitude: number; longitude: number } = {
+        date: today,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      };
       const log = await staffJson<Log>("/staff/attendance/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       setTodayLog(log);
-      toast({ title: coords ? "Logged in (location captured)" : "Logged in (location from IP)" });
+      toast({ title: "Logged in (location captured)" });
       load();
     } catch (err) {
       setGettingLocation(false);
@@ -106,20 +88,20 @@ export default function StaffMyAttendance() {
     setLogoutLoading(true);
     setGettingLogoutLocation(true);
     try {
-      const coords = await getCurrentPositionAsync();
+      const coords = await requireCurrentPosition();
       setGettingLogoutLocation(false);
-      const body: { date: string; latitude?: number; longitude?: number } = { date: today };
-      if (coords) {
-        body.latitude = coords.latitude;
-        body.longitude = coords.longitude;
-      }
+      const body: { date: string; latitude: number; longitude: number } = {
+        date: today,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      };
       const log = await staffJson<Log>("/staff/attendance/logout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       setTodayLog(log);
-      toast({ title: coords ? "Logged out (location captured)" : "Logged out (location from IP)" });
+      toast({ title: "Logged out (location captured)" });
       load();
     } catch (err) {
       setGettingLogoutLocation(false);

@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { staffJson } from "@/lib/api";
+import { requireCurrentPosition } from "@/lib/location";
 import { formatDateDdMmYyyy } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useMyDashboardInvalidate } from "./staff-layout";
@@ -128,25 +129,6 @@ type InsuranceLead = {
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
-
-/** Get current position if user allows; returns null on deny/error. Required before opening lead form. */
-function getCurrentPositionAsync(): Promise<{ latitude: number; longitude: number } | null> {
-  if (!navigator?.geolocation) return Promise.resolve(null);
-  return new Promise((resolve) => {
-    const timeout = setTimeout(() => resolve(null), 15000);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        clearTimeout(timeout);
-        resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-      },
-      () => {
-        clearTimeout(timeout);
-        resolve(null);
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-    );
-  });
-}
 
 /** Parse premium string to number; returns null if empty or invalid. */
 function parsePremium(value: string | null | undefined): number | null {
@@ -420,15 +402,7 @@ export default function StaffMyLeads() {
   async function openDialog() {
     setGettingLocationForForm(true);
     try {
-      const coords = await getCurrentPositionAsync();
-      if (!coords) {
-        toast({
-          title: "Location required",
-          description: "Please allow location access to add a lead. The form will open only after location is captured.",
-          variant: "destructive",
-        });
-        return;
-      }
+      const coords = await requireCurrentPosition();
       setCapturedFormLocation(coords);
       try {
         const { address } = await staffJson<{ address: string }>(
