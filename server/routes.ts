@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
+import { randomBytes } from "node:crypto";
 import path from "path";
 import fs from "fs";
 import passport from "passport";
@@ -178,6 +179,19 @@ async function getVisibleEmployeeIds(req: express.Request): Promise<string[] | n
   }
   return [];
 }
+
+/** One-time tokens for Capacitor native download (no session cookie on HttpURLConnection). */
+type MonthlyExportTokenRow = {
+  userId: string;
+  role: string;
+  format: string;
+  monthParam?: string;
+  fromParam?: string;
+  toParam?: string;
+  employeeId?: string;
+  exp: number;
+};
+const monthlyExportTokenStore = new Map<string, MonthlyExportTokenRow>();
 
 export async function registerRoutes(
   httpServer: Server,
@@ -3114,7 +3128,7 @@ export async function registerRoutes(
   });
 
   // --- Staff: export monthly data (Excel / PDF) ---
-  app.get("/api/staff/export/monthly", requireAuth, requireAdminOrTeamLead, async (req, res, next) => {
+  async function handleStaffMonthlyExport(req: express.Request, res: express.Response, next: express.NextFunction) {
     try {
       const format = (req.query.format as string)?.toLowerCase();
       const monthParam = (req.query.month as string)?.trim();
@@ -3598,6 +3612,62 @@ export async function registerRoutes(
         doc.end();
         return;
       }
+    } catch (e) {
+      next(e);
+    }
+  }
+
+  app.get("/api/staff/export/monthly", requireAuth, requireAdminOrTeamLead, handleStaffMonthlyExport);
+
+  app.post("/api/staff/export/monthly-native-token", requireAuth, requireAdminOrTeamLead, async (req, res) => {
+    try {
+      const format = String(req.body?.format ?? "").toLowerCase();
+      if (!format || !["xlsx", "pdf"].includes(format)) {
+        return res.status(400).json({ message: "format must be xlsx or pdf" });
+      }
+      const monthParam = (req.body?.month as string)?.trim() || undefined;
+      const fromParam = (req.body?.from as string)?.trim() || undefined;
+      const toParam = (req.body?.to as string)?.trim() || undefined;
+      const employeeId = (req.body?.employeeId as string)?.trim() || undefined;
+      const token = randomBytes(24).toString("hex");
+      monthlyExportTokenStore.set(token, {
+        userId: (req.user as { id: string }).id,
+        role: (req.user as { role: string }).role,
+        format,
+        monthParam,
+        fromParam,
+        toParam,
+        employeeId,
+        exp: Date.now() + 5 * 60 * 1000,
+      });
+      res.json({ token });
+    } catch {
+      res.status(500).json({ message: "Failed to create download token" });
+    }
+  });
+
+  app.get("/api/staff/export/monthly-file", async (req, res, next) => {
+    try {
+      const token = String(req.query.token ?? "").trim();
+      if (!token) return res.status(400).json({ message: "token required" });
+      const row = monthlyExportTokenStore.get(token);
+      if (!row || row.exp < Date.now()) {
+        return res.status(401).json({ message: "Invalid or expired download token" });
+      }
+      monthlyExportTokenStore.delete(token);
+      (req as { user?: unknown }).user = { id: row.userId, role: row.role };
+      const q = req.query as Record<string, string | string[] | undefined>;
+      q.format = row.format;
+      if (row.monthParam) q.month = row.monthParam;
+      else delete q.month;
+      if (row.fromParam) q.from = row.fromParam;
+      else delete q.from;
+      if (row.toParam) q.to = row.toParam;
+      else delete q.to;
+      if (row.employeeId) q.employeeId = row.employeeId;
+      else delete q.employeeId;
+      delete q.token;
+      await handleStaffMonthlyExport(req, res, next);
     } catch (e) {
       next(e);
     }
