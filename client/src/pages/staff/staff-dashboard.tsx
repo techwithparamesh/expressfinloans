@@ -18,13 +18,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 type TeamMemberSummary = {
   employeeId: string;
@@ -335,19 +328,6 @@ export default function StaffDashboard() {
         (r.employeeNumber || "").toLowerCase().includes(q)
     );
   }, [conveyanceRows, conveyanceSearch, conveyanceTeamLeadsOnly]);
-
-  const exportMonthOptions = useMemo(() => {
-    const out: Array<{ value: string; label: string }> = [];
-    const base = new Date();
-    base.setDate(1);
-    for (let i = 0; i < 36; i++) {
-      const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
-      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const label = value;
-      out.push({ value, label });
-    }
-    return out;
-  }, []);
 
   if (loading) return <p className="text-slate-500">Loading…</p>;
   if (!data) return <p className="text-slate-500">Failed to load dashboard.</p>;
@@ -1332,16 +1312,15 @@ export default function StaffDashboard() {
           {exportRangeMode === "month" ? (
             <div className="space-y-2">
               <Label htmlFor="export-month">Month</Label>
-              <Select value={exportMonth} onValueChange={setExportMonth}>
-                <SelectTrigger id="export-month" className="min-w-[220px] h-10 text-base">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {exportMonthOptions.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="export-month"
+                type="month"
+                value={exportMonth}
+                onChange={(e) => setExportMonth(e.target.value)}
+                onKeyDown={(e) => e.preventDefault()}
+                className="min-w-[220px] h-10 text-base [color-scheme:light]"
+                style={{ colorScheme: "light" }}
+              />
             </div>
           ) : (
             <div className="flex flex-wrap items-end gap-4">
@@ -1410,15 +1389,10 @@ async function saveExportInNativeApp(blob: Blob, filename: string): Promise<bool
       recursive: true,
     });
 
-    // Avoid Share plugin call here; it has caused native crashes on some builds.
-    if (saved?.uri && typeof cap?.convertFileSrc === "function") {
-      const fileSrc = cap.convertFileSrc(saved.uri);
-      if (fileSrc) {
-        window.open(fileSrc, "_blank");
-      }
-    }
+    // Do not open/share immediately; this avoids app crashes on some WebView builds.
+    // File is saved to device Documents storage.
 
-    return true;
+    return !!saved?.uri;
   } catch {
     return false;
   }
