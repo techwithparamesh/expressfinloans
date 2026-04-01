@@ -594,6 +594,9 @@ export async function registerRoutes(
       const userId = (req.user as any).id;
       const body = req.body || {};
       const dateStr = body.date || todayStr();
+      if (!body.dateOfBirth || (typeof body.dateOfBirth === "string" && !body.dateOfBirth.trim())) {
+        return res.status(400).json({ message: "Date of birth is required" });
+      }
       if (!body.contactNum || (typeof body.contactNum === "string" && !body.contactNum.trim())) {
         return res.status(400).json({ message: "Contact number is required" });
       }

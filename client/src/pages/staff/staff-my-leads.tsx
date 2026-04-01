@@ -538,13 +538,17 @@ export default function StaffMyLeads() {
 
   async function handleInsuranceSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const insuranceDob = parseDobInput(insuranceForm.dateOfBirth) ?? (insuranceForm.dateOfBirth?.trim().match(/^\d{4}-\d{2}-\d{2}$/) ? insuranceForm.dateOfBirth.trim() : null);
+    if (!insuranceDob) {
+      toast({ title: "Date of Birth is required (select from calendar)", variant: "destructive" });
+      return;
+    }
     if (!insuranceForm.contactNum?.trim()) {
       toast({ title: "Contact number is required", variant: "destructive" });
       return;
     }
     setSaving(true);
     try {
-      const insuranceDob = parseDobInput(insuranceForm.dateOfBirth) ?? (insuranceForm.dateOfBirth?.trim().match(/^\d{4}-\d{2}-\d{2}$/) ? insuranceForm.dateOfBirth.trim() : null);
       const payload = {
         date: insuranceForm.date,
         customerName: insuranceForm.customerName || null,
@@ -1404,10 +1408,11 @@ export default function StaffMyLeads() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label>Date of birth</Label>
+                    <Label>Date of birth <span className="text-red-500">*</span></Label>
                     <DateInput
                       value={insuranceForm.dateOfBirth ? String(insuranceForm.dateOfBirth).slice(0, 10) : ""}
                       onChange={(e) => setInsuranceForm((f) => ({ ...f, dateOfBirth: e.target.value ? e.target.value.slice(0, 10) : "" }))}
+                      required
                     />
                   </div>
                 </div>
