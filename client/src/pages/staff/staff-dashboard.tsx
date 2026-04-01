@@ -10,6 +10,9 @@ import { Calendar, Download, Target, TrendingUp, Percent, DollarSign, Car, Activ
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Capacitor } from "@capacitor/core";
+import { Filesystem, Directory } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 import {
   Dialog,
   DialogContent,
@@ -357,19 +360,52 @@ export default function StaffDashboard() {
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
       const ext = format === "xlsx" ? "xlsx" : "pdf";
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = exportRangeMode === "month"
+      const filename = exportRangeMode === "month"
         ? `monthly-report-${exportMonth}.${ext}`
         : `report-${exportFrom}-to-${exportTo}.${ext}`;
-      a.click();
-      URL.revokeObjectURL(a.href);
+
+      if (Capacitor.isNativePlatform()) {
+        const data = await blobToBase64(blob);
+        const saved = await Filesystem.writeFile({
+          path: filename,
+          data,
+          directory: Directory.Documents,
+          recursive: true,
+        });
+        if (saved.uri) {
+          await Share.share({
+            title: "Export report",
+            text: "Monthly report export",
+            url: saved.uri,
+            dialogTitle: "Save or share report",
+          });
+        }
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
     } catch {
       // ignore
     } finally {
       setExporting(null);
     }
   }
+
+  const exportMonthOptions = useMemo(() => {
+    const out: Array<{ value: string; label: string }> = [];
+    const base = new Date();
+    base.setDate(1);
+    for (let i = 0; i < 36; i++) {
+      const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleString("default", { month: "long", year: "numeric" });
+      out.push({ value, label });
+    }
+    return out;
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -1313,21 +1349,16 @@ export default function StaffDashboard() {
           {exportRangeMode === "month" ? (
             <div className="space-y-2">
               <Label htmlFor="export-month">Month</Label>
-              <div className="relative flex items-center overflow-visible">
-                <Calendar className="absolute left-3 h-4 w-4 text-slate-500 pointer-events-none" aria-hidden />
-                <Input
-                  id="export-month"
-                  type="month"
-                  value={exportMonth}
-                  onChange={(e) => setExportMonth(e.target.value)}
-                  onKeyDown={(e) => e.preventDefault()}
-                  readOnly
-                  title="Select month from picker"
-                  className="min-w-[180px] h-10 pl-10 pr-4 py-2.5 text-base [color-scheme:light]"
-                  style={{ colorScheme: "light" }}
-                  aria-label="Select month for export"
-                />
-              </div>
+              <Select value={exportMonth} onValueChange={setExportMonth}>
+                <SelectTrigger id="export-month" className="min-w-[220px] h-10 text-base">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {exportMonthOptions.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           ) : (
             <div className="flex flex-wrap items-end gap-4">
@@ -1364,4 +1395,14 @@ export default function StaffDashboard() {
 
     </div>
   );
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
 }
