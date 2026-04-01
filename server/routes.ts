@@ -402,6 +402,9 @@ export async function registerRoutes(
       if (!body.incomeType || (typeof body.incomeType === "string" && !body.incomeType.trim())) {
         return res.status(400).json({ message: "Income type is required" });
       }
+      if (!body.customerPhone || (typeof body.customerPhone === "string" && !body.customerPhone.trim())) {
+        return res.status(400).json({ message: "Contact number is required" });
+      }
       let formLocation: string | null = (body.formLocation && String(body.formLocation).trim()) ? String(body.formLocation).trim().slice(0, 500) : null;
       if (!formLocation && body.latitude != null && body.longitude != null) {
         const lat = Number(body.latitude);
@@ -413,7 +416,7 @@ export async function registerRoutes(
         date: dateStr,
         customerName: body.customerName ?? null,
         dateOfBirth: body.dateOfBirth && String(body.dateOfBirth).trim() ? String(body.dateOfBirth).trim().slice(0, 10) : null,
-        customerPhone: body.customerPhone ?? null,
+        customerPhone: body.customerPhone && String(body.customerPhone).trim() ? String(body.customerPhone).trim() : null,
         customerEmail: body.customerEmail ?? null,
         location: body.location ?? null,
         loanType: body.loanType ?? null,
@@ -591,6 +594,9 @@ export async function registerRoutes(
       const userId = (req.user as any).id;
       const body = req.body || {};
       const dateStr = body.date || todayStr();
+      if (!body.contactNum || (typeof body.contactNum === "string" && !body.contactNum.trim())) {
+        return res.status(400).json({ message: "Contact number is required" });
+      }
       let formLocation: string | null = (body.formLocation && String(body.formLocation).trim()) ? String(body.formLocation).trim().slice(0, 500) : null;
       if (!formLocation && body.latitude != null && body.longitude != null) {
         const lat = Number(body.latitude);
@@ -602,7 +608,7 @@ export async function registerRoutes(
         date: dateStr,
         customerName: body.customerName ?? null,
         dateOfBirth: body.dateOfBirth && String(body.dateOfBirth).trim() ? String(body.dateOfBirth).trim().slice(0, 10) : null,
-        contactNum: body.contactNum ?? null,
+        contactNum: body.contactNum && String(body.contactNum).trim() ? String(body.contactNum).trim() : null,
         mailId: body.mailId ?? null,
         location: body.location ?? null,
         insuranceType: body.insuranceType ?? null,

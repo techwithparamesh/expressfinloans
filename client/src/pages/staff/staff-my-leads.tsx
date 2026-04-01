@@ -479,13 +479,17 @@ export default function StaffMyLeads() {
       toast({ title: "Income type is required", variant: "destructive" });
       return;
     }
+    if (!loanForm.customerPhone?.trim()) {
+      toast({ title: "Contact number is required", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
         date: loanForm.date,
         customerName: loanForm.customerName || null,
         dateOfBirth: dobNormalized,
-        customerPhone: loanForm.customerPhone || null,
+        customerPhone: loanForm.customerPhone?.trim() || null,
         customerEmail: loanForm.customerEmail || null,
         location: loanForm.location || null,
         loanType: loanForm.loanType || null,
@@ -534,6 +538,10 @@ export default function StaffMyLeads() {
 
   async function handleInsuranceSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!insuranceForm.contactNum?.trim()) {
+      toast({ title: "Contact number is required", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const insuranceDob = parseDobInput(insuranceForm.dateOfBirth) ?? (insuranceForm.dateOfBirth?.trim().match(/^\d{4}-\d{2}-\d{2}$/) ? insuranceForm.dateOfBirth.trim() : null);
@@ -541,7 +549,7 @@ export default function StaffMyLeads() {
         date: insuranceForm.date,
         customerName: insuranceForm.customerName || null,
         dateOfBirth: insuranceDob || null,
-        contactNum: insuranceForm.contactNum || null,
+        contactNum: insuranceForm.contactNum?.trim() || null,
         mailId: insuranceForm.mailId || null,
         location: insuranceForm.location || null,
         insuranceType: insuranceForm.insuranceType || null,
@@ -1077,10 +1085,11 @@ export default function StaffMyLeads() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label>Contact num</Label>
+                      <Label>Contact num <span className="text-red-500">*</span></Label>
                       <Input
                         value={loanForm.customerPhone}
                         onChange={(e) => setLoanForm((f) => ({ ...f, customerPhone: e.target.value }))}
+                        required
                       />
                     </div>
                   </div>
@@ -1404,12 +1413,13 @@ export default function StaffMyLeads() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label>Contact num</Label>
+                    <Label>Contact num <span className="text-red-500">*</span></Label>
                     <Input
                       value={insuranceForm.contactNum}
                       onChange={(e) =>
                         setInsuranceForm((f) => ({ ...f, contactNum: e.target.value }))
                       }
+                      required
                     />
                   </div>
                   <div className="space-y-1">
