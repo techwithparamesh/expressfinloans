@@ -10,9 +10,6 @@ import { Calendar, Download, Target, TrendingUp, Percent, DollarSign, Car, Activ
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Capacitor } from "@capacitor/core";
-import { Filesystem, Directory } from "@capacitor/filesystem";
-import { Share } from "@capacitor/share";
 import {
   Dialog,
   DialogContent,
@@ -364,22 +361,8 @@ export default function StaffDashboard() {
         ? `monthly-report-${exportMonth}.${ext}`
         : `report-${exportFrom}-to-${exportTo}.${ext}`;
 
-      if (Capacitor.isNativePlatform()) {
-        const data = await blobToBase64(blob);
-        const saved = await Filesystem.writeFile({
-          path: filename,
-          data,
-          directory: Directory.Documents,
-          recursive: true,
-        });
-        if (saved.uri) {
-          await Share.share({
-            title: "Export report",
-            text: "Monthly report export",
-            url: saved.uri,
-            dialogTitle: "Save or share report",
-          });
-        }
+      if (await saveExportInNativeApp(blob, filename)) {
+        // Native path handled via Capacitor bridge.
       } else {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
@@ -1405,4 +1388,37 @@ async function blobToBase64(blob: Blob): Promise<string> {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
+}
+
+async function saveExportInNativeApp(blob: Blob, filename: string): Promise<boolean> {
+  const cap = (window as any)?.Capacitor;
+  if (!cap || typeof cap.isNativePlatform !== "function" || !cap.isNativePlatform()) {
+    return false;
+  }
+
+  const fs = cap?.Plugins?.Filesystem;
+  const share = cap?.Plugins?.Share;
+  if (!fs || !share || typeof fs.writeFile !== "function" || typeof share.share !== "function") {
+    return false;
+  }
+
+  const data = await blobToBase64(blob);
+  const saved = await fs.writeFile({
+    path: filename,
+    data,
+    directory: "DOCUMENTS",
+    recursive: true,
+  });
+
+  if (saved?.uri) {
+    await share.share({
+      title: "Export report",
+      text: "Monthly report export",
+      url: saved.uri,
+      dialogTitle: "Save or share report",
+    });
+    return true;
+  }
+
+  return false;
 }
