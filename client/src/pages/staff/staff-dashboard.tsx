@@ -343,7 +343,7 @@ export default function StaffDashboard() {
     for (let i = 0; i < 36; i++) {
       const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
       const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const label = d.toLocaleString("default", { month: "long", year: "numeric" });
+      const label = value;
       out.push({ value, label });
     }
     return out;
@@ -1391,34 +1391,35 @@ async function blobToBase64(blob: Blob): Promise<string> {
 }
 
 async function saveExportInNativeApp(blob: Blob, filename: string): Promise<boolean> {
-  const cap = (window as any)?.Capacitor;
-  if (!cap || typeof cap.isNativePlatform !== "function" || !cap.isNativePlatform()) {
-    return false;
-  }
+  try {
+    const cap = (window as any)?.Capacitor;
+    if (!cap || typeof cap.isNativePlatform !== "function" || !cap.isNativePlatform()) {
+      return false;
+    }
 
-  const fs = cap?.Plugins?.Filesystem;
-  const share = cap?.Plugins?.Share;
-  if (!fs || !share || typeof fs.writeFile !== "function" || typeof share.share !== "function") {
-    return false;
-  }
+    const fs = cap?.Plugins?.Filesystem;
+    if (!fs || typeof fs.writeFile !== "function") {
+      return false;
+    }
 
-  const data = await blobToBase64(blob);
-  const saved = await fs.writeFile({
-    path: filename,
-    data,
-    directory: "DOCUMENTS",
-    recursive: true,
-  });
-
-  if (saved?.uri) {
-    await share.share({
-      title: "Export report",
-      text: "Monthly report export",
-      url: saved.uri,
-      dialogTitle: "Save or share report",
+    const data = await blobToBase64(blob);
+    const saved = await fs.writeFile({
+      path: filename,
+      data,
+      directory: "DOCUMENTS",
+      recursive: true,
     });
-    return true;
-  }
 
-  return false;
+    // Avoid Share plugin call here; it has caused native crashes on some builds.
+    if (saved?.uri && typeof cap?.convertFileSrc === "function") {
+      const fileSrc = cap.convertFileSrc(saved.uri);
+      if (fileSrc) {
+        window.open(fileSrc, "_blank");
+      }
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
 }
