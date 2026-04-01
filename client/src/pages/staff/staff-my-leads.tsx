@@ -276,6 +276,13 @@ export default function StaffMyLeads() {
   const [upcomingRenewals, setUpcomingRenewals] = useState<InsuranceLead[]>([]);
   const [showRenewalReminder, setShowRenewalReminder] = useState(true);
   const [renewalMarkingId, setRenewalMarkingId] = useState<string | null>(null);
+  const [filterMode, setFilterMode] = useState<"month" | "custom">("month");
+  const [filterMonth, setFilterMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [filterFrom, setFilterFrom] = useState(() => getMonthRange(today().slice(0, 7)).from);
+  const [filterTo, setFilterTo] = useState(() => getMonthRange(today().slice(0, 7)).to);
 
   function mapLeadToLoanForm(l: Lead): ReturnType<typeof defaultLoanForm> {
     const dateVal = (l as { date?: string }).date;
@@ -366,8 +373,7 @@ export default function StaffMyLeads() {
 
   function load() {
     setLoading(true);
-    const from = getMonthStart();
-    const to = today();
+    const { from, to } = filterMode === "month" ? getMonthRange(filterMonth) : { from: filterFrom, to: filterTo };
     Promise.all([
       staffJson<Lead[]>("/staff/leads/me?from=" + from + "&to=" + to),
       staffJson<InsuranceLead[]>("/staff/insurance-leads/me?from=" + from + "&to=" + to),
@@ -406,7 +412,10 @@ export default function StaffMyLeads() {
     }
   }
 
-  useEffect(() => load(), []);
+  useEffect(() => {
+    if (filterMode === "custom" && (!filterFrom || !filterTo)) return;
+    load();
+  }, [filterMode, filterMonth, filterFrom, filterTo]);
 
   async function openDialog() {
     setGettingLocationForForm(true);
@@ -649,10 +658,76 @@ export default function StaffMyLeads() {
 
       <Card className="overflow-hidden">
         <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-base sm:text-lg">Leads this month</CardTitle>
+          <CardTitle className="text-base sm:text-lg">My leads</CardTitle>
           <CardDescription className="text-xs sm:text-sm">Location is captured when you open the lead form; allow access when prompted.</CardDescription>
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+          <div className="mb-4 rounded-md border p-3">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  id="leads-filter-month"
+                  name="leads-filter-mode"
+                  checked={filterMode === "month"}
+                  onChange={() => setFilterMode("month")}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="leads-filter-month" className="cursor-pointer text-sm font-normal">By month</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  id="leads-filter-custom"
+                  name="leads-filter-mode"
+                  checked={filterMode === "custom"}
+                  onChange={() => setFilterMode("custom")}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="leads-filter-custom" className="cursor-pointer text-sm font-normal">Custom dates</Label>
+              </div>
+            </div>
+            {filterMode === "month" ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Label htmlFor="leads-filter-month-input" className="text-sm text-slate-600">Month</Label>
+                <Input
+                  id="leads-filter-month-input"
+                  type="month"
+                  value={filterMonth}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setFilterMonth(next);
+                    const range = getMonthRange(next);
+                    setFilterFrom(range.from);
+                    setFilterTo(range.to);
+                  }}
+                  className="h-9 w-[170px] [color-scheme:light]"
+                  style={{ colorScheme: "light" }}
+                />
+              </div>
+            ) : (
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label htmlFor="leads-filter-from" className="text-sm text-slate-600">From</Label>
+                  <DateInput
+                    id="leads-filter-from"
+                    value={filterFrom}
+                    onChange={(e) => setFilterFrom(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="leads-filter-to" className="text-sm text-slate-600">To</Label>
+                  <DateInput
+                    id="leads-filter-to"
+                    value={filterTo}
+                    onChange={(e) => setFilterTo(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
           <Tabs defaultValue="loan">
             <TabsList className="w-full sm:w-auto grid grid-cols-2">
               <TabsTrigger value="loan" className="text-xs sm:text-sm">Loan leads</TabsTrigger>
@@ -662,7 +737,7 @@ export default function StaffMyLeads() {
               {/* Mobile: card list so each value sits under its label */}
               <div className="space-y-3 md:hidden">
                 {leads.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4">No loan leads this month.</p>
+                  <p className="text-sm text-muted-foreground py-4">No loan leads for selected period.</p>
                 ) : (
                   leads.map((l) => (
                     <div key={l.id} className="rounded-lg border bg-card p-3 space-y-2 text-sm">
@@ -771,7 +846,7 @@ export default function StaffMyLeads() {
               {/* Mobile: card list so each value sits under its label */}
               <div className="space-y-3 md:hidden">
                 {insuranceLeads.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4">No insurance leads this month.</p>
+                  <p className="text-sm text-muted-foreground py-4">No insurance leads for selected period.</p>
                 ) : (
                   insuranceLeads.map((l) => (
                     <div key={l.id} className="rounded-lg border bg-card p-3 space-y-2 text-sm">
@@ -1804,8 +1879,14 @@ export default function StaffMyLeads() {
   );
 }
 
-function getMonthStart(): string {
-  const d = new Date();
-  d.setDate(1);
-  return d.toISOString().slice(0, 10);
+function getMonthRange(month: string): { from: string; to: string } {
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    const t = today();
+    return { from: t, to: t };
+  }
+  const [y, m] = month.split("-").map(Number);
+  const from = `${y}-${String(m).padStart(2, "0")}-01`;
+  const end = new Date(y, m, 0);
+  const to = `${y}-${String(m).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
+  return { from, to };
 }
