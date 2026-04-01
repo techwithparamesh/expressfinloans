@@ -169,6 +169,104 @@ type EmployeeOption = {
   username: string;
 };
 
+/** Base64 for one small binary chunk only (FileReader — no giant string build in JS). */
+function uint8ToBase64Chunk(bytes: Uint8Array): Promise<string> {
+  const blob = new Blob([bytes]);
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error("FileReader failed"));
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const part = dataUrl.split(",")[1];
+      if (part == null) reject(new Error("Invalid data URL"));
+      else resolve(part);
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+
+type NativeFs = {
+  writeFile: (o: Record<string, unknown>) => Promise<unknown>;
+  appendFile: (o: Record<string, unknown>) => Promise<unknown>;
+  getUri: (o: Record<string, unknown>) => Promise<{ uri: string }>;
+  Directory?: { Cache?: string };
+};
+
+/**
+ * Stream download bytes to native FS without ever holding the full file in JS heap.
+ * rawChunkSize must stay small so base64 + Binder stay under Android limits (~256KB raw ≈ 342KB b64).
+ */
+async function streamResponseToNativeFile(
+  res: Response,
+  FS: NativeFs,
+  filename: string,
+  dirCache: string
+): Promise<void> {
+  const body = res.body;
+  if (!body) throw new Error("No response body");
+
+  await FS.writeFile({
+    path: filename,
+    data: "",
+    directory: dirCache,
+    recursive: true,
+  });
+
+  const rawChunkSize = 256 * 1024;
+  const reader = body.getReader();
+  let carry = new Uint8Array(0);
+
+  const appendBase64 = async (raw: Uint8Array) => {
+    const b64 = await uint8ToBase64Chunk(raw);
+    await FS.appendFile({
+      path: filename,
+      data: b64,
+      directory: dirCache,
+    });
+  };
+
+  const ingestBuf = async (buf: Uint8Array) => {
+    let idx = 0;
+    if (carry.length > 0) {
+      const need = rawChunkSize - carry.length;
+      if (buf.length >= need) {
+        const merged = new Uint8Array(rawChunkSize);
+        merged.set(carry);
+        merged.set(buf.subarray(0, need), carry.length);
+        await appendBase64(merged);
+        idx = need;
+        carry = new Uint8Array(0);
+      } else {
+        const merged = new Uint8Array(carry.length + buf.length);
+        merged.set(carry);
+        merged.set(buf, carry.length);
+        carry = merged;
+        return;
+      }
+    }
+    while (idx + rawChunkSize <= buf.length) {
+      await appendBase64(buf.subarray(idx, idx + rawChunkSize));
+      idx += rawChunkSize;
+    }
+    if (idx < buf.length) {
+      carry = new Uint8Array(buf.subarray(idx));
+    }
+  };
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (value && value.length) await ingestBuf(value);
+      if (done) break;
+    }
+    if (carry.length > 0) {
+      await appendBase64(carry);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 export default function StaffDashboard() {
   const [user, setUser] = useState<StaffUser | null>(null);
   const [data, setData] = useState<Dashboard | null>(null);
@@ -356,7 +454,6 @@ export default function StaffDashboard() {
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Export failed");
 
-      const blob = await res.blob();
       const ext = format === "xlsx" ? "xlsx" : "pdf";
       const filename = exportRangeMode === "month"
         ? `monthly-report-${exportMonth}.${ext}`
@@ -366,48 +463,25 @@ export default function StaffDashboard() {
       const isNative = typeof cap?.isNativePlatform === "function" && cap.isNativePlatform();
 
       if (isNative) {
-        const FS = cap.Plugins.Filesystem;
-        const SharePlugin = cap.Plugins.Share;
-        if (!FS || !SharePlugin) throw new Error("Plugins missing");
+        const FS = cap.Plugins.Filesystem as NativeFs | undefined;
+        const SharePlugin = cap.Plugins.Share as { share?: (o: Record<string, unknown>) => Promise<unknown> } | undefined;
+        if (!FS?.writeFile || !FS.appendFile || !FS.getUri) throw new Error("Filesystem plugin missing");
 
         const dirCache = FS.Directory?.Cache || "CACHE";
 
-        await FS.writeFile({
-          path: filename,
-          data: "",
-          directory: dirCache,
-          recursive: true,
-        });
-
-        const chunkSize = 512 * 1024;
-        for (let i = 0; i < blob.size; i += chunkSize) {
-          const chunkBlob = blob.slice(i, i + chunkSize);
-
-          const chunkBase64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onerror = reject;
-            reader.onload = () => {
-              const dataUrl = reader.result as string;
-              const part = dataUrl.split(",")[1];
-              if (part == null) {
-                reject(new Error("Invalid data URL from FileReader"));
-                return;
-              }
-              resolve(part);
-            };
-            reader.readAsDataURL(chunkBlob);
-          });
-
-          await FS.appendFile({
-            path: filename,
-            data: chunkBase64,
-            directory: dirCache,
-          });
-        }
+        // Stream body → small native appends (no full-file blob / OOM; smaller Binder payloads than 512KB b64)
+        await streamResponseToNativeFile(res, FS, filename, dirCache);
 
         const fileUri = await FS.getUri({ path: filename, directory: dirCache });
-        await SharePlugin.share({ url: fileUri.uri, title: filename });
+        try {
+          if (SharePlugin?.share) {
+            await SharePlugin.share({ url: fileUri.uri, title: filename });
+          }
+        } catch (shareErr) {
+          console.warn("Export saved; Share sheet failed (non-fatal):", shareErr);
+        }
       } else {
+        const blob = await res.blob();
         const objectUrl = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = objectUrl;
