@@ -353,17 +353,25 @@ export default function StaffDashboard() {
         params.set("to", exportTo);
       }
       const url = `/api/staff/export/monthly?${params.toString()}`;
-      const res = await fetch(url, { credentials: "include" });
-      if (!res.ok) throw new Error("Export failed");
-      const blob = await res.blob();
-      const ext = format === "xlsx" ? "xlsx" : "pdf";
-      const filename = exportRangeMode === "month"
-        ? `monthly-report-${exportMonth}.${ext}`
-        : `report-${exportFrom}-to-${exportTo}.${ext}`;
-
-      if (await saveExportInNativeApp(blob, filename)) {
-        // Native path handled via Capacitor bridge.
+      const isNative = !!((window as any)?.Capacitor?.isNativePlatform?.());
+      if (isNative) {
+        // In native WebView, avoid blob->base64/plugin file flows (can crash on some devices).
+        // Trigger direct authenticated download endpoint instead.
+        const a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
       } else {
+        const res = await fetch(url, { credentials: "include" });
+        if (!res.ok) throw new Error("Export failed");
+        const blob = await res.blob();
+        const ext = format === "xlsx" ? "xlsx" : "pdf";
+        const filename = exportRangeMode === "month"
+          ? `monthly-report-${exportMonth}.${ext}`
+          : `report-${exportFrom}-to-${exportTo}.${ext}`;
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
         a.download = filename;
@@ -1366,41 +1374,3 @@ export default function StaffDashboard() {
   );
 }
 
-async function blobToBase64(blob: Blob): Promise<string> {
-  const buffer = await blob.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-async function saveExportInNativeApp(blob: Blob, filename: string): Promise<boolean> {
-  try {
-    const cap = (window as any)?.Capacitor;
-    if (!cap || typeof cap.isNativePlatform !== "function" || !cap.isNativePlatform()) {
-      return false;
-    }
-
-    const fs = cap?.Plugins?.Filesystem;
-    if (!fs || typeof fs.writeFile !== "function") {
-      return false;
-    }
-
-    const data = await blobToBase64(blob);
-    const saved = await fs.writeFile({
-      path: filename,
-      data,
-      directory: "DOCUMENTS",
-      recursive: true,
-    });
-
-    // Do not open/share immediately; this avoids app crashes on some WebView builds.
-    // File is saved to device Documents storage.
-
-    return !!saved?.uri;
-  } catch {
-    return false;
-  }
-}
