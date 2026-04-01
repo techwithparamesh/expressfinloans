@@ -25,9 +25,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Capacitor } from "@capacitor/core";
-import { Filesystem, Directory } from "@capacitor/filesystem";
-import { Share } from "@capacitor/share";
 
 type TeamMemberSummary = {
   employeeId: string;
@@ -364,22 +361,47 @@ export default function StaffDashboard() {
         ? `monthly-report-${exportMonth}.${ext}`
         : `report-${exportFrom}-to-${exportTo}.${ext}`;
 
-      if (Capacitor.isNativePlatform()) {
-        const base64 = await blobToBase64(blob);
-        const written = await Filesystem.writeFile({
+      const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean; Plugins?: Record<string, unknown> } }).Capacitor;
+      const isNative = typeof cap?.isNativePlatform === "function" && cap.isNativePlatform();
+
+      if (isNative) {
+        const FS = cap?.Plugins?.Filesystem as {
+          writeFile: (o: Record<string, unknown>) => Promise<unknown>;
+          appendFile: (o: Record<string, unknown>) => Promise<unknown>;
+          getUri: (o: Record<string, unknown>) => Promise<{ uri: string }>;
+          Directory?: { Cache?: string };
+        };
+        const SharePlugin = cap?.Plugins?.Share as { share: (o: Record<string, unknown>) => Promise<unknown> };
+        if (!FS?.writeFile || !FS.appendFile || !FS.getUri || !SharePlugin?.share) {
+          throw new Error("Native Filesystem/Share plugins unavailable");
+        }
+
+        const w = window as unknown as {
+          Capacitor?: { Plugins?: { Filesystem?: { Directory?: { Cache?: string } } } };
+        };
+        const dirCache = FS.Directory?.Cache ?? w.Capacitor?.Plugins?.Filesystem?.Directory?.Cache ?? "CACHE";
+
+        const pureBase64 = await blobToBase64(blob);
+        const chunkSize = 524288;
+
+        await FS.writeFile({
           path: filename,
-          data: base64,
-          directory: Directory.Documents,
+          data: "",
+          directory: dirCache,
           recursive: true,
         });
-        if (written.uri) {
-          await Share.share({
-            title: "Monthly report",
-            text: filename,
-            url: written.uri,
-            dialogTitle: "Save or share report",
+
+        for (let i = 0; i < pureBase64.length; i += chunkSize) {
+          const chunk = pureBase64.slice(i, i + chunkSize);
+          await FS.appendFile({
+            path: filename,
+            data: chunk,
+            directory: dirCache,
           });
         }
+
+        const fileUri = await FS.getUri({ path: filename, directory: dirCache });
+        await SharePlugin.share({ url: fileUri.uri, title: filename });
       } else {
         const objectUrl = URL.createObjectURL(blob);
         const a = document.createElement("a");
