@@ -169,6 +169,24 @@ type EmployeeOption = {
   username: string;
 };
 
+/** Safe native-backed converter — avoids JS heap spikes from manual byte loops. */
+const blobToBase64 = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error("FileReader failed"));
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const base64 = dataUrl.split(",")[1];
+      if (base64 == null) {
+        reject(new Error("Invalid data URL from FileReader"));
+        return;
+      }
+      resolve(base64);
+    };
+    reader.readAsDataURL(blob);
+  });
+};
+
 export default function StaffDashboard() {
   const [user, setUser] = useState<StaffUser | null>(null);
   const [data, setData] = useState<Dashboard | null>(null);
@@ -355,13 +373,14 @@ export default function StaffDashboard() {
       const url = `/api/staff/export/monthly?${params.toString()}`;
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Export failed");
+
       const blob = await res.blob();
       const ext = format === "xlsx" ? "xlsx" : "pdf";
       const filename = exportRangeMode === "month"
         ? `monthly-report-${exportMonth}.${ext}`
         : `report-${exportFrom}-to-${exportTo}.${ext}`;
 
-      const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean; Plugins?: Record<string, unknown> } }).Capacitor;
+      const cap = (window as any).Capacitor;
       const isNative = typeof cap?.isNativePlatform === "function" && cap.isNativePlatform();
 
       if (isNative) {
@@ -372,17 +391,14 @@ export default function StaffDashboard() {
           Directory?: { Cache?: string };
         };
         const SharePlugin = cap?.Plugins?.Share as { share: (o: Record<string, unknown>) => Promise<unknown> };
-        if (!FS?.writeFile || !FS.appendFile || !FS.getUri || !SharePlugin?.share) {
-          throw new Error("Native Filesystem/Share plugins unavailable");
+        if (!FS || !SharePlugin) throw new Error("Plugins missing");
+        if (!FS.writeFile || !FS.appendFile || !FS.getUri || !SharePlugin.share) {
+          throw new Error("Filesystem/Share methods unavailable");
         }
 
-        const w = window as unknown as {
-          Capacitor?: { Plugins?: { Filesystem?: { Directory?: { Cache?: string } } } };
-        };
-        const dirCache = FS.Directory?.Cache ?? w.Capacitor?.Plugins?.Filesystem?.Directory?.Cache ?? "CACHE";
+        const dirCache = FS.Directory?.Cache || "CACHE";
 
         const pureBase64 = await blobToBase64(blob);
-        const chunkSize = 524288;
 
         await FS.writeFile({
           path: filename,
@@ -391,6 +407,7 @@ export default function StaffDashboard() {
           recursive: true,
         });
 
+        const chunkSize = 524288;
         for (let i = 0; i < pureBase64.length; i += chunkSize) {
           const chunk = pureBase64.slice(i, i + chunkSize);
           await FS.appendFile({
@@ -412,8 +429,8 @@ export default function StaffDashboard() {
         a.remove();
         URL.revokeObjectURL(objectUrl);
       }
-    } catch {
-      // ignore
+    } catch (error) {
+      console.error("Export Error:", error);
     } finally {
       setExporting(null);
     }
@@ -1407,14 +1424,3 @@ export default function StaffDashboard() {
     </div>
   );
 }
-
-async function blobToBase64(blob: Blob): Promise<string> {
-  const buffer = await blob.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
