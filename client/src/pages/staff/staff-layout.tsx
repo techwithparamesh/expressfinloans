@@ -154,7 +154,7 @@ export default function StaffLayout({
     ...(isEmployee ? [{ href: path(basePath, "/my-dashboard"), label: "My dashboard", icon: LayoutDashboard }] : []),
     ...(isAdmin ? [{ href: path(basePath, "/employees"), label: "Employees", icon: Users }] : []),
     ...(isAdmin ? [{ href: path(basePath, "/admin-expenses"), label: "Admin expenses", icon: Receipt }] : []),
-    ...(isAdmin ? [{ href: path(basePath, "/holidays"), label: "Holiday calendar", icon: CalendarDays }] : []),
+    ...((isAdmin || isTeamLead || isEmployee) ? [{ href: path(basePath, "/holidays"), label: "Holiday calendar", icon: CalendarDays }] : []),
     ...(isAdmin ? [{ href: path(basePath, "/payroll"), label: "Payroll", icon: DollarSign }] : []),
     ...(isTeamLead ? [{ href: path(basePath, "/my-team"), label: "My team", icon: Users }] : []),
     ...(isAdmin || isTeamLead ? [{ href: path(basePath, "/target-allocation"), label: "Target allocation", icon: Target }] : []),
