@@ -169,24 +169,6 @@ type EmployeeOption = {
   username: string;
 };
 
-/** Safe native-backed converter — avoids JS heap spikes from manual byte loops. */
-const blobToBase64 = (blob: Blob): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(reader.error ?? new Error("FileReader failed"));
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      const base64 = dataUrl.split(",")[1];
-      if (base64 == null) {
-        reject(new Error("Invalid data URL from FileReader"));
-        return;
-      }
-      resolve(base64);
-    };
-    reader.readAsDataURL(blob);
-  });
-};
-
 export default function StaffDashboard() {
   const [user, setUser] = useState<StaffUser | null>(null);
   const [data, setData] = useState<Dashboard | null>(null);
@@ -384,21 +366,11 @@ export default function StaffDashboard() {
       const isNative = typeof cap?.isNativePlatform === "function" && cap.isNativePlatform();
 
       if (isNative) {
-        const FS = cap?.Plugins?.Filesystem as {
-          writeFile: (o: Record<string, unknown>) => Promise<unknown>;
-          appendFile: (o: Record<string, unknown>) => Promise<unknown>;
-          getUri: (o: Record<string, unknown>) => Promise<{ uri: string }>;
-          Directory?: { Cache?: string };
-        };
-        const SharePlugin = cap?.Plugins?.Share as { share: (o: Record<string, unknown>) => Promise<unknown> };
+        const FS = cap.Plugins.Filesystem;
+        const SharePlugin = cap.Plugins.Share;
         if (!FS || !SharePlugin) throw new Error("Plugins missing");
-        if (!FS.writeFile || !FS.appendFile || !FS.getUri || !SharePlugin.share) {
-          throw new Error("Filesystem/Share methods unavailable");
-        }
 
         const dirCache = FS.Directory?.Cache || "CACHE";
-
-        const pureBase64 = await blobToBase64(blob);
 
         await FS.writeFile({
           path: filename,
@@ -407,12 +379,28 @@ export default function StaffDashboard() {
           recursive: true,
         });
 
-        const chunkSize = 524288;
-        for (let i = 0; i < pureBase64.length; i += chunkSize) {
-          const chunk = pureBase64.slice(i, i + chunkSize);
+        const chunkSize = 512 * 1024;
+        for (let i = 0; i < blob.size; i += chunkSize) {
+          const chunkBlob = blob.slice(i, i + chunkSize);
+
+          const chunkBase64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = reject;
+            reader.onload = () => {
+              const dataUrl = reader.result as string;
+              const part = dataUrl.split(",")[1];
+              if (part == null) {
+                reject(new Error("Invalid data URL from FileReader"));
+                return;
+              }
+              resolve(part);
+            };
+            reader.readAsDataURL(chunkBlob);
+          });
+
           await FS.appendFile({
             path: filename,
-            data: chunk,
+            data: chunkBase64,
             directory: dirCache,
           });
         }
