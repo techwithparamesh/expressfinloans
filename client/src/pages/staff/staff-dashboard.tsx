@@ -336,6 +336,19 @@ export default function StaffDashboard() {
     );
   }, [conveyanceRows, conveyanceSearch, conveyanceTeamLeadsOnly]);
 
+  const exportMonthOptions = useMemo(() => {
+    const out: Array<{ value: string; label: string }> = [];
+    const base = new Date();
+    base.setDate(1);
+    for (let i = 0; i < 36; i++) {
+      const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleString("default", { month: "long", year: "numeric" });
+      out.push({ value, label });
+    }
+    return out;
+  }, []);
+
   if (loading) return <p className="text-slate-500">Loading…</p>;
   if (!data) return <p className="text-slate-500">Failed to load dashboard.</p>;
 
@@ -376,19 +389,6 @@ export default function StaffDashboard() {
       setExporting(null);
     }
   }
-
-  const exportMonthOptions = useMemo(() => {
-    const out: Array<{ value: string; label: string }> = [];
-    const base = new Date();
-    base.setDate(1);
-    for (let i = 0; i < 36; i++) {
-      const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
-      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const label = d.toLocaleString("default", { month: "long", year: "numeric" });
-      out.push({ value, label });
-    }
-    return out;
-  }, []);
 
   return (
     <div className="space-y-6">
