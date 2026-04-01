@@ -353,30 +353,35 @@ export default function StaffDashboard() {
         params.set("to", exportTo);
       }
       const url = `/api/staff/export/monthly?${params.toString()}`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const ext = format === "xlsx" ? "xlsx" : "pdf";
+      const filename = exportRangeMode === "month"
+        ? `monthly-report-${exportMonth}.${ext}`
+        : `report-${exportFrom}-to-${exportTo}.${ext}`;
+
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      // Some mobile WebViews ignore download attribute; fallback to opening the file URL.
       const isNative = !!((window as any)?.Capacitor?.isNativePlatform?.());
       if (isNative) {
-        // In native WebView, avoid blob->base64/plugin file flows (can crash on some devices).
-        // Trigger direct authenticated download endpoint instead.
-        const a = document.createElement("a");
-        a.href = url;
-        a.target = "_blank";
-        a.rel = "noopener";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
+        setTimeout(() => {
+          try {
+            window.open(objectUrl, "_blank");
+          } catch {
+            // noop
+          }
+        }, 120);
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 15000);
       } else {
-        const res = await fetch(url, { credentials: "include" });
-        if (!res.ok) throw new Error("Export failed");
-        const blob = await res.blob();
-        const ext = format === "xlsx" ? "xlsx" : "pdf";
-        const filename = exportRangeMode === "month"
-          ? `monthly-report-${exportMonth}.${ext}`
-          : `report-${exportFrom}-to-${exportTo}.${ext}`;
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(a.href);
+        URL.revokeObjectURL(objectUrl);
       }
     } catch {
       // ignore
