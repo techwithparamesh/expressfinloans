@@ -3506,86 +3506,148 @@ export async function registerRoutes(
         res.setHeader("Content-Disposition", `attachment; filename="monthly-report-${fromParam && toParam ? `${fromParam}-${toParam}` : monthStart}.pdf"`);
         const doc = new PDFDocument({ margin: 40, size: "A4" });
         doc.pipe(res);
-        const PAGE_HEIGHT = 842;
         const MARGIN = 40;
         const ROW_HEIGHT = 14;
         const smallFont = 8;
+
+        function truncatePdfCell(d: import("pdfkit").PDFDocument, raw: string, maxWidth: number): string {
+          const s = String(raw ?? "")
+            .replace(/\r\n/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+          if (maxWidth <= 4) return "";
+          try {
+            if (d.widthOfString(s) <= maxWidth) return s;
+          } catch {
+            return s.length > 3 ? `${s.slice(0, 2)}…` : s;
+          }
+          const ell = "…";
+          let low = 0;
+          let high = s.length;
+          while (low < high) {
+            const mid = Math.ceil((low + high) / 2);
+            const cand = s.slice(0, mid) + ell;
+            try {
+              if (d.widthOfString(cand) <= maxWidth) low = mid;
+              else high = mid - 1;
+            } catch {
+              break;
+            }
+          }
+          return low > 0 ? s.slice(0, low) + ell : ell;
+        }
+
+        function pageBottom(): number {
+          return doc.page.height - doc.page.margins.bottom;
+        }
+
         doc.fontSize(16).text(`Full Report – ${monthLabel}`, { align: "center" });
         doc.moveDown(0.5);
         doc.fontSize(10).text("Summary", { continued: false });
         doc.fontSize(smallFont);
         const summaryHeaders = ["Emp ID", "Name", "Role", "Budget", "Achieve", "FTD Val", "MTD Val", "Logged", "Sanct", "Disb Val", "MTD Ins", "Overall"];
         const summaryCols = [38, 68, 92, 118, 148, 178, 208, 238, 268, 298, 328, 368];
+        const summaryRight = doc.page.width - doc.page.margins.right;
         let y = doc.y + 6;
         doc.font("Helvetica-Bold");
         for (let i = 0; i < summaryHeaders.length; i++) {
-          doc.text(summaryHeaders[i], summaryCols[i], y);
+          const nextX = i < summaryCols.length - 1 ? summaryCols[i + 1] : summaryRight;
+          const cellW = Math.max(10, nextX - summaryCols[i] - 2);
+          const txt = truncatePdfCell(doc, summaryHeaders[i], cellW);
+          doc.text(txt, summaryCols[i], y, { width: cellW, lineGap: 0 });
         }
         doc.font("Helvetica");
         y += ROW_HEIGHT;
         for (const r of rows) {
-          if (y > PAGE_HEIGHT - MARGIN - ROW_HEIGHT) {
-            doc.addPage();
-            y = MARGIN;
+          if (y + ROW_HEIGHT > pageBottom()) {
+            doc.addPage({ margin: MARGIN, size: "A4" });
+            y = doc.page.margins.top;
+            doc.fontSize(smallFont);
             doc.font("Helvetica-Bold");
-            for (let i = 0; i < summaryHeaders.length; i++) doc.text(summaryHeaders[i], summaryCols[i], y);
+            for (let i = 0; i < summaryHeaders.length; i++) {
+              const nextX = i < summaryCols.length - 1 ? summaryCols[i + 1] : summaryRight;
+              const cellW = Math.max(10, nextX - summaryCols[i] - 2);
+              doc.text(truncatePdfCell(doc, summaryHeaders[i], cellW), summaryCols[i], y, { width: cellW, lineGap: 0 });
+            }
             doc.font("Helvetica");
             y += ROW_HEIGHT;
           }
-          doc.text((r.employeeNumber || "").slice(0, 6), summaryCols[0], y);
-          doc.text((r.name || "").slice(0, 8), summaryCols[1], y);
-          doc.text((r.role || "").slice(0, 6), summaryCols[2], y);
-          doc.text(String(r.budget ?? 0), summaryCols[3], y);
-          doc.text(String(r.achievement ?? 0), summaryCols[4], y);
-          doc.text(String(r.ftdLoansValue ?? 0), summaryCols[5], y);
-          doc.text(String(r.mtdLoansValue ?? 0), summaryCols[6], y);
-          doc.text(String(r.loggedValue ?? 0), summaryCols[7], y);
-          doc.text(String(r.sanctionedValue ?? 0), summaryCols[8], y);
-          doc.text(String(r.disbursedValue ?? 0), summaryCols[9], y);
-          doc.text(String(r.mtdInsuranceValue ?? 0), summaryCols[10], y);
-          doc.text(String(r.overallLeads ?? 0), summaryCols[11], y);
+          const summaryValues = [
+            String(r.employeeNumber ?? ""),
+            String(r.name ?? ""),
+            String(r.role ?? ""),
+            String(r.budget ?? 0),
+            String(r.achievement ?? 0),
+            String(r.ftdLoansValue ?? 0),
+            String(r.mtdLoansValue ?? 0),
+            String(r.loggedValue ?? 0),
+            String(r.sanctionedValue ?? 0),
+            String(r.disbursedValue ?? 0),
+            String(r.mtdInsuranceValue ?? 0),
+            String(r.overallLeads ?? 0),
+          ];
+          for (let i = 0; i < summaryValues.length; i++) {
+            const nextX = i < summaryCols.length - 1 ? summaryCols[i + 1] : summaryRight;
+            const cellW = Math.max(10, nextX - summaryCols[i] - 2);
+            doc.text(truncatePdfCell(doc, summaryValues[i], cellW), summaryCols[i], y, { width: cellW, lineGap: 0 });
+          }
           y += ROW_HEIGHT;
         }
         doc.moveDown(1);
         y = doc.y + 4;
+
         function drawTable(
           title: string,
           headers: string[],
           colWidths: number[],
           dataRows: Record<string, string | number>[],
-          keyOrder: string[]
+          keyOrder: string[],
+          layout: "portrait" | "landscape",
+          forceNewPage: boolean
         ) {
-          if (y > MARGIN + 40) { doc.addPage(); y = MARGIN; }
-          doc.fontSize(10).text(title, { continued: false });
-          y += 6;
-          doc.fontSize(smallFont);
-          doc.font("Helvetica-Bold");
-          let x = MARGIN;
-          for (let i = 0; i < headers.length; i++) {
-            doc.text(headers[i].slice(0, 20), x, y);
-            x += colWidths[i];
+          if (forceNewPage) {
+            doc.addPage({ margin: MARGIN, size: "A4", layout });
+            y = doc.page.margins.top;
+          } else if (y > doc.page.margins.top + 50) {
+            doc.addPage({ margin: MARGIN, size: "A4", layout });
+            y = doc.page.margins.top;
           }
-          doc.font("Helvetica");
-          y += ROW_HEIGHT;
-          for (const row of dataRows) {
-            if (y > PAGE_HEIGHT - MARGIN - ROW_HEIGHT) {
-              doc.addPage();
-              y = MARGIN;
-              doc.font("Helvetica-Bold");
-              x = MARGIN;
-              for (let i = 0; i < headers.length; i++) {
-                doc.text(headers[i].slice(0, 20), x, y);
-                x += colWidths[i];
-              }
-              doc.font("Helvetica");
-              y += ROW_HEIGHT;
+
+          const left = doc.page.margins.left;
+          const drawHeaderRow = () => {
+            doc.fontSize(smallFont);
+            doc.font("Helvetica-Bold");
+            let x = left;
+            for (let i = 0; i < headers.length; i++) {
+              const w = colWidths[i];
+              const txt = truncatePdfCell(doc, headers[i], w - 1);
+              doc.text(txt, x, y, { width: Math.max(8, w - 1), lineGap: 0 });
+              x += w;
             }
-            x = MARGIN;
+            doc.font("Helvetica");
+            y += ROW_HEIGHT;
+          };
+
+          const titleY = y;
+          doc.fontSize(10).font("Helvetica").text(title, left, titleY);
+          y = titleY + 16;
+          drawHeaderRow();
+
+          for (const row of dataRows) {
+            if (y + ROW_HEIGHT > pageBottom()) {
+              doc.addPage({ margin: MARGIN, size: "A4", layout });
+              y = doc.page.margins.top;
+              drawHeaderRow();
+            }
+            let x = left;
+            doc.fontSize(smallFont);
             for (let i = 0; i < keyOrder.length; i++) {
+              const w = colWidths[i];
               const val = row[keyOrder[i]];
-              const str = val !== undefined && val !== null ? String(val).slice(0, 18) : "";
-              doc.text(str, x, y);
-              x += colWidths[i];
+              const str = val !== undefined && val !== null ? String(val) : "";
+              const txt = truncatePdfCell(doc, str, w - 1);
+              doc.text(txt, x, y, { width: Math.max(8, w - 1), lineGap: 0 });
+              x += w;
             }
             y += ROW_HEIGHT;
           }
@@ -3593,22 +3655,32 @@ export async function registerRoutes(
           doc.moveDown(0.5);
           y = doc.y + 4;
         }
+
         const leadHeaders = ["Emp ID", "Name", "Date", "Customer", "DOB", "Phone", "Email", "Location", "Loan Type", "Sub", "Income", "Income Cmt", "Request Amt", "CIBIL", "Co Logged", "App No", "Tenure", "ROI", "Disb Amt", "Sanct", "Disb At", "Status", "Notes", "Form Loc", "Payout%", "Payout Amt", "Reconsil", "Pay Status"];
         const leadKeys = ["employeeNumber", "employeeName", "date", "customerName", "dateOfBirth", "customerPhone", "customerEmail", "location", "loanType", "subLoanType", "incomeType", "incomeComments", "amount", "cibil", "companyLogged", "applicationNumber", "tenure", "roi", "loanDisbursed", "loanSanctionedAt", "loanDisbursedAt", "status", "notes", "formLocation", "payoutPercent", "payoutAmount", "reconsil", "paymentStatus"];
-        const leadWidths = leadKeys.map(() => 16);
-        drawTable("Leads (full)", leadHeaders, leadWidths, leadRows, leadKeys);
+        doc.addPage({ margin: MARGIN, size: "A4", layout: "landscape" });
+        y = doc.page.margins.top;
+        const landInnerW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+        const leadColW = Math.max(18, Math.floor(landInnerW / leadKeys.length));
+        const leadWidths = leadKeys.map(() => leadColW);
+        drawTable("Leads (full)", leadHeaders, leadWidths, leadRows, leadKeys, "landscape", false);
+
         const insHeaders = ["Emp ID", "Name", "Date", "Customer", "DOB", "Contact", "Email", "Loc", "Type", "Cat", "Prod", "Prod Oth", "Vehicle", "Sub", "Sub Oth", "Profile", "Prof Cmt", "Biz", "Biz Cmt", "Pay Mode", "Pay Cmt", "Pay By", "Pay By Cmt", "Income", "Quoted", "Coll", "Diff", "Misc", "Status", "Notes", "Form Loc", "Pol No", "Pol Start", "Pol End", "Coll Prem", "Actual", "Remarks"];
         const insKeys = ["employeeNumber", "employeeName", "date", "customerName", "dateOfBirth", "contactNum", "mailId", "location", "insuranceType", "insuranceCategory", "insuranceProductType", "insuranceProductTypeOther", "vehicleNumber", "insuranceSubtype", "insuranceSubtypeOther", "profileType", "profileComments", "businessType", "businessTypeComments", "paymentMode", "paymentModeComments", "paymentDoneBy", "paymentDoneByComments", "incomeType", "premiumQuoted", "premiumCollected", "difference", "miscellaneousExpenses", "status", "notes", "formLocation", "policyNumber", "policyStartDate", "policyEndDate", "collectedPremium", "actualPremium", "finalRemarks"];
-        const insWidths = insKeys.map(() => 14);
-        drawTable("Insurance Leads (full)", insHeaders, insWidths, insuranceRows, insKeys);
+        const insColW = Math.max(14, Math.floor(landInnerW / insKeys.length));
+        const insWidths = insKeys.map(() => insColW);
+        drawTable("Insurance Leads (full)", insHeaders, insWidths, insuranceRows, insKeys, "landscape", false);
+
         const attHeaders = ["Emp ID", "Name", "Date", "Login", "Logout", "Login loc", "Logout loc", "Leads"];
         const attKeys = ["employeeNumber", "employeeName", "date", "loginAt", "logoutAt", "loginLocation", "logoutLocation", "leadsCount"];
         const attWidths = [36, 42, 38, 44, 44, 50, 50, 28];
-        drawTable("Attendance", attHeaders, attWidths, attendanceRows, attKeys);
+        drawTable("Attendance", attHeaders, attWidths, attendanceRows, attKeys, "portrait", true);
+
         const leaveHeaders = ["Emp ID", "Name", "Type", "Start", "End", "Reason", "Status"];
         const leaveKeys = ["employeeNumber", "employeeName", "leaveType", "startDate", "endDate", "reason", "status"];
         const leaveWidths = [40, 55, 40, 42, 42, 70, 38];
-        drawTable("Leave", leaveHeaders, leaveWidths, leaveRows, leaveKeys);
+        drawTable("Leave", leaveHeaders, leaveWidths, leaveRows, leaveKeys, "portrait", false);
+
         doc.end();
         return;
       }
