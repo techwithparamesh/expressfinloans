@@ -369,6 +369,8 @@ export default function StaffDashboard() {
         const FS = cap.Plugins.Filesystem as {
           downloadFile?: (o: Record<string, unknown>) => Promise<unknown>;
           getUri?: (o: Record<string, unknown>) => Promise<{ uri: string }>;
+          copy?: (o: Record<string, unknown>) => Promise<unknown>;
+          mkdir?: (o: Record<string, unknown>) => Promise<void>;
           Directory?: { Cache?: string; External?: string; Data?: string };
         };
         if (!FS?.downloadFile) throw new Error("Filesystem.downloadFile not available — add @capacitor/filesystem and npx cap sync");
@@ -392,26 +394,52 @@ export default function StaffDashboard() {
         const dlUrl = `${origin}/api/staff/export/monthly-file?token=${encodeURIComponent(tokenJson.token)}`;
         const dirCache = FS.Directory?.Cache || "CACHE";
         const dirPersistent = FS.Directory?.External || FS.Directory?.Data || dirCache;
+        const reportsFolder = "MonthlyReports";
+
+        // Android often fails downloadFile directly to External with nested paths (ENOENT).
+        // Always land the HTTP download in cache with a flat name (same as Share), then copy for "save".
+        await FS.downloadFile({
+          url: dlUrl,
+          path: filename,
+          directory: dirCache,
+          recursive: true,
+        });
 
         if (action === "save") {
-          const relPath = `MonthlyReports/${filename}`;
-          await FS.downloadFile({
-            url: dlUrl,
-            path: relPath,
-            directory: dirPersistent,
-            recursive: true,
-          });
-          toast({
-            title: "File saved",
-            description: `${filename} — open Files and browse this app’s folder (e.g. MonthlyReports).`,
-          });
+          if (dirPersistent !== dirCache && FS.copy) {
+            const destPath = `${reportsFolder}/${filename}`;
+            try {
+              if (FS.mkdir) {
+                await FS.mkdir({
+                  path: reportsFolder,
+                  directory: dirPersistent,
+                  recursive: true,
+                });
+              }
+              await FS.copy({
+                from: filename,
+                to: destPath,
+                directory: dirCache,
+                toDirectory: dirPersistent,
+              });
+              toast({
+                title: "File saved",
+                description: `${filename} — in ${reportsFolder} under this app’s storage (open Files).`,
+              });
+            } catch (copyErr) {
+              console.warn("Copy to persistent storage failed; file remains in app cache:", copyErr);
+              toast({
+                title: "Saved to app cache",
+                description: `${filename} could not be moved to Documents. It is in the app cache — use Share to send it, or try again after updating the app.`,
+              });
+            }
+          } else {
+            toast({
+              title: "File saved",
+              description: `${filename} is in the app cache. Use Share to send it to WhatsApp, Drive, etc.`,
+            });
+          }
         } else {
-          await FS.downloadFile({
-            url: dlUrl,
-            path: filename,
-            directory: dirCache,
-            recursive: true,
-          });
           const SharePlugin = cap?.Plugins?.Share as { share?: (o: Record<string, unknown>) => Promise<unknown> } | undefined;
           if (!FS.getUri || !SharePlugin?.share) {
             throw new Error("Share is not available on this device.");
