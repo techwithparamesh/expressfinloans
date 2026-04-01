@@ -3507,71 +3507,118 @@ export async function registerRoutes(
         const doc = new PDFDocument({ margin: 40, size: "A4" });
         doc.pipe(res);
         const MARGIN = 40;
-        const ROW_HEIGHT = 14;
-        const smallFont = 8;
-
-        function truncatePdfCell(d: import("pdfkit").PDFDocument, raw: string, maxWidth: number): string {
-          const s = String(raw ?? "")
-            .replace(/\r\n/g, " ")
-            .replace(/\s+/g, " ")
-            .trim();
-          if (maxWidth <= 4) return "";
-          try {
-            if (d.widthOfString(s) <= maxWidth) return s;
-          } catch {
-            return s.length > 3 ? `${s.slice(0, 2)}…` : s;
-          }
-          const ell = "…";
-          let low = 0;
-          let high = s.length;
-          while (low < high) {
-            const mid = Math.ceil((low + high) / 2);
-            const cand = s.slice(0, mid) + ell;
-            try {
-              if (d.widthOfString(cand) <= maxWidth) low = mid;
-              else high = mid - 1;
-            } catch {
-              break;
-            }
-          }
-          return low > 0 ? s.slice(0, low) + ell : ell;
-        }
+        const LINE_GAP = 1;
 
         function pageBottom(): number {
           return doc.page.height - doc.page.margins.bottom;
         }
 
+        function normalizePdfCell(raw: unknown): string {
+          return String(raw ?? "")
+            .replace(/\r\n/g, "\n")
+            .replace(/[ \t]+/g, " ")
+            .trim();
+        }
+
+        /** Distribute `tableW` across columns by relative weights (exact total width, min per column). */
+        function pdfWidthsFromWeights(tableW: number, weights: number[]): number[] {
+          const sum = weights.reduce((a, b) => a + b, 0);
+          const minCol = 8;
+          const scaled = weights.map((w) => Math.max(minCol, (tableW * w) / sum));
+          const s2 = scaled.reduce((a, b) => a + b, 0);
+          return scaled.map((w) => (w * tableW) / s2);
+        }
+
+        function pdfColumnLefts(left: number, widths: number[]): number[] {
+          const xs: number[] = [];
+          let x = left;
+          for (let i = 0; i < widths.length; i++) {
+            xs.push(x);
+            x += widths[i];
+          }
+          return xs;
+        }
+
+        /** Shrink text (with …) until wrapped height fits `maxH`. */
+        function fitPdfTextToHeight(
+          d: import("pdfkit").PDFDocument,
+          raw: string,
+          cellW: number,
+          maxH: number,
+          lineGap: number
+        ): string {
+          let s = normalizePdfCell(raw).replace(/\n/g, " ");
+          if (!s) return "";
+          let h = d.heightOfString(s, { width: cellW, lineGap });
+          if (h <= maxH) return s;
+          const ell = "…";
+          let low = 0;
+          let high = s.length;
+          while (low < high) {
+            const mid = Math.ceil((low + high) / 2);
+            const cand = s.slice(0, mid) + (mid < s.length ? ell : "");
+            h = d.heightOfString(cand, { width: cellW, lineGap });
+            if (h <= maxH) low = mid;
+            else high = mid - 1;
+          }
+          return low > 0 ? s.slice(0, low) + ell : ell;
+        }
+
+        function measureWrappedRowHeight(
+          d: import("pdfkit").PDFDocument,
+          cells: string[],
+          widths: number[],
+          lineGap: number,
+          maxCellH: number
+        ): number {
+          let maxH = 0;
+          for (let i = 0; i < cells.length; i++) {
+            const fitted = fitPdfTextToHeight(d, cells[i], widths[i], maxCellH, lineGap);
+            const h = d.heightOfString(fitted, { width: widths[i], lineGap });
+            maxH = Math.max(maxH, h);
+          }
+          return Math.max(maxH, d.currentLineHeight() + 2);
+        }
+
         doc.fontSize(16).text(`Full Report – ${monthLabel}`, { align: "center" });
         doc.moveDown(0.5);
         doc.fontSize(10).text("Summary", { continued: false });
-        doc.fontSize(smallFont);
         const summaryHeaders = ["Emp ID", "Name", "Role", "Budget", "Achieve", "FTD Val", "MTD Val", "Logged", "Sanct", "Disb Val", "MTD Ins", "Overall"];
-        const summaryCols = [38, 68, 92, 118, 148, 178, 208, 238, 268, 298, 328, 368];
-        const summaryRight = doc.page.width - doc.page.margins.right;
-        let y = doc.y + 6;
-        doc.font("Helvetica-Bold");
-        for (let i = 0; i < summaryHeaders.length; i++) {
-          const nextX = i < summaryCols.length - 1 ? summaryCols[i + 1] : summaryRight;
-          const cellW = Math.max(10, nextX - summaryCols[i] - 2);
-          const txt = truncatePdfCell(doc, summaryHeaders[i], cellW);
-          doc.text(txt, summaryCols[i], y, { width: cellW, lineGap: 0 });
-        }
-        doc.font("Helvetica");
-        y += ROW_HEIGHT;
-        for (const r of rows) {
-          if (y + ROW_HEIGHT > pageBottom()) {
+        const summaryWeights = [1, 2.2, 1.7, 1, 1, 1.05, 1.05, 1, 1, 1.05, 1.05, 1];
+        const summaryFont = 9;
+        const summaryMaxCellH = 56;
+        let y = doc.y + 8;
+        const summaryTableW = () => doc.page.width - doc.page.margins.left - doc.page.margins.right;
+        const summaryLeft = () => doc.page.margins.left;
+
+        const drawSummaryHeader = () => {
+          const left = summaryLeft();
+          const tw = summaryTableW();
+          const widths = pdfWidthsFromWeights(tw, summaryWeights);
+          const xs = pdfColumnLefts(left, widths);
+          doc.fontSize(summaryFont).font("Helvetica-Bold");
+          const cells = summaryHeaders;
+          const rowH = measureWrappedRowHeight(doc, cells, widths, LINE_GAP, summaryMaxCellH);
+          if (y + rowH > pageBottom()) {
             doc.addPage({ margin: MARGIN, size: "A4" });
             y = doc.page.margins.top;
-            doc.fontSize(smallFont);
-            doc.font("Helvetica-Bold");
-            for (let i = 0; i < summaryHeaders.length; i++) {
-              const nextX = i < summaryCols.length - 1 ? summaryCols[i + 1] : summaryRight;
-              const cellW = Math.max(10, nextX - summaryCols[i] - 2);
-              doc.text(truncatePdfCell(doc, summaryHeaders[i], cellW), summaryCols[i], y, { width: cellW, lineGap: 0 });
-            }
-            doc.font("Helvetica");
-            y += ROW_HEIGHT;
           }
+          const rowY = y;
+          for (let i = 0; i < cells.length; i++) {
+            const t = fitPdfTextToHeight(doc, cells[i], widths[i], summaryMaxCellH, LINE_GAP);
+            doc.text(t, xs[i], rowY, { width: widths[i], lineGap: LINE_GAP });
+          }
+          y += rowH + 3;
+          doc.font("Helvetica");
+        };
+
+        drawSummaryHeader();
+        doc.fontSize(summaryFont);
+        for (const r of rows) {
+          const left = summaryLeft();
+          const tw = summaryTableW();
+          const widths = pdfWidthsFromWeights(tw, summaryWeights);
+          const xs = pdfColumnLefts(left, widths);
           const summaryValues = [
             String(r.employeeNumber ?? ""),
             String(r.name ?? ""),
@@ -3586,24 +3633,36 @@ export async function registerRoutes(
             String(r.mtdInsuranceValue ?? 0),
             String(r.overallLeads ?? 0),
           ];
-          for (let i = 0; i < summaryValues.length; i++) {
-            const nextX = i < summaryCols.length - 1 ? summaryCols[i + 1] : summaryRight;
-            const cellW = Math.max(10, nextX - summaryCols[i] - 2);
-            doc.text(truncatePdfCell(doc, summaryValues[i], cellW), summaryCols[i], y, { width: cellW, lineGap: 0 });
+          const rowH = measureWrappedRowHeight(doc, summaryValues, widths, LINE_GAP, summaryMaxCellH);
+          if (y + rowH > pageBottom()) {
+            doc.addPage({ margin: MARGIN, size: "A4" });
+            y = doc.page.margins.top;
+            drawSummaryHeader();
           }
-          y += ROW_HEIGHT;
+          const rowY = y;
+          for (let i = 0; i < summaryValues.length; i++) {
+            const t = fitPdfTextToHeight(doc, summaryValues[i], widths[i], summaryMaxCellH, LINE_GAP);
+            doc.text(t, xs[i], rowY, { width: widths[i], lineGap: LINE_GAP });
+          }
+          y += rowH + 3;
         }
-        doc.moveDown(1);
+        doc.moveDown(0.5);
         y = doc.y + 4;
 
         function drawTable(
           title: string,
           headers: string[],
-          colWidths: number[],
           dataRows: Record<string, string | number>[],
           keyOrder: string[],
           layout: "portrait" | "landscape",
-          forceNewPage: boolean
+          forceNewPage: boolean,
+          opts: {
+            colWeights?: number[];
+            fontSize: number;
+            maxCellHeight: number;
+            /** If set, scale these relative widths to full table width instead of `colWeights`. */
+            fixedWidths?: number[];
+          }
         ) {
           if (forceNewPage) {
             doc.addPage({ margin: MARGIN, size: "A4", layout });
@@ -3614,18 +3673,32 @@ export async function registerRoutes(
           }
 
           const left = doc.page.margins.left;
+          const tw = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+          const sumFixed = opts.fixedWidths?.reduce((a, b) => a + b, 0) ?? 0;
+          const weightsForLayout =
+            opts.fixedWidths && sumFixed > 0
+              ? opts.fixedWidths.map((w) => w / sumFixed)
+              : opts.colWeights;
+          if (!weightsForLayout?.length) return;
+          const widths = pdfWidthsFromWeights(tw, weightsForLayout);
+          const xs = pdfColumnLefts(left, widths);
+          const fs = opts.fontSize;
+          const maxCellH = opts.maxCellHeight;
+
           const drawHeaderRow = () => {
-            doc.fontSize(smallFont);
-            doc.font("Helvetica-Bold");
-            let x = left;
-            for (let i = 0; i < headers.length; i++) {
-              const w = colWidths[i];
-              const txt = truncatePdfCell(doc, headers[i], w - 1);
-              doc.text(txt, x, y, { width: Math.max(8, w - 1), lineGap: 0 });
-              x += w;
+            doc.fontSize(fs).font("Helvetica-Bold");
+            const rowH = measureWrappedRowHeight(doc, headers, widths, LINE_GAP, maxCellH);
+            if (y + rowH > pageBottom()) {
+              doc.addPage({ margin: MARGIN, size: "A4", layout });
+              y = doc.page.margins.top;
             }
+            const rowY = y;
+            for (let i = 0; i < headers.length; i++) {
+              const t = fitPdfTextToHeight(doc, headers[i], widths[i], maxCellH, LINE_GAP);
+              doc.text(t, xs[i], rowY, { width: widths[i], lineGap: LINE_GAP });
+            }
+            y += rowH + 2;
             doc.font("Helvetica");
-            y += ROW_HEIGHT;
           };
 
           const titleY = y;
@@ -3634,22 +3707,23 @@ export async function registerRoutes(
           drawHeaderRow();
 
           for (const row of dataRows) {
-            if (y + ROW_HEIGHT > pageBottom()) {
+            const cells = keyOrder.map((k) => {
+              const val = row[k];
+              return val !== undefined && val !== null ? String(val) : "";
+            });
+            const rowH = measureWrappedRowHeight(doc, cells, widths, LINE_GAP, maxCellH);
+            if (y + rowH > pageBottom()) {
               doc.addPage({ margin: MARGIN, size: "A4", layout });
               y = doc.page.margins.top;
               drawHeaderRow();
             }
-            let x = left;
-            doc.fontSize(smallFont);
-            for (let i = 0; i < keyOrder.length; i++) {
-              const w = colWidths[i];
-              const val = row[keyOrder[i]];
-              const str = val !== undefined && val !== null ? String(val) : "";
-              const txt = truncatePdfCell(doc, str, w - 1);
-              doc.text(txt, x, y, { width: Math.max(8, w - 1), lineGap: 0 });
-              x += w;
+            const rowY = y;
+            doc.fontSize(fs);
+            for (let i = 0; i < cells.length; i++) {
+              const t = fitPdfTextToHeight(doc, cells[i], widths[i], maxCellH, LINE_GAP);
+              doc.text(t, xs[i], rowY, { width: widths[i], lineGap: LINE_GAP });
             }
-            y += ROW_HEIGHT;
+            y += rowH + 2;
           }
           doc.y = y;
           doc.moveDown(0.5);
@@ -3658,28 +3732,41 @@ export async function registerRoutes(
 
         const leadHeaders = ["Emp ID", "Name", "Date", "Customer", "DOB", "Phone", "Email", "Location", "Loan Type", "Sub", "Income", "Income Cmt", "Request Amt", "CIBIL", "Co Logged", "App No", "Tenure", "ROI", "Disb Amt", "Sanct", "Disb At", "Status", "Notes", "Form Loc", "Payout%", "Payout Amt", "Reconsil", "Pay Status"];
         const leadKeys = ["employeeNumber", "employeeName", "date", "customerName", "dateOfBirth", "customerPhone", "customerEmail", "location", "loanType", "subLoanType", "incomeType", "incomeComments", "amount", "cibil", "companyLogged", "applicationNumber", "tenure", "roi", "loanDisbursed", "loanSanctionedAt", "loanDisbursedAt", "status", "notes", "formLocation", "payoutPercent", "payoutAmount", "reconsil", "paymentStatus"];
+        const leadWeights = [1, 1.5, 1, 1.7, 0.95, 1.25, 1.6, 1.35, 0.85, 0.75, 0.85, 1.1, 1, 0.7, 0.85, 1, 0.55, 0.5, 1, 0.95, 0.95, 0.8, 1.9, 1, 0.55, 0.75, 0.65, 0.75];
         doc.addPage({ margin: MARGIN, size: "A4", layout: "landscape" });
         y = doc.page.margins.top;
-        const landInnerW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-        const leadColW = Math.max(18, Math.floor(landInnerW / leadKeys.length));
-        const leadWidths = leadKeys.map(() => leadColW);
-        drawTable("Leads (full)", leadHeaders, leadWidths, leadRows, leadKeys, "landscape", false);
+        drawTable("Leads (full)", leadHeaders, leadRows, leadKeys, "landscape", false, {
+          colWeights: leadWeights,
+          fontSize: 7,
+          maxCellHeight: 42,
+        });
 
         const insHeaders = ["Emp ID", "Name", "Date", "Customer", "DOB", "Contact", "Email", "Loc", "Type", "Cat", "Prod", "Prod Oth", "Vehicle", "Sub", "Sub Oth", "Profile", "Prof Cmt", "Biz", "Biz Cmt", "Pay Mode", "Pay Cmt", "Pay By", "Pay By Cmt", "Income", "Quoted", "Coll", "Diff", "Misc", "Status", "Notes", "Form Loc", "Pol No", "Pol Start", "Pol End", "Coll Prem", "Actual", "Remarks"];
         const insKeys = ["employeeNumber", "employeeName", "date", "customerName", "dateOfBirth", "contactNum", "mailId", "location", "insuranceType", "insuranceCategory", "insuranceProductType", "insuranceProductTypeOther", "vehicleNumber", "insuranceSubtype", "insuranceSubtypeOther", "profileType", "profileComments", "businessType", "businessTypeComments", "paymentMode", "paymentModeComments", "paymentDoneBy", "paymentDoneByComments", "incomeType", "premiumQuoted", "premiumCollected", "difference", "miscellaneousExpenses", "status", "notes", "formLocation", "policyNumber", "policyStartDate", "policyEndDate", "collectedPremium", "actualPremium", "finalRemarks"];
-        const insColW = Math.max(14, Math.floor(landInnerW / insKeys.length));
-        const insWidths = insKeys.map(() => insColW);
-        drawTable("Insurance Leads (full)", insHeaders, insWidths, insuranceRows, insKeys, "landscape", false);
+        const insWeights = [1, 1.45, 0.95, 1.55, 0.9, 1.15, 1.45, 1.2, 0.75, 0.65, 0.85, 0.85, 0.95, 0.65, 0.75, 0.85, 1, 0.8, 0.85, 0.75, 0.75, 0.75, 0.75, 0.75, 0.85, 0.8, 0.65, 0.65, 0.75, 1.75, 0.95, 0.95, 0.85, 0.85, 0.85, 0.85, 1.1];
+        drawTable("Insurance Leads (full)", insHeaders, insuranceRows, insKeys, "landscape", false, {
+          colWeights: insWeights,
+          fontSize: 6.5,
+          maxCellHeight: 40,
+        });
 
         const attHeaders = ["Emp ID", "Name", "Date", "Login", "Logout", "Login loc", "Logout loc", "Leads"];
         const attKeys = ["employeeNumber", "employeeName", "date", "loginAt", "logoutAt", "loginLocation", "logoutLocation", "leadsCount"];
-        const attWidths = [36, 42, 38, 44, 44, 50, 50, 28];
-        drawTable("Attendance", attHeaders, attWidths, attendanceRows, attKeys, "portrait", true);
+        const attFixed = [36, 42, 38, 44, 44, 50, 50, 28];
+        drawTable("Attendance", attHeaders, attendanceRows, attKeys, "portrait", true, {
+          fixedWidths: attFixed,
+          fontSize: 8,
+          maxCellHeight: 52,
+        });
 
         const leaveHeaders = ["Emp ID", "Name", "Type", "Start", "End", "Reason", "Status"];
         const leaveKeys = ["employeeNumber", "employeeName", "leaveType", "startDate", "endDate", "reason", "status"];
-        const leaveWidths = [40, 55, 40, 42, 42, 70, 38];
-        drawTable("Leave", leaveHeaders, leaveWidths, leaveRows, leaveKeys, "portrait", false);
+        const leaveFixed = [40, 55, 40, 42, 42, 70, 38];
+        drawTable("Leave", leaveHeaders, leaveRows, leaveKeys, "portrait", false, {
+          fixedWidths: leaveFixed,
+          fontSize: 8,
+          maxCellHeight: 64,
+        });
 
         doc.end();
         return;
