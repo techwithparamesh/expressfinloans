@@ -416,8 +416,11 @@ export default function StaffDashboard() {
 
           if (!MediaStorePlugin?.saveToDownloads) {
             toast({
-              title: "Saved (app cache)",
-              description: `${filename} is saved to app storage. Use Share to send it to a visible folder like Downloads.`,
+              title: "Save to Downloads not enabled",
+              description:
+                "Your current Android app build does not have the MediaStore Downloads plugin registered (so we can only save to app storage/cache). " +
+                "Update/rebuild the Android app after adding @agorapulse/capacitor-mediastore. " +
+                "If your Android version is below 10, public Downloads is also not supported by this method.",
               variant: "destructive",
             });
             return;
