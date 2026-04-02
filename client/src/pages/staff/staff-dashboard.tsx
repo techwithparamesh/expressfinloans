@@ -373,41 +373,71 @@ export default function StaffDashboard() {
         };
         if (!FS?.downloadFile) throw new Error("Filesystem.downloadFile not available — add @capacitor/filesystem and npx cap sync");
 
-        const tokenRes = await fetch("/api/staff/export/monthly-native-token", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            format,
-            ...(exportRangeMode === "month"
-              ? { month: exportMonth }
-              : { from: exportFrom, to: exportTo }),
-          }),
-        });
-        if (!tokenRes.ok) throw new Error("Could not start download (check login or server)");
-        const tokenJson = (await tokenRes.json()) as { token?: string };
-        if (!tokenJson.token) throw new Error("Server did not return a download token");
-
         const origin = window.location.origin.replace(/\/$/, "");
-        const dlUrl = `${origin}/api/staff/export/monthly-file?token=${encodeURIComponent(tokenJson.token)}`;
         const dirCache = FS.Directory?.Cache ?? "CACHE";
-
-        // One HTTP GET (token single-use). Same destination as Share — cache + flat filename.
-        // Do NOT call Filesystem.copy() here: on many Android builds it native-crashes the app when
-        // copying from CACHE → EXTERNAL/DATA (SIGABRT / JNI), which JS try/catch cannot prevent.
-        await FS.downloadFile({
-          url: dlUrl,
-          path: filename,
-          directory: dirCache,
-          recursive: true,
+        const exportBody = JSON.stringify({
+          format,
+          ...(exportRangeMode === "month"
+            ? { month: exportMonth }
+            : { from: exportFrom, to: exportTo }),
         });
+
+        async function createMonthlyExportDownloadUrl(): Promise<string> {
+          const tokenRes = await fetch("/api/staff/export/monthly-native-token", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: exportBody,
+          });
+          if (!tokenRes.ok) throw new Error("Could not start download (check login or server)");
+          const tokenJson = (await tokenRes.json()) as { token?: string };
+          if (!tokenJson.token) throw new Error("Server did not return a download token");
+          return `${origin}/api/staff/export/monthly-file?token=${encodeURIComponent(tokenJson.token)}`;
+        }
 
         if (action === "save") {
-          toast({
-            title: "File saved on device",
-            description: `${filename} is in this app’s storage (same place as when you use Share). In Files: Android → data → this app → cache. Use Share to send a copy to WhatsApp, Drive, or “Save to Files”.`,
-          });
+          // Cache is under .../cache/ — many file managers hide it. EXTERNAL uses .../files/ (same app
+          // storage, easier to browse). No Filesystem.copy (crashes on some Android). Each attempt needs
+          // a fresh token (single-use on server).
+          let savedToExternal = false;
+          try {
+            const dlUrl = await createMonthlyExportDownloadUrl();
+            await FS.downloadFile({
+              url: dlUrl,
+              path: filename,
+              directory: "EXTERNAL",
+              recursive: true,
+            });
+            savedToExternal = true;
+          } catch (extErr) {
+            console.warn("downloadFile to EXTERNAL failed:", extErr);
+          }
+          if (!savedToExternal) {
+            const dlUrl = await createMonthlyExportDownloadUrl();
+            await FS.downloadFile({
+              url: dlUrl,
+              path: filename,
+              directory: dirCache,
+              recursive: true,
+            });
+            toast({
+              title: "Saved (app storage)",
+              description: `${filename} — the cache folder is often hidden. Tap Share → choose Drive, WhatsApp, Gmail, or “Save to Files” to put a copy where you can see it (e.g. Downloads).`,
+            });
+          } else {
+            toast({
+              title: "File saved on device",
+              description: `${filename} — Open the Files app → Storage / your phone → Android → data → find this app (Express Staff) → open the files folder (not cache). The file is there; it will not appear under Downloads unless you use Share → Save to Files.`,
+            });
+          }
         } else {
+          const dlUrl = await createMonthlyExportDownloadUrl();
+          await FS.downloadFile({
+            url: dlUrl,
+            path: filename,
+            directory: dirCache,
+            recursive: true,
+          });
           const SharePlugin = cap?.Plugins?.Share as { share?: (o: Record<string, unknown>) => Promise<unknown> } | undefined;
           if (!FS.getUri || !SharePlugin?.share) {
             throw new Error("Share is not available on this device.");
@@ -1362,7 +1392,7 @@ export default function StaffDashboard() {
           </CardTitle>
           <CardDescription>
             {isCapacitorNative
-              ? "Export attendance, leads, and leave as Excel or PDF. Save downloads the file into app storage (open from the Files app). Share sends it to WhatsApp, Gmail, Drive, or Save to Files."
+              ? "Export attendance, leads, and leave as Excel or PDF. Save writes to app storage (Files → Android → data → this app → files). For Downloads, use Share → Save to Files or Drive."
               : "Download employee data (attendance, leads, leave) in Excel or PDF. Choose by month or custom date range."}
           </CardDescription>
         </CardHeader>
