@@ -369,8 +369,7 @@ export default function StaffDashboard() {
         const FS = cap.Plugins.Filesystem as {
           downloadFile?: (o: Record<string, unknown>) => Promise<unknown>;
           getUri?: (o: Record<string, unknown>) => Promise<{ uri: string }>;
-          copy?: (o: Record<string, unknown>) => Promise<unknown>;
-          Directory?: { Cache?: string; External?: string; Data?: string };
+          Directory?: { Cache?: string };
         };
         if (!FS?.downloadFile) throw new Error("Filesystem.downloadFile not available — add @capacitor/filesystem and npx cap sync");
 
@@ -392,9 +391,10 @@ export default function StaffDashboard() {
         const origin = window.location.origin.replace(/\/$/, "");
         const dlUrl = `${origin}/api/staff/export/monthly-file?token=${encodeURIComponent(tokenJson.token)}`;
         const dirCache = FS.Directory?.Cache ?? "CACHE";
-        const persistDirs = ["EXTERNAL", "DATA"] as const;
 
-        // One HTTP GET only (token is single-use on server). Land file in cache first (same as Share).
+        // One HTTP GET (token single-use). Same destination as Share — cache + flat filename.
+        // Do NOT call Filesystem.copy() here: on many Android builds it native-crashes the app when
+        // copying from CACHE → EXTERNAL/DATA (SIGABRT / JNI), which JS try/catch cannot prevent.
         await FS.downloadFile({
           url: dlUrl,
           path: filename,
@@ -403,47 +403,10 @@ export default function StaffDashboard() {
         });
 
         if (action === "save") {
-          // Let native finish flushing the file before copy (reduces race crashes on some Android builds).
-          await new Promise<void>((r) => setTimeout(r, 120));
-
-          // Never use readFile+writeFile for exports: large xlsx/pdf as base64 can OOM and hard-crash Android.
-          // Avoid mkdir + nested paths: some devices crash or fail in native Filesystem.copy/mkdir.
-          const copyFn = FS.copy;
-          if (typeof copyFn !== "function") {
-            toast({
-              title: "File in app cache",
-              description: `${filename} — Filesystem.copy is not available. Use Share to save or send the file.`,
-            });
-          } else {
-            let persisted = false;
-            let lastErr: unknown;
-            for (const destDir of persistDirs) {
-              try {
-                await copyFn({
-                  from: filename,
-                  to: filename,
-                  directory: dirCache,
-                  toDirectory: destDir,
-                });
-                persisted = true;
-                toast({
-                  title: "File saved",
-                  description: `${filename} → Files app → Android → data → [this app] → files (same folder name as in cache).`,
-                });
-                break;
-              } catch (e) {
-                lastErr = e;
-                console.warn(`Save copy to ${destDir} failed:`, e);
-              }
-            }
-            if (!persisted) {
-              toast({
-                title: "Saved to app cache only",
-                description: `${filename} could not be copied to external storage. Use Share. ${lastErr instanceof Error ? `(${lastErr.message})` : ""}`,
-                variant: "destructive",
-              });
-            }
-          }
+          toast({
+            title: "File saved on device",
+            description: `${filename} is in this app’s storage (same place as when you use Share). In Files: Android → data → this app → cache. Use Share to send a copy to WhatsApp, Drive, or “Save to Files”.`,
+          });
         } else {
           const SharePlugin = cap?.Plugins?.Share as { share?: (o: Record<string, unknown>) => Promise<unknown> } | undefined;
           if (!FS.getUri || !SharePlugin?.share) {
@@ -1399,7 +1362,7 @@ export default function StaffDashboard() {
           </CardTitle>
           <CardDescription>
             {isCapacitorNative
-              ? "Export attendance, leads, and leave as Excel or PDF. Save copies the file into app storage you can open from the Files app (under Android/data/…/files). Share opens WhatsApp, Gmail, and other apps."
+              ? "Export attendance, leads, and leave as Excel or PDF. Save downloads the file into app storage (open from the Files app). Share sends it to WhatsApp, Gmail, Drive, or Save to Files."
               : "Download employee data (attendance, leads, leave) in Excel or PDF. Choose by month or custom date range."}
           </CardDescription>
         </CardHeader>
