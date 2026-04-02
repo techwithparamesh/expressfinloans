@@ -370,9 +370,6 @@ export default function StaffDashboard() {
           downloadFile?: (o: Record<string, unknown>) => Promise<unknown>;
           getUri?: (o: Record<string, unknown>) => Promise<{ uri: string }>;
           copy?: (o: Record<string, unknown>) => Promise<unknown>;
-          mkdir?: (o: Record<string, unknown>) => Promise<void>;
-          readFile?: (o: Record<string, unknown>) => Promise<{ data: string | Blob }>;
-          writeFile?: (o: Record<string, unknown>) => Promise<unknown>;
           Directory?: { Cache?: string; External?: string; Data?: string };
         };
         if (!FS?.downloadFile) throw new Error("Filesystem.downloadFile not available — add @capacitor/filesystem and npx cap sync");
@@ -394,14 +391,10 @@ export default function StaffDashboard() {
 
         const origin = window.location.origin.replace(/\/$/, "");
         const dlUrl = `${origin}/api/staff/export/monthly-file?token=${encodeURIComponent(tokenJson.token)}`;
-        // Capacitor often does NOT put `Directory` on `Plugins.Filesystem`; missing enums made
-        // `dirPersistent` fall back to CACHE so "Save" never copied out of cache. Use API literals.
         const dirCache = FS.Directory?.Cache ?? "CACHE";
-        const reportsFolder = "MonthlyReports";
         const persistDirs = ["EXTERNAL", "DATA"] as const;
 
-        // Android often fails downloadFile directly to External with nested paths (ENOENT).
-        // Always land the HTTP download in cache with a flat name (same as Share), then copy for "save".
+        // One HTTP GET only (token is single-use on server). Land file in cache first (same as Share).
         await FS.downloadFile({
           url: dlUrl,
           path: filename,
@@ -409,61 +402,47 @@ export default function StaffDashboard() {
           recursive: true,
         });
 
-        async function writeToPersistentDir(destDir: string, destPath: string): Promise<void> {
-          if (FS.mkdir) {
-            await FS.mkdir({ path: reportsFolder, directory: destDir, recursive: true });
-          }
-          if (FS.copy) {
-            await FS.copy({
-              from: filename,
-              to: destPath,
-              directory: dirCache,
-              toDirectory: destDir,
-            });
-            return;
-          }
-          if (FS.readFile && FS.writeFile) {
-            const res = await FS.readFile({ path: filename, directory: dirCache });
-            const data = res.data;
-            if (typeof data !== "string") {
-              throw new Error("Cannot read export as text; copy API required.");
-            }
-            await FS.writeFile({
-              path: destPath,
-              directory: destDir,
-              data,
-              recursive: true,
-            });
-            return;
-          }
-          throw new Error("Filesystem copy/readFile+writeFile not available");
-        }
-
         if (action === "save") {
-          let persisted = false;
-          let lastErr: unknown;
-          for (const destDir of persistDirs) {
-            const destPath = `${reportsFolder}/${filename}`;
-            try {
-              await writeToPersistentDir(destDir, destPath);
-              persisted = true;
-              toast({
-                title: "File saved",
-                description: `${filename} → Files app → Android → data → [this app] → files → ${reportsFolder}. (Not the main Downloads folder—Android keeps app files there.)`,
-              });
-              break;
-            } catch (e) {
-              lastErr = e;
-              console.warn(`Save to ${destDir} failed:`, e);
-            }
-          }
-          if (!persisted) {
-            console.warn("All persistent dirs failed; file only in cache:", lastErr);
+          // Let native finish flushing the file before copy (reduces race crashes on some Android builds).
+          await new Promise<void>((r) => setTimeout(r, 120));
+
+          // Never use readFile+writeFile for exports: large xlsx/pdf as base64 can OOM and hard-crash Android.
+          // Avoid mkdir + nested paths: some devices crash or fail in native Filesystem.copy/mkdir.
+          const copyFn = FS.copy;
+          if (typeof copyFn !== "function") {
             toast({
-              title: "Saved to app cache only",
-              description: `${filename} is in cache; copying to visible storage failed. Use Share to send it elsewhere. ${lastErr instanceof Error ? `(${lastErr.message})` : ""}`,
-              variant: "destructive",
+              title: "File in app cache",
+              description: `${filename} — Filesystem.copy is not available. Use Share to save or send the file.`,
             });
+          } else {
+            let persisted = false;
+            let lastErr: unknown;
+            for (const destDir of persistDirs) {
+              try {
+                await copyFn({
+                  from: filename,
+                  to: filename,
+                  directory: dirCache,
+                  toDirectory: destDir,
+                });
+                persisted = true;
+                toast({
+                  title: "File saved",
+                  description: `${filename} → Files app → Android → data → [this app] → files (same folder name as in cache).`,
+                });
+                break;
+              } catch (e) {
+                lastErr = e;
+                console.warn(`Save copy to ${destDir} failed:`, e);
+              }
+            }
+            if (!persisted) {
+              toast({
+                title: "Saved to app cache only",
+                description: `${filename} could not be copied to external storage. Use Share. ${lastErr instanceof Error ? `(${lastErr.message})` : ""}`,
+                variant: "destructive",
+              });
+            }
           }
         } else {
           const SharePlugin = cap?.Plugins?.Share as { share?: (o: Record<string, unknown>) => Promise<unknown> } | undefined;
