@@ -13,6 +13,7 @@
     "seed": "tsx script/seed-admin.ts"
   },
   "dependencies": {
+    "@agorapulse/capacitor-mediastore": "^0.2.0",
     "@capacitor/core": "^8.3.0",
     "@capacitor/filesystem": "^8.1.2",
     "@capacitor/share": "^8.0.1",

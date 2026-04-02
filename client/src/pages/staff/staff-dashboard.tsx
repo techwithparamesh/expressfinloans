@@ -396,40 +396,41 @@ export default function StaffDashboard() {
         }
 
         if (action === "save") {
-          // Cache is under .../cache/ — many file managers hide it. EXTERNAL uses .../files/ (same app
-          // storage, easier to browse). No Filesystem.copy (crashes on some Android). Each attempt needs
-          // a fresh token (single-use on server).
-          let savedToExternal = false;
-          try {
-            const dlUrl = await createMonthlyExportDownloadUrl();
-            await FS.downloadFile({
-              url: dlUrl,
-              path: filename,
-              directory: "EXTERNAL",
-              recursive: true,
-            });
-            savedToExternal = true;
-          } catch (extErr) {
-            console.warn("downloadFile to EXTERNAL failed:", extErr);
-          }
-          if (!savedToExternal) {
-            const dlUrl = await createMonthlyExportDownloadUrl();
-            await FS.downloadFile({
-              url: dlUrl,
-              path: filename,
-              directory: dirCache,
-              recursive: true,
-            });
+          // 1) Download to app cache (stable).
+          // 2) Push into *public* Android Downloads using MediaStore plugin.
+          // This avoids relying on Filesystem.copy / writing into Android/data directly.
+          const dlUrl = await createMonthlyExportDownloadUrl();
+          await FS.downloadFile({
+            url: dlUrl,
+            path: filename,
+            directory: dirCache,
+            recursive: true,
+          });
+          await new Promise<void>((r) => setTimeout(r, 150));
+
+          const MediaStorePlugin = cap?.Plugins?.Mediastore as
+            | {
+                saveToDownloads?: (o: { filename: string; path: string }) => Promise<{ uri: string }>;
+              }
+            | undefined;
+
+          if (!MediaStorePlugin?.saveToDownloads) {
             toast({
-              title: "Saved (app storage)",
-              description: `${filename} — the cache folder is often hidden. Tap Share → choose Drive, WhatsApp, Gmail, or “Save to Files” to put a copy where you can see it (e.g. Downloads).`,
+              title: "Saved (app cache)",
+              description: `${filename} is saved to app storage. Use Share to send it to a visible folder like Downloads.`,
+              variant: "destructive",
             });
-          } else {
-            toast({
-              title: "File saved on device",
-              description: `${filename} — Open the Files app → Storage / your phone → Android → data → find this app (Express Staff) → open the files folder (not cache). The file is there; it will not appear under Downloads unless you use Share → Save to Files.`,
-            });
+            return;
           }
+
+          const fileUri = await FS.getUri({ path: filename, directory: dirCache });
+          // MediaStore plugin expects a real file URI (e.g. `file:///...`), and it strips `file:///`.
+          await MediaStorePlugin.saveToDownloads({ filename, path: fileUri.uri });
+
+          toast({
+            title: "Saved to Downloads",
+            description: `${filename} is now in your phone's public Downloads folder.`,
+          });
         } else {
           const dlUrl = await createMonthlyExportDownloadUrl();
           await FS.downloadFile({
