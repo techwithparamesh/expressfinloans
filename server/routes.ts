@@ -843,6 +843,7 @@ export async function registerRoutes(
         paymentDoneByComments: body.paymentDoneByComments ?? null,
         premiumQuoted: body.premiumQuoted ?? null,
         premiumCollected: body.premiumCollected ?? null,
+        netPremium: body.netPremium ?? null,
         difference: body.difference ?? null,
         miscellaneousExpenses: body.miscellaneousExpenses ?? null,
         status: body.status ?? "open",
@@ -945,6 +946,7 @@ export async function registerRoutes(
       if (body.paymentDoneByComments !== undefined) data.paymentDoneByComments = body.paymentDoneByComments;
       if (body.premiumQuoted !== undefined) data.premiumQuoted = body.premiumQuoted;
       if (body.premiumCollected !== undefined) data.premiumCollected = body.premiumCollected;
+      if (body.netPremium !== undefined) data.netPremium = body.netPremium;
       if (body.difference !== undefined) data.difference = body.difference;
       if (body.miscellaneousExpenses !== undefined) data.miscellaneousExpenses = body.miscellaneousExpenses;
       if (body.status !== undefined) data.status = body.status;
@@ -3331,6 +3333,7 @@ export async function registerRoutes(
             incomeType: String(iAny.incomeType ?? (i as any).incomeType ?? ""),
             premiumQuoted: String(iAny.premiumQuoted ?? i.premiumQuoted ?? ""),
             premiumCollected: String(iAny.premiumCollected ?? i.premiumCollected ?? ""),
+            netPremium: String(iAny.netPremium ?? (i as any).net_premium ?? ""),
             difference: String(iAny.difference ?? (i as any).difference ?? ""),
             miscellaneousExpenses: String(iAny.miscellaneousExpenses ?? (i as any).miscellaneousExpenses ?? ""),
             status: String(iAny.status ?? i.status ?? ""),
@@ -3454,6 +3457,7 @@ export async function registerRoutes(
           { header: "Income Type", key: "incomeType", width: 12 },
           { header: "Premium Quoted", key: "premiumQuoted", width: 14 },
           { header: "Premium Collected", key: "premiumCollected", width: 14 },
+          { header: "Net Premium", key: "netPremium", width: 14 },
           { header: "Difference", key: "difference", width: 12 },
           { header: "Misc Expenses", key: "miscellaneousExpenses", width: 14 },
           { header: "Status", key: "status", width: 10 },
@@ -3741,9 +3745,9 @@ export async function registerRoutes(
           maxCellHeight: 42,
         });
 
-        const insHeaders = ["Emp ID", "Name", "Date", "Customer", "DOB", "Contact", "Email", "Loc", "Type", "Cat", "Prod", "Prod Oth", "Vehicle", "Sub", "Sub Oth", "Profile", "Prof Cmt", "Biz", "Biz Cmt", "Pay Mode", "Pay Cmt", "Pay By", "Pay By Cmt", "Income", "Quoted", "Coll", "Diff", "Misc", "Status", "Notes", "Form Loc", "Pol No", "Pol Start", "Pol End", "Coll Prem", "Actual", "Remarks"];
-        const insKeys = ["employeeNumber", "employeeName", "date", "customerName", "dateOfBirth", "contactNum", "mailId", "location", "insuranceType", "insuranceCategory", "insuranceProductType", "insuranceProductTypeOther", "vehicleNumber", "insuranceSubtype", "insuranceSubtypeOther", "profileType", "profileComments", "businessType", "businessTypeComments", "paymentMode", "paymentModeComments", "paymentDoneBy", "paymentDoneByComments", "incomeType", "premiumQuoted", "premiumCollected", "difference", "miscellaneousExpenses", "status", "notes", "formLocation", "policyNumber", "policyStartDate", "policyEndDate", "collectedPremium", "actualPremium", "finalRemarks"];
-        const insWeights = [1, 1.45, 0.95, 1.55, 0.9, 1.15, 1.45, 1.2, 0.75, 0.65, 0.85, 0.85, 0.95, 0.65, 0.75, 0.85, 1, 0.8, 0.85, 0.75, 0.75, 0.75, 0.75, 0.75, 0.85, 0.8, 0.65, 0.65, 0.75, 1.75, 0.95, 0.95, 0.85, 0.85, 0.85, 0.85, 1.1];
+        const insHeaders = ["Emp ID", "Name", "Date", "Customer", "DOB", "Contact", "Email", "Loc", "Type", "Cat", "Prod", "Prod Oth", "Vehicle", "Sub", "Sub Oth", "Profile", "Prof Cmt", "Biz", "Biz Cmt", "Pay Mode", "Pay Cmt", "Pay By", "Pay By Cmt", "Income", "Quoted", "Coll", "Net", "Diff", "Misc", "Status", "Notes", "Form Loc", "Pol No", "Pol Start", "Pol End", "Coll Prem", "Actual", "Remarks"];
+        const insKeys = ["employeeNumber", "employeeName", "date", "customerName", "dateOfBirth", "contactNum", "mailId", "location", "insuranceType", "insuranceCategory", "insuranceProductType", "insuranceProductTypeOther", "vehicleNumber", "insuranceSubtype", "insuranceSubtypeOther", "profileType", "profileComments", "businessType", "businessTypeComments", "paymentMode", "paymentModeComments", "paymentDoneBy", "paymentDoneByComments", "incomeType", "premiumQuoted", "premiumCollected", "netPremium", "difference", "miscellaneousExpenses", "status", "notes", "formLocation", "policyNumber", "policyStartDate", "policyEndDate", "collectedPremium", "actualPremium", "finalRemarks"];
+        const insWeights = [1, 1.45, 0.95, 1.55, 0.9, 1.15, 1.45, 1.2, 0.75, 0.65, 0.85, 0.85, 0.95, 0.65, 0.75, 0.85, 1, 0.8, 0.85, 0.75, 0.75, 0.75, 0.75, 0.75, 0.85, 0.8, 0.75, 0.65, 0.65, 0.75, 1.75, 0.95, 0.95, 0.85, 0.85, 0.85, 0.85, 1.1];
         drawTable("Insurance Leads (full)", insHeaders, insuranceRows, insKeys, "landscape", false, {
           colWeights: insWeights,
           fontSize: 6.5,

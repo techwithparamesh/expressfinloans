@@ -114,6 +114,8 @@ type InsuranceLead = {
   paymentDoneByComments: string | null;
   premiumQuoted: string | null;
   premiumCollected: string | null;
+  netPremium?: string | null;
+  net_premium?: string | null;
   difference: string | null;
   miscellaneousExpenses: string | null;
   status: string;
@@ -231,6 +233,7 @@ const defaultInsuranceForm = () => ({
   paymentDoneByComments: "",
   premiumQuoted: "",
   premiumCollected: "",
+  netPremium: "",
   miscellaneousExpenses: "",
   status: "Open",
   notes: "",
@@ -322,6 +325,7 @@ export default function StaffMyLeads() {
       paymentDoneByComments: l.paymentDoneByComments ?? "",
       premiumQuoted: l.premiumQuoted ?? "",
       premiumCollected: l.premiumCollected ?? "",
+      netPremium: l.netPremium ?? l.net_premium ?? "",
       miscellaneousExpenses: l.miscellaneousExpenses ?? "",
       status: l.status ?? "Open",
       notes: l.notes ?? "",
@@ -551,6 +555,7 @@ export default function StaffMyLeads() {
         paymentDoneByComments: insuranceForm.paymentDoneByComments?.trim() || null,
         premiumQuoted: insuranceForm.premiumQuoted || null,
         premiumCollected: insuranceForm.premiumCollected || null,
+        netPremium: insuranceForm.netPremium?.trim() || null,
         difference: premiumDifference(
           insuranceForm.premiumQuoted,
           insuranceForm.premiumCollected
@@ -867,6 +872,10 @@ export default function StaffMyLeads() {
                         <span className="text-right tabular-nums">{l.premiumCollected ?? "—"}</span>
                       </div>
                       <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[110px]">Net premium</span>
+                        <span className="text-right tabular-nums">{l.netPremium ?? l.net_premium ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
                         <span className="text-muted-foreground shrink-0 w-[110px]">Difference</span>
                         <span className="text-right tabular-nums">{l.difference ?? "—"}</span>
                       </div>
@@ -920,6 +929,7 @@ export default function StaffMyLeads() {
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Ends on</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Premium quoted</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Premium collected</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Net premium</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Difference</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Misc. Expenses</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Generated at</th>
@@ -939,6 +949,7 @@ export default function StaffMyLeads() {
                         <td className="py-2.5 pr-3">{getPolicyEndDate(l) ?? "—"}</td>
                         <td className="py-2.5 pr-3 tabular-nums">{l.premiumQuoted ?? "—"}</td>
                         <td className="py-2.5 pr-3 tabular-nums">{l.premiumCollected ?? "—"}</td>
+                        <td className="py-2.5 pr-3 tabular-nums">{l.netPremium ?? l.net_premium ?? "—"}</td>
                         <td className="py-2.5 pr-3 tabular-nums">{l.difference ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.miscellaneousExpenses ?? "—"}</td>
                         <td className="py-2.5 pr-3 max-w-[180px] truncate" title={getFormLocationDisplay(l) ?? undefined}>{getFormLocationDisplay(l) ?? "—"}</td>
@@ -1746,7 +1757,7 @@ export default function StaffMyLeads() {
                     )}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label>Premium quoted</Label>
                     <Input
@@ -1762,6 +1773,17 @@ export default function StaffMyLeads() {
                       value={insuranceForm.premiumCollected}
                       onChange={(e) =>
                         setInsuranceForm((f) => ({ ...f, premiumCollected: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label>Net premium</Label>
+                    <Input
+                      inputMode="decimal"
+                      placeholder="Amount (optional)"
+                      value={insuranceForm.netPremium}
+                      onChange={(e) =>
+                        setInsuranceForm((f) => ({ ...f, netPremium: e.target.value }))
                       }
                     />
                   </div>

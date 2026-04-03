@@ -323,6 +323,14 @@ USE expressfinloans;
 ALTER TABLE insurance_leads ADD COLUMN miscellaneous_expenses VARCHAR(100) NULL;
 ```
 
+**Insurance lead form (Net Premium):** Optional amount entered by staff (e.g. net premium after deductions). Run:
+
+```sql
+USE expressfinloans;
+
+ALTER TABLE insurance_leads ADD COLUMN net_premium VARCHAR(50) NULL AFTER premium_collected;
+```
+
 **Attendance login location (hybrid: browser geolocation + IP fallback):** To store where the employee logged in (check-in location), run:
 
 ```sql

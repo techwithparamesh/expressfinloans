@@ -44,6 +44,7 @@ type InsuranceLead = {
   insuranceType: string | null;
   premiumQuoted: string | null;
   premiumCollected: string | null;
+  netPremium?: string | null;
   status: string;
   collectedPremium: string | null;
   actualPremium: string | null;
@@ -213,6 +214,7 @@ export default function StaffInsuranceLeads() {
                   <th className="text-left py-2 px-2 min-w-[90px]">Contact</th>
                   <th className="text-left py-2 px-2 min-w-[90px]">Insurance type</th>
                   <th className="text-left py-2 px-2 min-w-[80px]">Premium quoted</th>
+                  <th className="text-left py-2 px-2 min-w-[80px]">Net premium</th>
                   {showAdminFields && (
                     <>
                       <th className="text-left py-2 px-2 min-w-[90px]">Collected</th>
@@ -235,6 +237,7 @@ export default function StaffInsuranceLeads() {
                     <td className="py-2 px-2">{l.contactNum ?? "—"}</td>
                     <td className="py-2 px-2">{l.insuranceType ?? "—"}</td>
                     <td className="py-2 px-2">{l.premiumQuoted ?? "—"}</td>
+                    <td className="py-2 px-2 tabular-nums">{l.netPremium ?? "—"}</td>
                     {showAdminFields && (
                       <>
                         <td className="py-2 px-2">{l.collectedPremium ?? "—"}</td>
