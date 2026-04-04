@@ -4,10 +4,16 @@ import { randomBytes } from "node:crypto";
 import path from "path";
 import fs from "fs";
 import passport from "passport";
+import multer from "multer";
 import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
 import { storage } from "./storage";
 import { requireAuth, requireAdmin, requireAdminOrTeamLead } from "./auth";
+import {
+  AdminLeadImportParseError,
+  buildImportTemplateBuffer,
+  runAdminLeadImport,
+} from "./adminLeadImport";
 import { getClientIp, getLocationFromIp, reverseGeocode } from "./lib/geolocation";
 import { computePayslip, formatCurrency, getWorkingDaysInMonth, type ComputedPayslip } from "./payroll";
 
@@ -67,6 +73,16 @@ function numberToWordsInRupees(n: number): string {
 }
 
 const LEAD_MIN_FOR_PRESENT = 2;
+
+const adminLeadImportUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 16 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const name = (file.originalname || "").toLowerCase();
+    if (name.endsWith(".xlsx")) cb(null, true);
+    else cb(new Error("Only .xlsx files are allowed"));
+  },
+});
 
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
@@ -980,6 +996,55 @@ export async function registerRoutes(
       next(e);
     }
   });
+
+  // --- Admin: bulk import loan + insurance leads (insert-only; .xlsx) ---
+  app.get("/api/staff/admin/import-leads-template", requireAuth, requireAdmin, async (_req, res, next) => {
+    try {
+      const buf = await buildImportTemplateBuffer();
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader("Content-Disposition", 'attachment; filename="leads-import-template.xlsx"');
+      res.send(buf);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.post(
+    "/api/staff/admin/import-leads-data",
+    requireAuth,
+    requireAdmin,
+    (req, res, next) => {
+      adminLeadImportUpload.single("file")(req, res, (err) => {
+        if (err) {
+          const msg = err instanceof Error ? err.message : "Upload failed";
+          return res.status(400).json({ message: msg });
+        }
+        next();
+      });
+    },
+    async (req, res, next) => {
+      try {
+        const file = req.file;
+        if (!file?.buffer) {
+          return res.status(400).json({ message: "file is required (form field name: file)" });
+        }
+        const dryRun =
+          String(req.query.dryRun || "") === "1" || String(req.body?.dryRun || "") === "true";
+        const result = await runAdminLeadImport(file.buffer, { storage, dryRun });
+        res.json(result);
+      } catch (e) {
+        if (e instanceof AdminLeadImportParseError) {
+          return res
+            .status(400)
+            .json({ message: "Could not read Excel file. Use a valid .xlsx workbook." });
+        }
+        next(e);
+      }
+    }
+  );
 
   // --- Staff: admin expenses (admin only) ---
   app.get("/api/staff/admin-expenses", requireAuth, requireAdmin, async (req, res, next) => {

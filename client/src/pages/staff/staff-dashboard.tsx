@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,20 @@ import { getAuthMe, staffJson, staffFetch } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
 import { formatDateDdMmYyyy } from "@/lib/utils";
 import { useMonthlyTargetPopup, useConveyancePolicyPopup } from "./staff-layout";
-import { Calendar, Download, Share2, Target, TrendingUp, Percent, DollarSign, Car, Activity, Search } from "lucide-react";
+import {
+  Calendar,
+  Download,
+  Share2,
+  Target,
+  TrendingUp,
+  Percent,
+  DollarSign,
+  Car,
+  Activity,
+  Search,
+  FileSpreadsheet,
+  Upload,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
@@ -239,6 +252,9 @@ export default function StaffDashboard() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
   const [adminLeaderExpenseActionId, setAdminLeaderExpenseActionId] = useState<string | null>(null);
+  const [leadImportBusy, setLeadImportBusy] = useState(false);
+  const [leadImportDryRun, setLeadImportDryRun] = useState(true);
+  const leadImportInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getAuthMe().then((res) => setUser(res?.user ?? null));
@@ -350,6 +366,78 @@ export default function StaffDashboard() {
     Boolean(
       (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()
     );
+
+  async function handleDownloadLeadImportTemplate() {
+    try {
+      const res = await fetch("/api/staff/admin/import-leads-template", { credentials: "include" });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(data.message || "Download failed");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "leads-import-template.xlsx";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Template downloaded" });
+    } catch (e) {
+      toast({
+        title: "Template download failed",
+        description: e instanceof Error ? e.message : "Unknown error",
+        variant: "destructive",
+      });
+    }
+  }
+
+  async function handleLeadImportFile(file: File | null) {
+    if (!file || user?.role !== "admin") return;
+    setLeadImportBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const q = leadImportDryRun ? "?dryRun=1" : "";
+      const res = await fetch(`/api/staff/admin/import-leads-data${q}`, {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        loansReady?: number;
+        insuranceReady?: number;
+        loansInserted?: number;
+        insuranceInserted?: number;
+        errors?: { sheet: string; row: number; kind: string; message: string }[];
+        sheetsSkipped?: string[];
+      };
+      if (!res.ok) throw new Error(body.message || "Import failed");
+
+      const errCount = body.errors?.length ?? 0;
+      const sheetsMsg =
+        body.sheetsSkipped?.length ? ` Skipped sheets: ${body.sheetsSkipped.join("; ")}` : "";
+      if (leadImportDryRun) {
+        toast({
+          title: "Dry run complete",
+          description: `Ready: ${body.loansReady ?? 0} loan rows, ${body.insuranceReady ?? 0} insurance rows. ${errCount} row error(s).${sheetsMsg}`,
+        });
+      } else {
+        toast({
+          title: "Import finished",
+          description: `Inserted ${body.loansInserted ?? 0} loans, ${body.insuranceInserted ?? 0} insurance. ${errCount} row error(s).${sheetsMsg}`,
+        });
+      }
+    } catch (e) {
+      toast({
+        title: "Import failed",
+        description: e instanceof Error ? e.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setLeadImportBusy(false);
+    }
+  }
 
   async function handleExport(format: "xlsx" | "pdf", nativeAction?: "save" | "share") {
     const busyKey =
@@ -1386,6 +1474,67 @@ export default function StaffDashboard() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+
+      {user?.role === "admin" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5" />
+              Import leads (Excel)
+            </CardTitle>
+            <CardDescription>
+              Upload a .xlsx workbook. Rows on the <strong>Leads</strong> sheet become loan leads; rows on{" "}
+              <strong>Insurance Leads</strong> become insurance leads (same column layout as monthly export). You can
+              also use one sheet that has both <strong>Loan Type</strong> and <strong>Insurance Type</strong> columns:
+              add a <strong>Record Type</strong> column per row with <code className="text-xs">loan</code> or{" "}
+              <code className="text-xs">insurance</code>. Employee ID must match an existing staff number. Only{" "}
+              <strong>new</strong> records are inserted; nothing is updated or deleted.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="lead-import-dry-run"
+                  checked={leadImportDryRun}
+                  onCheckedChange={(c) => setLeadImportDryRun(c === true)}
+                />
+                <Label htmlFor="lead-import-dry-run" className="cursor-pointer font-normal text-sm">
+                  Dry run (validate only, no database changes)
+                </Label>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => void handleDownloadLeadImportTemplate()}>
+                <Download className="h-4 w-4 shrink-0 mr-2" />
+                Download template
+              </Button>
+              <input
+                ref={leadImportInputRef}
+                type="file"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="sr-only"
+                aria-hidden
+                tabIndex={-1}
+                disabled={leadImportBusy}
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  e.target.value = "";
+                  void handleLeadImportFile(f);
+                }}
+              />
+              <Button
+                type="button"
+                disabled={leadImportBusy}
+                onClick={() => leadImportInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4 shrink-0" />
+                {leadImportBusy ? "Working…" : leadImportDryRun ? "Choose file (dry run)" : "Choose file & import"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <Card>
