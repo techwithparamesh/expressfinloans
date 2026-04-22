@@ -44,6 +44,16 @@ function statusLabel(status: string): string {
   return status || "Unknown";
 }
 
+function statusBadgeClass(status: string): string {
+  const s = String(status || "").toLowerCase();
+  if (s === "approved") return "bg-green-100 text-green-800 border-green-200";
+  if (s === "pending_team_lead") return "bg-amber-100 text-amber-800 border-amber-200";
+  if (s === "pending_admin") return "bg-blue-100 text-blue-800 border-blue-200";
+  if (s.startsWith("rejected")) return "bg-red-100 text-red-800 border-red-200";
+  if (s === "withdrawn") return "bg-slate-100 text-slate-700 border-slate-200";
+  return "bg-slate-100 text-slate-700 border-slate-200";
+}
+
 function calcDaysLeft(endDateStr: string | null | undefined): number {
   const s = String(endDateStr ?? "").slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return -1;
@@ -59,6 +69,13 @@ function daysLeftText(item: ResignationItem): string {
   if (days === 0) return "Last working day is today";
   if (days === 1) return "1 day left";
   return `${days} days left`;
+}
+
+function noticePriority(daysLeft: number): 0 | 1 | 2 | 3 {
+  if (daysLeft < 0) return 3;
+  if (daysLeft === 0) return 0;
+  if (daysLeft <= 7) return 1;
+  return 2;
 }
 
 export default function StaffHrWorkflows() {
@@ -137,6 +154,19 @@ export default function StaffHrWorkflows() {
       ),
     [resignationMine]
   );
+
+  const onNoticeSorted = useMemo(() => {
+    const rows = [...onNoticeResignations];
+    rows.sort((a, b) => {
+      const da = typeof a.daysLeft === "number" ? a.daysLeft : calcDaysLeft(a.effectiveLastWorkingDay);
+      const db = typeof b.daysLeft === "number" ? b.daysLeft : calcDaysLeft(b.effectiveLastWorkingDay);
+      const pa = noticePriority(da);
+      const pb = noticePriority(db);
+      if (pa !== pb) return pa - pb;
+      return da - db;
+    });
+    return rows;
+  }, [onNoticeResignations]);
 
   async function submitResignation() {
     if (!resignationReason.trim()) {
@@ -240,7 +270,12 @@ export default function StaffHrWorkflows() {
               <CardContent className="space-y-3">
                 {activeResignation && (
                   <div className="rounded-md border bg-slate-50 p-3 text-sm">
-                    <p className="font-medium">Active request: {statusLabel(activeResignation.status)}</p>
+                    <p className="font-medium flex items-center gap-2">
+                      Active request:
+                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${statusBadgeClass(activeResignation.status)}`}>
+                        {statusLabel(activeResignation.status)}
+                      </span>
+                    </p>
                     <p className="text-slate-600">
                       Notice period: {activeResignation.noticeDays} days · Effective last working day:{" "}
                       {formatDateDdMmYyyy(activeResignation.effectiveLastWorkingDay) || "—"} · {daysLeftText(activeResignation)}
@@ -276,7 +311,11 @@ export default function StaffHrWorkflows() {
                     <div className="space-y-2">
                       {resignationMine.map((r) => (
                         <div key={r.id} className="rounded-md border bg-slate-50 p-3 text-sm">
-                          <p className="font-medium">{statusLabel(r.status)}</p>
+                          <p className="font-medium">
+                            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${statusBadgeClass(r.status)}`}>
+                              {statusLabel(r.status)}
+                            </span>
+                          </p>
                           <p className="text-slate-600">
                             Notice period: {r.noticeDays} days · Effective last working day: {formatDateDdMmYyyy(r.effectiveLastWorkingDay) || "—"} · {daysLeftText(r)}
                           </p>
@@ -293,7 +332,11 @@ export default function StaffHrWorkflows() {
                     <div className="space-y-2">
                       {probationMine.map((r) => (
                         <div key={r.id} className="rounded-md border bg-slate-50 p-3 text-sm">
-                          <p className="font-medium">{statusLabel(r.status)}</p>
+                          <p className="font-medium">
+                            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${statusBadgeClass(r.status)}`}>
+                              {statusLabel(r.status)}
+                            </span>
+                          </p>
                           <p className="text-slate-600">Probation completed on: {formatDateDdMmYyyy(r.probationCompletedOn) || "—"}</p>
                         </div>
                       ))}
@@ -320,9 +363,14 @@ export default function StaffHrWorkflows() {
                     const actioning = actioningId === r.id;
                     return (
                       <div key={r.id} className="rounded-md border bg-slate-50 p-3 space-y-2">
-                        <p className="font-medium text-sm">
-                          {r.employeeName || r.employeeId} ({r.employeeNumber || "N/A"})
-                        </p>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-medium text-sm">
+                            {r.employeeName || r.employeeId} ({r.employeeNumber || "N/A"})
+                          </p>
+                          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${statusBadgeClass(r.status)}`}>
+                            {statusLabel(r.status)}
+                          </span>
+                        </div>
                         <p className="text-xs text-slate-600">
                           Notice period: {r.noticeDays} days · Effective last working day: {formatDateDdMmYyyy(r.effectiveLastWorkingDay) || "—"} · {daysLeftText(r)}
                         </p>
@@ -355,9 +403,14 @@ export default function StaffHrWorkflows() {
                     const actioning = actioningId === r.id;
                     return (
                       <div key={r.id} className="rounded-md border bg-slate-50 p-3 space-y-2">
-                        <p className="font-medium text-sm">
-                          {r.employeeName || r.employeeId} ({r.employeeNumber || "N/A"})
-                        </p>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-medium text-sm">
+                            {r.employeeName || r.employeeId} ({r.employeeNumber || "N/A"})
+                          </p>
+                          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${statusBadgeClass(r.status)}`}>
+                            {statusLabel(r.status)}
+                          </span>
+                        </div>
                         <p className="text-xs text-slate-600">
                           Probation completed on: {formatDateDdMmYyyy(r.probationCompletedOn) || "—"}
                         </p>
@@ -390,11 +443,24 @@ export default function StaffHrWorkflows() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {onNoticeResignations.length === 0 ? (
+                {onNoticeSorted.length === 0 ? (
                   <p className="text-sm text-slate-500">No active notice-period records.</p>
                 ) : (
-                  <div className="space-y-2">
-                    {onNoticeResignations.map((r) => (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-red-700">Priority 1: 0 day</span>
+                      <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-700">Priority 2: 1-7 days</span>
+                      <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-blue-700">Priority 3: 8+ days</span>
+                    </div>
+                    {onNoticeSorted.map((r) => {
+                      const days = typeof r.daysLeft === "number" ? r.daysLeft : calcDaysLeft(r.effectiveLastWorkingDay);
+                      const priorityClass =
+                        days === 0
+                          ? "border-red-200 bg-red-50"
+                          : days > 0 && days <= 7
+                            ? "border-amber-200 bg-amber-50"
+                            : "border-blue-200 bg-blue-50";
+                      return (
                       <div key={r.id} className="rounded-md border bg-slate-50 p-3 text-sm">
                         <p className="font-medium">
                           {r.employeeName || r.employeeId} ({r.employeeNumber || "N/A"})
@@ -403,8 +469,14 @@ export default function StaffHrWorkflows() {
                         <p className="text-slate-600">
                           Effective last working day: {formatDateDdMmYyyy(r.effectiveLastWorkingDay) || "—"} · {daysLeftText(r)}
                         </p>
+                        <div className="mt-1">
+                          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${priorityClass}`}>
+                            {days === 0 ? "Priority 1" : days > 0 && days <= 7 ? "Priority 2" : "Priority 3"}
+                          </span>
+                        </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
