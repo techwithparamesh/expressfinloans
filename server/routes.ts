@@ -167,6 +167,23 @@ function stripSimpleHtml(input: string): string {
     .trim();
 }
 
+function getFiscalYearStart(dateStr: string): number {
+  const d = new Date(String(dateStr).slice(0, 10) + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return new Date().getFullYear();
+  const y = d.getFullYear();
+  const m = d.getMonth(); // 0-index
+  return m >= 3 ? y : y - 1; // Apr..Dec => same year, Jan..Mar => previous year
+}
+
+function getFiscalQuarterRanges(fiscalYearStart: number): Array<{ quarter: "Q1" | "Q2" | "Q3" | "Q4"; from: string; to: string }> {
+  return [
+    { quarter: "Q1", from: `${fiscalYearStart}-04-01`, to: `${fiscalYearStart}-06-30` },
+    { quarter: "Q2", from: `${fiscalYearStart}-07-01`, to: `${fiscalYearStart}-09-30` },
+    { quarter: "Q3", from: `${fiscalYearStart}-10-01`, to: `${fiscalYearStart}-12-31` },
+    { quarter: "Q4", from: `${fiscalYearStart + 1}-01-01`, to: `${fiscalYearStart + 1}-03-31` },
+  ];
+}
+
 function drawOfferLetterPdf(
   doc: any,
   opts: { title: string; employeeName: string; letterBody: string; generatedOn: Date }
@@ -2926,6 +2943,9 @@ export async function registerRoutes(
         const now = new Date();
         const year = now.getFullYear();
         const month = now.getMonth() + 1;
+        const fyParamRaw = typeof req.query.fyStart === "string" ? req.query.fyStart : "";
+        const fyFromQuery = /^\d{4}$/.test(fyParamRaw) ? Number(fyParamRaw) : NaN;
+        const fiscalYearStart = Number.isFinite(fyFromQuery) ? fyFromQuery : getFiscalYearStart(today);
         const monthStart = new Date(year, now.getMonth(), 1).toISOString().slice(0, 10);
         const monthEnd = new Date(year, now.getMonth() + 1, 0).toISOString().slice(0, 10);
         const ytdStart = `${year}-01-01`;
@@ -3091,6 +3111,27 @@ export async function registerRoutes(
           companyTargetMtd,
           companyAchievedMtd,
           monthLabel: `${monthName} ${currentYear}`,
+        };
+        const quarterRanges = getFiscalQuarterRanges(fiscalYearStart);
+        const quarterlyDisbursal = [] as Array<{ quarter: "Q1" | "Q2" | "Q3" | "Q4"; from: string; to: string; amount: number; disbursedCount: number }>;
+        for (const q of quarterRanges) {
+          const leadsQuarter = await storage.getAllLeads({ fromDate: q.from, toDate: q.to });
+          const leadsQuarterVisible = filterByVisible(leadsQuarter);
+          const disbursed = leadsQuarterVisible.filter((l) => String(l.status || "").toLowerCase() === "disbursed");
+          let amount = 0;
+          for (const l of disbursed) amount += getLeadAmount(l as any);
+          quarterlyDisbursal.push({
+            quarter: q.quarter,
+            from: q.from,
+            to: q.to,
+            amount,
+            disbursedCount: disbursed.length,
+          });
+        }
+        payload.quarterlyDisbursal = quarterlyDisbursal;
+        payload.fiscalYear = {
+          startYear: fiscalYearStart,
+          label: `FY ${fiscalYearStart}-${String((fiscalYearStart + 1) % 100).padStart(2, "0")}`,
         };
         payload.allEmployeeTargetAchievement = allEmployeeTargetAchievement;
         payload.conveyanceReport = conveyanceReport;

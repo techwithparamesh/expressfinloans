@@ -185,6 +185,17 @@ type Dashboard = {
     noticeDays?: number | null;
     daysLeft?: number;
   }[];
+  quarterlyDisbursal?: {
+    quarter: "Q1" | "Q2" | "Q3" | "Q4";
+    from: string;
+    to: string;
+    amount: number;
+    disbursedCount: number;
+  }[];
+  fiscalYear?: {
+    startYear: number;
+    label: string;
+  };
 };
 
 type EmployeeOption = {
@@ -195,6 +206,10 @@ type EmployeeOption = {
 };
 
 export default function StaffDashboard() {
+  const currentFyStartYear = (() => {
+    const d = new Date();
+    return d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
+  })();
   const [user, setUser] = useState<StaffUser | null>(null);
   const [data, setData] = useState<Dashboard | null>(null);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
@@ -232,6 +247,7 @@ export default function StaffDashboard() {
     return d.toISOString().slice(0, 10);
   });
   const [reportsTo, setReportsTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [fiscalYearStart, setFiscalYearStart] = useState<number>(currentFyStartYear);
 
   // Leader expense requests (team lead)
   const [leaderExpenses, setLeaderExpenses] = useState<LeaderExpenseRequest[]>([]);
@@ -273,7 +289,7 @@ export default function StaffDashboard() {
 
   useEffect(() => {
     Promise.all([
-      staffJson<Dashboard>("/staff/dashboard").catch(() => null),
+      staffJson<Dashboard>(`/staff/dashboard?fyStart=${fiscalYearStart}`).catch(() => null),
       staffJson<EmployeeOption[]>("/staff/employees").catch(() => []),
     ]).then(([dashboard, empList]) => {
       setData(dashboard ?? null);
@@ -285,7 +301,13 @@ export default function StaffDashboard() {
         setReportMonthLabel(dashboard.adminKpi.monthLabel);
       }
     }).finally(() => setLoading(false));
-  }, []);
+  }, [fiscalYearStart]);
+
+  const fiscalYearOptions = useMemo(() => {
+    const out: number[] = [];
+    for (let y = currentFyStartYear - 3; y <= currentFyStartYear + 1; y++) out.push(y);
+    return out;
+  }, [currentFyStartYear]);
 
   // Load leader expense requests for team lead
   useEffect(() => {
@@ -687,6 +709,68 @@ export default function StaffDashboard() {
             </Card>
           </div>
         </>
+      )}
+
+      {user?.role === "admin" && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
+            <div>
+              <CardTitle>Quarterly disbursal</CardTitle>
+              <CardDescription>
+                Fiscal year view from April to next March.
+              </CardDescription>
+            </div>
+            <div className="w-[180px]">
+              <Select
+                value={String(fiscalYearStart)}
+                onValueChange={(v) => setFiscalYearStart(Number(v) || currentFyStartYear)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select FY" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fiscalYearOptions.map((y) => (
+                    <SelectItem key={y} value={String(y)}>
+                      {`FY ${y}-${String((y + 1) % 100).padStart(2, "0")}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {!data.quarterlyDisbursal || data.quarterlyDisbursal.length === 0 ? (
+              <p className="text-sm text-slate-500">No quarterly disbursal data available.</p>
+            ) : (
+              <div className="overflow-x-auto rounded-md border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b">
+                      <th className="text-left p-3 font-medium">Quarter</th>
+                      <th className="text-left p-3 font-medium">Period</th>
+                      <th className="text-right p-3 font-medium tabular-nums">Disbursed count</th>
+                      <th className="text-right p-3 font-medium tabular-nums">Disbursed amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.quarterlyDisbursal.map((q) => (
+                      <tr key={q.quarter} className="border-b last:border-b-0">
+                        <td className="p-3 font-medium">{q.quarter}</td>
+                        <td className="p-3 text-slate-600">
+                          {formatDateDdMmYyyy(q.from) || q.from} - {formatDateDdMmYyyy(q.to) || q.to}
+                        </td>
+                        <td className="p-3 text-right tabular-nums">{q.disbursedCount}</td>
+                        <td className="p-3 text-right tabular-nums font-semibold">
+                          {new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(q.amount) || 0)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {user?.role === "admin" && data.ftdAchieved && (
