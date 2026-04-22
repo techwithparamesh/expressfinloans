@@ -155,6 +155,11 @@ export default function StaffHrWorkflows() {
     [resignationMine]
   );
 
+  const resignationHistory = useMemo(
+    () => resignationMine.filter((r) => r.id !== activeResignation?.id),
+    [resignationMine, activeResignation?.id]
+  );
+
   const onNoticeSorted = useMemo(() => {
     const rows = [...onNoticeResignations];
     rows.sort((a, b) => {
@@ -280,6 +285,9 @@ export default function StaffHrWorkflows() {
                       Notice period: {activeResignation.noticeDays} days · Effective last working day:{" "}
                       {formatDateDdMmYyyy(activeResignation.effectiveLastWorkingDay) || "—"} · {daysLeftText(activeResignation)}
                     </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      This active request is shown here only to avoid duplicate status in history.
+                    </p>
                   </div>
                 )}
                 <Textarea
@@ -305,11 +313,13 @@ export default function StaffHrWorkflows() {
               <CardContent className="space-y-4">
                 <div>
                   <h3 className="text-sm font-semibold text-slate-800 mb-2">Resignation requests</h3>
-                  {resignationMine.length === 0 ? (
-                    <p className="text-sm text-slate-500">No resignation requests yet.</p>
+                  {resignationHistory.length === 0 ? (
+                    <p className="text-sm text-slate-500">
+                      {activeResignation ? "No past resignation requests yet." : "No resignation requests yet."}
+                    </p>
                   ) : (
                     <div className="space-y-2">
-                      {resignationMine.map((r) => (
+                      {resignationHistory.map((r) => (
                         <div key={r.id} className="rounded-md border bg-slate-50 p-3 text-sm">
                           <p className="font-medium">
                             <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${statusBadgeClass(r.status)}`}>

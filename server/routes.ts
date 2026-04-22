@@ -102,6 +102,36 @@ function daysLeftFromToday(endDateStr: string): number {
   return Math.floor((end.getTime() - today.getTime()) / 86400000);
 }
 
+function normalizeYmd(value: unknown): string | null {
+  if (!value) return null;
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return null;
+    return value.toISOString().slice(0, 10);
+  }
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const isoPrefix = raw.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(isoPrefix)) return isoPrefix;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+function pickActiveApprovedResignation<T extends { status?: string; effectiveLastWorkingDay?: unknown }>(rows: T[]): { row: T; lwd: string; daysLeft: number } | null {
+  let best: { row: T; lwd: string; daysLeft: number } | null = null;
+  for (const row of rows) {
+    if (String(row.status || "").toLowerCase() !== "approved") continue;
+    const lwd = normalizeYmd(row.effectiveLastWorkingDay);
+    if (!lwd) continue;
+    const daysLeft = daysLeftFromToday(lwd);
+    if (daysLeft < 0) continue;
+    if (!best || daysLeft < best.daysLeft) {
+      best = { row, lwd, daysLeft };
+    }
+  }
+  return best;
+}
+
 function isSecondSaturday(dateStr: string): boolean {
   const d = new Date(dateStr + "T00:00:00");
   if (Number.isNaN(d.getTime())) return false;
@@ -1359,18 +1389,15 @@ export async function registerRoutes(
       const out: Array<Record<string, unknown>> = [];
       for (const p of people) {
         const list = await storage.getResignationRequestsByEmployee(p.id);
-        const approved = list.find((r) => String(r.status || "").toLowerCase() === "approved");
-        if (!approved) continue;
-        const lwd = String((approved as any).effectiveLastWorkingDay ?? "").slice(0, 10);
-        if (!lwd) continue;
-        const daysLeft = daysLeftFromToday(lwd);
-        if (daysLeft < 0) continue;
+        const active = pickActiveApprovedResignation(list as any[]);
+        if (!active) continue;
         out.push({
-          ...approved,
+          ...active.row,
           employeeName: (p as any).fullName?.trim() || p.username || p.id,
           employeeNumber: (p as any).employeeNumber ?? "",
           employeeRole: p.role,
-          daysLeft,
+          effectiveLastWorkingDay: active.lwd,
+          daysLeft: active.daysLeft,
         });
       }
       out.sort((a, b) => Number((a as any).daysLeft ?? 9999) - Number((b as any).daysLeft ?? 9999));
@@ -2513,21 +2540,17 @@ export async function registerRoutes(
         const onNotice: Array<Record<string, unknown>> = [];
         for (const p of scoped) {
           const list = await storage.getResignationRequestsByEmployee(p.id);
-          const approved = list.find((r) => String(r.status || "").toLowerCase() === "approved");
-          if (!approved) continue;
-          const lwd = String((approved as any).effectiveLastWorkingDay ?? "").slice(0, 10);
-          if (!lwd) continue;
-          const daysLeft = daysLeftFromToday(lwd);
-          if (daysLeft < 0) continue;
+          const active = pickActiveApprovedResignation(list as any[]);
+          if (!active) continue;
           onNotice.push({
-            id: approved.id,
+            id: active.row.id,
             employeeId: p.id,
             employeeName: byId[p.id]?.name ?? p.id,
             employeeNumber: byId[p.id]?.number ?? "",
             employeeRole: p.role,
-            effectiveLastWorkingDay: lwd,
-            noticeDays: (approved as any).noticeDays ?? null,
-            daysLeft,
+            effectiveLastWorkingDay: active.lwd,
+            noticeDays: (active.row as any).noticeDays ?? null,
+            daysLeft: active.daysLeft,
           });
         }
         onNotice.sort((a, b) => Number((a as any).daysLeft ?? 9999) - Number((b as any).daysLeft ?? 9999));
