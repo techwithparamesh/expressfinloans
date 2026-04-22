@@ -16,7 +16,18 @@ import { useToast } from "@/hooks/use-toast";
 import { DollarSign, Settings, FileText, Download } from "lucide-react";
 
 type Employee = { id: string; username: string; fullName: string | null; employeeNumber: string | null; role: string };
-type SalaryStructure = { basic: number; hraPercent: number; specialAllowance: number; conveyance: number; medical: number; employeePfPercent: number; ptAmount: number };
+type ExtraAllowance = { label: string; amount: number };
+type SalaryStructure = {
+  monthlyCtc: number;
+  basic: number;
+  hraPercent: number;
+  specialAllowance: number;
+  conveyance: number;
+  medical: number;
+  extraAllowances: ExtraAllowance[];
+  employeePfPercent: number;
+  ptAmount: number;
+};
 type PayrollEntry = { id: string; employeeId: string; period: string; incentives: number; deductionsOther: number; tdsAmount?: number; absentDays: number; notes?: string };
 type PayslipRow = { id: string; employeeId: string; period: string; totalEarnings: number; totalDeductions: number; netPay: number; generatedAt: string };
 
@@ -52,7 +63,15 @@ export default function StaffPayroll() {
   const [payrollOpen, setPayrollOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [structureForm, setStructureForm] = useState<SalaryStructure>({
-    basic: 0, hraPercent: 0, specialAllowance: 0, conveyance: 0, medical: 0, employeePfPercent: 12, ptAmount: 0,
+    monthlyCtc: 0,
+    basic: 0,
+    hraPercent: 40,
+    specialAllowance: 0,
+    conveyance: 0,
+    medical: 0,
+    extraAllowances: [],
+    employeePfPercent: 12,
+    ptAmount: 0,
   });
   const [payrollForm, setPayrollForm] = useState({ incentives: 0, deductionsOther: 0, tdsAmount: "", absentDays: 0, notes: "" });
   const [saving, setSaving] = useState(false);
@@ -90,17 +109,36 @@ export default function StaffPayroll() {
     setStructureOpen(true);
     try {
       const s = await staffJson<SalaryStructure>(`/staff/salary-structure/${emp.id}`);
+      const ctc = Number((s as any).monthlyCtc) || 0;
+      const hraPercent = Number(s.hraPercent) || 40;
+      const basicAuto = ctc > 0 ? Math.round(ctc * 0.4) : Number(s.basic) || 0;
       setStructureForm({
-        basic: Number(s.basic) || 0,
-        hraPercent: Number(s.hraPercent) || 0,
+        monthlyCtc: ctc,
+        basic: basicAuto,
+        hraPercent,
         specialAllowance: Number(s.specialAllowance) || 0,
         conveyance: Number(s.conveyance) || 0,
         medical: Number(s.medical) || 0,
+        extraAllowances: Array.isArray((s as any).extraAllowances)
+          ? ((s as any).extraAllowances as any[])
+              .map((x) => ({ label: String(x?.label || ""), amount: Number(x?.amount) || 0 }))
+              .filter((x) => x.label && x.amount > 0)
+          : [],
         employeePfPercent: Number(s.employeePfPercent) || 12,
         ptAmount: Number(s.ptAmount) || 0,
       });
     } catch {
-      setStructureForm({ basic: 0, hraPercent: 0, specialAllowance: 0, conveyance: 0, medical: 0, employeePfPercent: 12, ptAmount: 0 });
+      setStructureForm({
+        monthlyCtc: 0,
+        basic: 0,
+        hraPercent: 40,
+        specialAllowance: 0,
+        conveyance: 0,
+        medical: 0,
+        extraAllowances: [],
+        employeePfPercent: 12,
+        ptAmount: 0,
+      });
     }
   }
 
@@ -125,7 +163,17 @@ export default function StaffPayroll() {
       await staffJson("/staff/salary-structure", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ employeeId: selectedEmployee.id, ...structureForm }),
+        body: JSON.stringify({
+          employeeId: selectedEmployee.id,
+          monthlyCtc: structureForm.monthlyCtc,
+          hraPercent: structureForm.hraPercent,
+          specialAllowance: structureForm.specialAllowance,
+          conveyance: structureForm.conveyance,
+          medical: structureForm.medical,
+          extraAllowances: structureForm.extraAllowances,
+          employeePfPercent: structureForm.employeePfPercent,
+          ptAmount: structureForm.ptAmount,
+        }),
       });
       toast({ title: "Salary structure saved" });
       setStructureOpen(false);
@@ -186,6 +234,8 @@ export default function StaffPayroll() {
   }
 
   const entryByEmp = Object.fromEntries(entries.map((e) => [e.employeeId, e]));
+  const basicAuto = Math.round((Number(structureForm.monthlyCtc) || 0) * 0.4);
+  const hraAuto = Math.round((basicAuto * (Number(structureForm.hraPercent) || 0)) / 100);
 
   async function downloadPdf(id: string, periodSlug: string) {
     try {
@@ -373,12 +423,26 @@ export default function StaffPayroll() {
           <form onSubmit={saveStructure} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Basic</Label>
-                <Input type="number" min={0} step={1} value={structureForm.basic || ""} onChange={(e) => setStructureForm((s) => ({ ...s, basic: Number(e.target.value) || 0 }))} />
+                <Label>Monthly CTC</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={structureForm.monthlyCtc || ""}
+                  onChange={(e) => setStructureForm((s) => ({ ...s, monthlyCtc: Number(e.target.value) || 0 }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Basic (auto)</Label>
+                <Input type="number" min={0} step={1} value={basicAuto || ""} readOnly />
               </div>
               <div className="space-y-2">
                 <Label>HRA %</Label>
-                <Input type="number" min={0} max={100} step={0.5} value={structureForm.hraPercent || ""} onChange={(e) => setStructureForm((s) => ({ ...s, hraPercent: Number(e.target.value) || 0 }))} />
+                <Input type="number" min={0} max={100} step={0.5} value={structureForm.hraPercent || ""} onChange={(e) => setStructureForm((s) => ({ ...s, hraPercent: Number(e.target.value) || 40 }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>HRA amount (auto)</Label>
+                <Input type="number" min={0} step={1} value={hraAuto || ""} readOnly />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -404,6 +468,71 @@ export default function StaffPayroll() {
             <div className="space-y-2">
               <Label>Professional tax (PT)</Label>
               <Input type="number" min={0} step={1} value={structureForm.ptAmount || ""} onChange={(e) => setStructureForm((s) => ({ ...s, ptAmount: Number(e.target.value) || 0 }))} />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Additional allowances (manual)</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setStructureForm((s) => ({
+                      ...s,
+                      extraAllowances: [...s.extraAllowances, { label: "", amount: 0 }],
+                    }))
+                  }
+                >
+                  Add allowance
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {structureForm.extraAllowances.length === 0 ? (
+                  <p className="text-xs text-slate-500">No additional allowances added.</p>
+                ) : (
+                  structureForm.extraAllowances.map((a, idx) => (
+                    <div key={idx} className="grid grid-cols-[1fr_120px_auto] gap-2">
+                      <Input
+                        placeholder="Allowance label"
+                        value={a.label}
+                        onChange={(e) =>
+                          setStructureForm((s) => {
+                            const next = [...s.extraAllowances];
+                            next[idx] = { ...next[idx], label: e.target.value };
+                            return { ...s, extraAllowances: next };
+                          })
+                        }
+                      />
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        placeholder="Amount"
+                        value={a.amount || ""}
+                        onChange={(e) =>
+                          setStructureForm((s) => {
+                            const next = [...s.extraAllowances];
+                            next[idx] = { ...next[idx], amount: Number(e.target.value) || 0 };
+                            return { ...s, extraAllowances: next };
+                          })
+                        }
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          setStructureForm((s) => ({
+                            ...s,
+                            extraAllowances: s.extraAllowances.filter((_x, i) => i !== idx),
+                          }))
+                        }
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setStructureOpen(false)}>Cancel</Button>

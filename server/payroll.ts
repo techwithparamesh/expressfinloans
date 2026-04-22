@@ -12,11 +12,13 @@ function parseDecimal(v: string | number | null | undefined): number {
 }
 
 export interface SalaryStructureRow {
+  monthlyCtc?: string | number | null;
   basic?: string | number | null;
   hraPercent?: string | number | null;
   specialAllowance?: string | number | null;
   conveyance?: string | number | null;
   medical?: string | number | null;
+  extraAllowancesJson?: string | null;
   employeePfPercent?: string | number | null;
   ptAmount?: string | number | null;
 }
@@ -34,6 +36,7 @@ export interface EarningsBreakdown {
   specialAllowance: number;
   conveyance: number;
   medical: number;
+  extraAllowances: { label: string; amount: number }[];
   incentives: number;
 }
 
@@ -85,6 +88,20 @@ export function computePayslip(
   const employeePfPercent = parseDecimal(structure.employeePfPercent) || 12;
   const ptAmount = parseDecimal(structure.ptAmount);
   const incentives = parseDecimal(entry.incentives);
+  let extraAllowances: { label: string; amount: number }[] = [];
+  try {
+    const parsed = structure.extraAllowancesJson ? JSON.parse(structure.extraAllowancesJson) : [];
+    if (Array.isArray(parsed)) {
+      extraAllowances = parsed
+        .map((x) => ({
+          label: String((x as any)?.label || "").trim(),
+          amount: parseDecimal((x as any)?.amount),
+        }))
+        .filter((x) => x.label && x.amount > 0);
+    }
+  } catch {
+    extraAllowances = [];
+  }
   const deductionsOther = parseDecimal(entry.deductionsOther);
   const tdsAmount = parseDecimal(entry.tdsAmount);
 
@@ -103,6 +120,10 @@ export function computePayslip(
   const conveyanceProrated = conveyance * factor;
   const medicalProrated = medical * factor;
   const incentivesProrated = incentives * factor;
+  const extraAllowancesProrated = extraAllowances.map((x) => ({
+    label: x.label,
+    amount: Math.round(x.amount * factor * 100) / 100,
+  }));
 
   const pfBase = Math.min(basicProrated, PF_CAP_BASE);
   const pf = (pfBase * employeePfPercent) / 100;
@@ -113,6 +134,7 @@ export function computePayslip(
     specialAllowance: Math.round(specialAllowanceProrated * 100) / 100,
     conveyance: Math.round(conveyanceProrated * 100) / 100,
     medical: Math.round(medicalProrated * 100) / 100,
+    extraAllowances: extraAllowancesProrated,
     incentives: Math.round(incentivesProrated * 100) / 100,
   };
 
@@ -129,6 +151,7 @@ export function computePayslip(
     earningsBreakdown.specialAllowance +
     earningsBreakdown.conveyance +
     earningsBreakdown.medical +
+    earningsBreakdown.extraAllowances.reduce((s, x) => s + x.amount, 0) +
     earningsBreakdown.incentives;
 
   const totalDeductions =

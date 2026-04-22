@@ -3393,11 +3393,13 @@ export async function registerRoutes(
       res.json({
         id: row.id,
         employeeId: row.employeeId,
+        monthlyCtc: row.monthlyCtc ?? 0,
         basic: row.basic ?? 0,
         hraPercent: row.hraPercent ?? 0,
         specialAllowance: row.specialAllowance ?? 0,
         conveyance: row.conveyance ?? 0,
         medical: row.medical ?? 0,
+        extraAllowances: row.extraAllowancesJson ? JSON.parse(String(row.extraAllowancesJson)) : [],
         employeePfPercent: row.employeePfPercent ?? 12,
         ptAmount: row.ptAmount ?? 0,
       });
@@ -3411,13 +3413,30 @@ export async function registerRoutes(
       const body = req.body || {};
       const employeeId = (body.employeeId as string)?.trim();
       if (!employeeId) return res.status(400).json({ message: "employeeId is required" });
+      const monthlyCtc = parseAmount(body.monthlyCtc);
+      const basicAuto = Math.round((monthlyCtc * 0.4) * 100) / 100;
+      const hraPercent = parseAmount(body.hraPercent) || 40;
+      const basic = monthlyCtc > 0 ? basicAuto : (parseAmount(body.basic) || 0);
+      const specialAllowance = parseAmount(body.specialAllowance) || 0;
+      const conveyance = parseAmount(body.conveyance) || 0;
+      const medical = parseAmount(body.medical) || 0;
+      const extraAllowances = Array.isArray(body.extraAllowances)
+        ? body.extraAllowances
+            .map((x) => ({
+              label: String((x as any)?.label || "").trim(),
+              amount: parseAmount((x as any)?.amount),
+            }))
+            .filter((x) => x.label && x.amount > 0)
+        : [];
       const structure = await storage.upsertSalaryStructure({
         employeeId,
-        basic: String(parseAmount(body.basic) || 0),
-        hraPercent: String(parseAmount(body.hraPercent) || 0),
-        specialAllowance: String(parseAmount(body.specialAllowance) || 0),
-        conveyance: String(parseAmount(body.conveyance) || 0),
-        medical: String(parseAmount(body.medical) || 0),
+        monthlyCtc: String(monthlyCtc || 0),
+        basic: String(basic),
+        hraPercent: String(hraPercent),
+        specialAllowance: String(specialAllowance),
+        conveyance: String(conveyance),
+        medical: String(medical),
+        extraAllowancesJson: JSON.stringify(extraAllowances),
         employeePfPercent: String(parseAmount(body.employeePfPercent) || 12),
         ptAmount: String(parseAmount(body.ptAmount) || 0),
       } as any);
@@ -3602,6 +3621,7 @@ export async function registerRoutes(
       ["Other Allowance", earn.specialAllowance],
       ["Conveyance", earn.conveyance],
       ["Medical", earn.medical],
+      ...((earn.extraAllowances || []).map((x) => [x.label, x.amount] as [string, number])),
       ["Incentives", earn.incentives],
     ];
     doc.font("Helvetica-Bold").fontSize(10).text("Earnings", M, y);

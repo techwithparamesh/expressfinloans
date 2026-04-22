@@ -410,11 +410,13 @@ export type InsertProbationConfirmation = z.infer<typeof insertProbationConfirma
 export const salaryStructures = mysqlTable("salary_structures", {
   id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
   employeeId: varchar("employee_id", { length: 36 }).notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  monthlyCtc: decimal("monthly_ctc", { precision: 12, scale: 2 }).notNull().default("0"),
   basic: decimal("basic", { precision: 12, scale: 2 }).notNull().default("0"),
   hraPercent: decimal("hra_percent", { precision: 5, scale: 2 }).notNull().default("0"),
   specialAllowance: decimal("special_allowance", { precision: 12, scale: 2 }).notNull().default("0"),
   conveyance: decimal("conveyance", { precision: 12, scale: 2 }).notNull().default("0"),
   medical: decimal("medical", { precision: 12, scale: 2 }).notNull().default("0"),
+  extraAllowancesJson: text("extra_allowances_json"), // JSON: [{label, amount}]
   employeePfPercent: decimal("employee_pf_percent", { precision: 5, scale: 2 }).notNull().default("12"),
   ptAmount: decimal("pt_amount", { precision: 10, scale: 2 }).notNull().default("0"), // Professional tax
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -423,11 +425,13 @@ export const salaryStructures = mysqlTable("salary_structures", {
 
 export const insertSalaryStructureSchema = createInsertSchema(salaryStructures).pick({
   employeeId: true,
+  monthlyCtc: true,
   basic: true,
   hraPercent: true,
   specialAllowance: true,
   conveyance: true,
   medical: true,
+  extraAllowancesJson: true,
   employeePfPercent: true,
   ptAmount: true,
 });
