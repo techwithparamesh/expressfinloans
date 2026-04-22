@@ -10,6 +10,7 @@ import {
   User,
   LogOut,
   ClipboardList,
+  BriefcaseBusiness,
   Shield,
   Menu,
   X,
@@ -164,8 +165,7 @@ export default function StaffLayout({
     ...(isAdmin || isTeamLead ? [{ href: path(basePath, "/leave-requests"), label: "Leave requests", icon: CalendarCheck }] : []),
     ...(isEmployee || isTeamLead ? [{ href: path(basePath, "/my-leads"), label: "My leads", icon: ClipboardList }] : []),
     ...(isEmployee || isTeamLead ? [{ href: path(basePath, "/my-attendance"), label: "My attendance", icon: Calendar }] : []),
-    ...(isEmployee || isTeamLead ? [{ href: path(basePath, "/my-leave"), label: "My leave", icon: CalendarCheck }] : []),
-    ...(isEmployee || isTeamLead ? [{ href: path(basePath, "/my-payslips"), label: "My Payslips", icon: FileText }] : []),
+    ...((isAdmin || isTeamLead || isEmployee) ? [{ href: path(basePath, "/hr-workflows"), label: "HR Workflows", icon: BriefcaseBusiness }] : []),
     { href: path(basePath, "/profile"), label: "Profile", icon: User },
   ];
 

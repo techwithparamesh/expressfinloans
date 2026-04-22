@@ -19,7 +19,6 @@ import {
   Search,
   FileSpreadsheet,
   Upload,
-  BellRing,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -117,26 +116,6 @@ type LeaderExpenseRequest = {
   approved_at?: string | null;
   createdAt?: string | null;
   created_at?: string | null;
-};
-
-type ResignationApprovalItem = {
-  id: string;
-  employeeId: string;
-  employeeName: string;
-  employeeNumber: string;
-  noticeDays: number;
-  effectiveLastWorkingDay: string | null;
-  reason: string | null;
-  status: string;
-};
-
-type ProbationApprovalItem = {
-  id: string;
-  employeeId: string;
-  employeeName: string;
-  employeeNumber: string;
-  probationCompletedOn: string | null;
-  status: string;
 };
 
 type FtdPeriod = { ftd: number; mtd: number; ytd: number };
@@ -277,10 +256,6 @@ export default function StaffDashboard() {
   const [leadImportBusy, setLeadImportBusy] = useState(false);
   const [leadImportDryRun, setLeadImportDryRun] = useState(true);
   const leadImportInputRef = useRef<HTMLInputElement>(null);
-  const [pendingResignations, setPendingResignations] = useState<ResignationApprovalItem[]>([]);
-  const [pendingProbationConfirmations, setPendingProbationConfirmations] = useState<ProbationApprovalItem[]>([]);
-  const [workflowDialogOpen, setWorkflowDialogOpen] = useState(false);
-  const [workflowActionId, setWorkflowActionId] = useState<string | null>(null);
 
   useEffect(() => {
     getAuthMe().then((res) => setUser(res?.user ?? null));
@@ -326,30 +301,6 @@ export default function StaffDashboard() {
       .catch(() => setAdminLeaderExpenses([]))
       .finally(() => setAdminLeaderExpensesLoading(false));
   }, [user, adminLeaderExpenseMonth, adminLeaderExpenseStatusFilter]);
-
-  async function loadWorkflowAlerts() {
-    if (!user || (user.role !== "admin" && user.role !== "team_lead")) return;
-    try {
-      const payload = await staffJson<{
-        pendingResignations?: ResignationApprovalItem[];
-        pendingProbationConfirmations?: ProbationApprovalItem[];
-      }>("/staff/workflow-alerts");
-      const resignations = Array.isArray(payload?.pendingResignations) ? payload.pendingResignations : [];
-      const confirmations = Array.isArray(payload?.pendingProbationConfirmations)
-        ? payload.pendingProbationConfirmations
-        : [];
-      setPendingResignations(resignations);
-      setPendingProbationConfirmations(confirmations);
-      if (resignations.length > 0 || confirmations.length > 0) setWorkflowDialogOpen(true);
-    } catch {
-      setPendingResignations([]);
-      setPendingProbationConfirmations([]);
-    }
-  }
-
-  useEffect(() => {
-    void loadWorkflowAlerts();
-  }, [user?.id, user?.role]);
 
   useEffect(() => {
     if (!user || user.role !== "admin") return;
@@ -416,48 +367,6 @@ export default function StaffDashboard() {
     Boolean(
       (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()
     );
-
-  async function decideResignation(id: string, decision: "approved" | "rejected") {
-    setWorkflowActionId(id);
-    try {
-      await staffFetch(`/staff/resignations/${id}/decision`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ decision }),
-      });
-      toast({ title: `Resignation ${decision}` });
-      await loadWorkflowAlerts();
-    } catch (e) {
-      toast({
-        title: "Action failed",
-        description: e instanceof Error ? e.message : "Could not update resignation request",
-        variant: "destructive",
-      });
-    } finally {
-      setWorkflowActionId(null);
-    }
-  }
-
-  async function decideProbationConfirmation(id: string, decision: "approved" | "rejected") {
-    setWorkflowActionId(id);
-    try {
-      await staffFetch(`/staff/probation-confirmations/${id}/decision`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ decision }),
-      });
-      toast({ title: `Probation confirmation ${decision}` });
-      await loadWorkflowAlerts();
-    } catch (e) {
-      toast({
-        title: "Action failed",
-        description: e instanceof Error ? e.message : "Could not update probation confirmation",
-        variant: "destructive",
-      });
-    } finally {
-      setWorkflowActionId(null);
-    }
-  }
 
   async function handleDownloadLeadImportTemplate() {
     try {
@@ -676,102 +585,6 @@ export default function StaffDashboard() {
           <p className="text-slate-600 mt-0.5">{roleLabel} · Dashboard</p>
         </div>
       </div>
-      {(user?.role === "admin" || user?.role === "team_lead") && (
-        <Dialog open={workflowDialogOpen} onOpenChange={setWorkflowDialogOpen}>
-          <DialogContent className="max-w-3xl">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <BellRing className="h-5 w-5" />
-                Pending approvals
-              </DialogTitle>
-              <DialogDescription>
-                Review resignation and probation confirmation requests pending for your action.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-slate-800">Resignations</h3>
-                {pendingResignations.length === 0 ? (
-                  <p className="text-sm text-slate-500">No pending resignations.</p>
-                ) : (
-                  pendingResignations.map((r) => {
-                    const actioning = workflowActionId === r.id;
-                    return (
-                      <div key={r.id} className="rounded-md border p-3 bg-slate-50 space-y-2">
-                        <p className="font-medium text-sm">
-                          {r.employeeName} ({r.employeeNumber || "N/A"})
-                        </p>
-                        <p className="text-xs text-slate-600">
-                          Notice: {r.noticeDays} days · LWD: {r.effectiveLastWorkingDay || "—"}
-                        </p>
-                        {r.reason && <p className="text-xs text-slate-600">Reason: {r.reason}</p>}
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            disabled={actioning}
-                            onClick={() => void decideResignation(r.id, "approved")}
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={actioning}
-                            onClick={() => void decideResignation(r.id, "rejected")}
-                          >
-                            Reject
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-slate-800">Probation confirmations</h3>
-                {pendingProbationConfirmations.length === 0 ? (
-                  <p className="text-sm text-slate-500">No pending probation confirmations.</p>
-                ) : (
-                  pendingProbationConfirmations.map((r) => {
-                    const actioning = workflowActionId === r.id;
-                    return (
-                      <div key={r.id} className="rounded-md border p-3 bg-slate-50 space-y-2">
-                        <p className="font-medium text-sm">
-                          {r.employeeName} ({r.employeeNumber || "N/A"})
-                        </p>
-                        <p className="text-xs text-slate-600">
-                          Probation completed on: {r.probationCompletedOn || "—"}
-                        </p>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            disabled={actioning}
-                            onClick={() => void decideProbationConfirmation(r.id, "approved")}
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={actioning}
-                            onClick={() => void decideProbationConfirmation(r.id, "rejected")}
-                          >
-                            Reject
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setWorkflowDialogOpen(false)}>Close</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
       {user?.role === "admin" && data.adminKpi && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">

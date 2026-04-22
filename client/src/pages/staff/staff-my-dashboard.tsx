@@ -9,8 +9,6 @@ import { FileText, Target, Calendar, TrendingUp } from "lucide-react";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 import { useMonthlyTargetPopup, useConveyancePolicyPopup, useMyDashboardInvalidate } from "./staff-layout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/hooks/use-toast";
 
 type MyDashboard = {
   monthLabel: string;
@@ -26,22 +24,11 @@ type MyDashboard = {
   leadsLast7Days: { date: string; count: number }[];
 };
 
-type ResignationRequest = {
-  id: string;
-  status: string;
-  noticeDays: number;
-  effectiveLastWorkingDay: string | null;
-  reason: string | null;
-};
-
 export default function StaffMyDashboard() {
   const [user, setUser] = useState<StaffUser | null>(null);
   const [data, setData] = useState<MyDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [resignationReason, setResignationReason] = useState("");
-  const [resignationSaving, setResignationSaving] = useState(false);
-  const [latestResignation, setLatestResignation] = useState<ResignationRequest | null>(null);
   const [location] = useLocation();
   const { openMonthlyTargetPopup } = useMonthlyTargetPopup() ?? {};
   const { openConveyancePolicyPopup } = useConveyancePolicyPopup() ?? {};
@@ -50,43 +37,6 @@ export default function StaffMyDashboard() {
   useEffect(() => {
     getAuthMe().then((res) => setUser(res?.user ?? null));
   }, []);
-
-  useEffect(() => {
-    if (!user || user.role !== "employee") return;
-    staffJson<ResignationRequest[]>("/staff/resignations/me")
-      .then((rows) => {
-        const list = Array.isArray(rows) ? rows : [];
-        setLatestResignation(list.length > 0 ? list[0] : null);
-      })
-      .catch(() => setLatestResignation(null));
-  }, [user?.id, myDashboardInvalidation]);
-
-  async function submitResignation() {
-    if (!resignationReason.trim()) {
-      toast({ title: "Please enter resignation reason", variant: "destructive" });
-      return;
-    }
-    setResignationSaving(true);
-    try {
-      await staffJson("/staff/resignations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: resignationReason.trim() }),
-      });
-      toast({ title: "Resignation submitted", description: "Sent to your team leader for approval." });
-      setResignationReason("");
-      const list = await staffJson<ResignationRequest[]>("/staff/resignations/me").catch(() => []);
-      setLatestResignation(Array.isArray(list) && list.length > 0 ? list[0] : null);
-    } catch (e) {
-      toast({
-        title: "Could not submit resignation",
-        description: e instanceof Error ? e.message : "Unknown error",
-        variant: "destructive",
-      });
-    } finally {
-      setResignationSaving(false);
-    }
-  }
 
   // Refetch when dashboard is shown (route) or after lead/attendance actions (invalidation)
   useEffect(() => {
@@ -217,35 +167,6 @@ export default function StaffMyDashboard() {
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Resignation</CardTitle>
-          <CardDescription>
-            Submit resignation request. Team lead approval tarvata admin approval required.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {latestResignation && (
-            <div className="text-sm rounded-md border p-3 bg-slate-50">
-              <p className="font-medium">Latest request: {latestResignation.status}</p>
-              <p className="text-slate-600">
-                Notice period: {latestResignation.noticeDays} days · Effective LWD: {latestResignation.effectiveLastWorkingDay || "—"}
-              </p>
-            </div>
-          )}
-          <Textarea
-            value={resignationReason}
-            onChange={(e) => setResignationReason(e.target.value)}
-            placeholder="Reason for resignation"
-            rows={4}
-            disabled={resignationSaving}
-          />
-          <Button onClick={() => void submitResignation()} disabled={resignationSaving}>
-            {resignationSaving ? "Submitting…" : "Apply resignation"}
-          </Button>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>

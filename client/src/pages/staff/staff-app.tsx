@@ -13,13 +13,12 @@ import StaffAttendance from "./staff-attendance";
 import StaffLeads from "./staff-leads";
 import StaffInsuranceLeads from "./staff-insurance-leads";
 import StaffMyTeam from "./staff-my-team";
-import StaffMyLeave from "./staff-my-leave";
 import StaffLeaveRequests from "./staff-leave-requests";
 import StaffTargetAllocation from "./staff-target-allocation";
 import StaffAdminExpenses from "./staff-admin-expenses";
 import StaffPayroll from "./staff-payroll";
-import StaffMyPayslips from "./staff-my-payslips";
 import StaffHolidays from "./staff-holidays";
+import StaffHrWorkflows from "./staff-hr-workflows";
 
 function StaffRedirect({ to }: { to: string }) {
   const [, setLocation] = useLocation();
@@ -82,10 +81,15 @@ export default function StaffApp({ basePath = "/staff" }: { basePath?: string })
         <Route path={p(basePath, "/admin-expenses")} component={StaffAdminExpenses} />
         <Route path={p(basePath, "/payroll")} component={StaffPayroll} />
         <Route path={p(basePath, "/holidays")} component={StaffHolidays} />
-        <Route path={p(basePath, "/my-payslips")} component={StaffMyPayslips} />
+        <Route path={p(basePath, "/my-payslips")}>
+          <StaffRedirect to={p(basePath, "/hr-workflows")} />
+        </Route>
         <Route path={p(basePath, "/my-leads")} component={StaffMyLeads} />
         <Route path={p(basePath, "/my-attendance")} component={StaffMyAttendance} />
-        <Route path={p(basePath, "/my-leave")} component={StaffMyLeave} />
+        <Route path={p(basePath, "/my-leave")}>
+          <StaffRedirect to={p(basePath, "/hr-workflows")} />
+        </Route>
+        <Route path={p(basePath, "/hr-workflows")} component={StaffHrWorkflows} />
         <Route path={p(basePath, "/profile")} component={StaffProfile} />
         <Route path={basePath || "/"}>
           <StaffRedirect to={user.role === "admin" || user.role === "team_lead" ? dashboardPath : myDashboardPath} />
