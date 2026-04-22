@@ -93,6 +93,8 @@ export default function StaffHrWorkflows() {
   const isApprover = user?.role === "admin" || user?.role === "team_lead";
   const canSubmitResignation = user?.role === "employee" || user?.role === "team_lead";
   const isEmployee = user?.role === "employee";
+  const showWorkflowsTab = canSubmitResignation || isEmployee;
+  const defaultTab = showWorkflowsTab ? "workflows" : isApprover ? "approvals" : "workflows";
 
   async function loadAll() {
     if (!user) return;
@@ -252,16 +254,17 @@ export default function StaffHrWorkflows() {
         </p>
       </div>
 
-      <Tabs defaultValue="workflows" className="space-y-4">
+      <Tabs defaultValue={defaultTab} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="workflows">Workflows</TabsTrigger>
+          {showWorkflowsTab && <TabsTrigger value="workflows">Workflows</TabsTrigger>}
           {isApprover && <TabsTrigger value="approvals">Approvals</TabsTrigger>}
           {isApprover && <TabsTrigger value="on-notice">On Notice</TabsTrigger>}
           {(isEmployee || user?.role === "team_lead") && <TabsTrigger value="leave">Leave</TabsTrigger>}
           {(isEmployee || user?.role === "team_lead") && <TabsTrigger value="payslips">Payslips</TabsTrigger>}
         </TabsList>
 
-        <TabsContent value="workflows" className="space-y-6">
+        {showWorkflowsTab && (
+          <TabsContent value="workflows" className="space-y-6">
           {canSubmitResignation && (
             <Card>
               <CardHeader>
@@ -356,7 +359,8 @@ export default function StaffHrWorkflows() {
               </CardContent>
             </Card>
           )}
-        </TabsContent>
+          </TabsContent>
+        )}
 
         {isApprover && (
           <TabsContent value="approvals" className="space-y-6">
