@@ -175,6 +175,16 @@ type Dashboard = {
   conveyanceReport?: ConveyanceRow[];
   expenditure?: ExpenditureData;
   ftdAchieved?: FtdAchieved;
+  onNoticeResignations?: {
+    id: string;
+    employeeId: string;
+    employeeName: string;
+    employeeNumber: string;
+    employeeRole?: string;
+    effectiveLastWorkingDay: string | null;
+    noticeDays?: number | null;
+    daysLeft?: number;
+  }[];
 };
 
 type EmployeeOption = {
@@ -585,6 +595,36 @@ export default function StaffDashboard() {
           <p className="text-slate-600 mt-0.5">{roleLabel} · Dashboard</p>
         </div>
       </div>
+      {(user?.role === "admin" || user?.role === "team_lead") && (data.onNoticeResignations?.length ?? 0) > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>On notice period</CardTitle>
+            <CardDescription>
+              {user?.role === "admin"
+                ? "Employees and team leads currently in approved notice period."
+                : "Employees in your team currently in approved notice period."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {(data.onNoticeResignations ?? []).slice(0, 5).map((r) => (
+              <div key={r.id} className="rounded-md border bg-slate-50 p-3 text-sm">
+                <p className="font-medium">
+                  {r.employeeName} ({r.employeeNumber || "N/A"})
+                  {user?.role === "admin" ? ` · ${r.employeeRole || ""}` : ""}
+                </p>
+                <p className="text-slate-600">
+                  Last working day: {formatDateDdMmYyyy(r.effectiveLastWorkingDay) || "—"} ·{" "}
+                  {typeof r.daysLeft === "number"
+                    ? r.daysLeft <= 0
+                      ? "Last working day is today"
+                      : `${r.daysLeft} day${r.daysLeft === 1 ? "" : "s"} left`
+                    : "—"}
+                </p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
       {user?.role === "admin" && data.adminKpi && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">

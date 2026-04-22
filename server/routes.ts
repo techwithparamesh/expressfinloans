@@ -95,6 +95,13 @@ function addDaysYmd(dateStr: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+function daysLeftFromToday(endDateStr: string): number {
+  const today = new Date(todayStr() + "T00:00:00");
+  const end = new Date(String(endDateStr).slice(0, 10) + "T00:00:00");
+  if (Number.isNaN(today.getTime()) || Number.isNaN(end.getTime())) return -1;
+  return Math.floor((end.getTime() - today.getTime()) / 86400000);
+}
+
 function isSecondSaturday(dateStr: string): boolean {
   const d = new Date(dateStr + "T00:00:00");
   if (Number.isNaN(d.getTime())) return false;
@@ -1304,8 +1311,8 @@ export async function registerRoutes(
     try {
       const userId = (req.user as any).id as string;
       const role = (req.user as any).role as string;
-      if (role !== "employee") {
-        return res.status(403).json({ message: "Only employees can raise resignation requests" });
+      if (role !== "employee" && role !== "team_lead") {
+        return res.status(403).json({ message: "Only employees or team leads can raise resignation requests" });
       }
       const [employee] = await Promise.all([storage.getUser(userId)]);
       if (!employee) return res.status(404).json({ message: "User not found" });
@@ -1330,9 +1337,44 @@ export async function registerRoutes(
         requestedLastWorkingDay: requestedLastWorkingDay as any,
         effectiveLastWorkingDay: effectiveLastWorkingDay as any,
         noticeDays,
-        status: "pending_team_lead",
+        status: role === "team_lead" ? "pending_admin" : "pending_team_lead",
       } as any);
       return res.status(201).json(created);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/resignations/on-notice", requireAuth, requireAdminOrTeamLead, async (req, res, next) => {
+    try {
+      const role = (req.user as any).role as "admin" | "team_lead";
+      const visibleIds = await getVisibleEmployeeIds(req);
+      let people = await storage.listEmployees();
+      if (role === "team_lead") {
+        const allowed = new Set((visibleIds ?? []).map(String));
+        people = people.filter((u) => u.role === "employee" && allowed.has(u.id));
+      } else {
+        people = people.filter((u) => u.role === "employee" || u.role === "team_lead");
+      }
+      const out: Array<Record<string, unknown>> = [];
+      for (const p of people) {
+        const list = await storage.getResignationRequestsByEmployee(p.id);
+        const approved = list.find((r) => String(r.status || "").toLowerCase() === "approved");
+        if (!approved) continue;
+        const lwd = String((approved as any).effectiveLastWorkingDay ?? "").slice(0, 10);
+        if (!lwd) continue;
+        const daysLeft = daysLeftFromToday(lwd);
+        if (daysLeft < 0) continue;
+        out.push({
+          ...approved,
+          employeeName: (p as any).fullName?.trim() || p.username || p.id,
+          employeeNumber: (p as any).employeeNumber ?? "",
+          employeeRole: p.role,
+          daysLeft,
+        });
+      }
+      out.sort((a, b) => Number((a as any).daysLeft ?? 9999) - Number((b as any).daysLeft ?? 9999));
+      return res.json(out);
     } catch (e) {
       next(e);
     }
@@ -2284,15 +2326,13 @@ export async function registerRoutes(
     try {
       const role = (req.user as any).role;
       const unassignedOnly = (req.query.unassigned as string) === "1";
-      let list;
+      let list: Awaited<ReturnType<typeof storage.listEmployees>> = [];
       if (role === "admin") {
         list = await storage.listEmployees();
       } else if (role === "team_lead") {
         list = unassignedOnly
           ? await storage.listEmployees({ unassignedOnly: true })
           : await storage.listEmployees({ teamLeadId: (req.user as any).id });
-      } else {
-        list = [];
       }
       res.json(
         list.map((u) => ({
@@ -2465,6 +2505,34 @@ export async function registerRoutes(
         leadsByEmployee,
       };
       const role = (req.user as any).role;
+      if (role === "admin" || role === "team_lead") {
+        const visibleSet = new Set((visibleIds ?? []).map(String));
+        const scoped = role === "team_lead"
+          ? employees.filter((u) => u.role === "employee" && visibleSet.has(u.id))
+          : employees.filter((u) => u.role === "employee" || u.role === "team_lead");
+        const onNotice: Array<Record<string, unknown>> = [];
+        for (const p of scoped) {
+          const list = await storage.getResignationRequestsByEmployee(p.id);
+          const approved = list.find((r) => String(r.status || "").toLowerCase() === "approved");
+          if (!approved) continue;
+          const lwd = String((approved as any).effectiveLastWorkingDay ?? "").slice(0, 10);
+          if (!lwd) continue;
+          const daysLeft = daysLeftFromToday(lwd);
+          if (daysLeft < 0) continue;
+          onNotice.push({
+            id: approved.id,
+            employeeId: p.id,
+            employeeName: byId[p.id]?.name ?? p.id,
+            employeeNumber: byId[p.id]?.number ?? "",
+            employeeRole: p.role,
+            effectiveLastWorkingDay: lwd,
+            noticeDays: (approved as any).noticeDays ?? null,
+            daysLeft,
+          });
+        }
+        onNotice.sort((a, b) => Number((a as any).daysLeft ?? 9999) - Number((b as any).daysLeft ?? 9999));
+        payload.onNoticeResignations = onNotice;
+      }
       if (role === "team_lead") {
         const now = new Date();
         const month = now.getMonth() + 1;
