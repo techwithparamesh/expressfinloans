@@ -2946,6 +2946,10 @@ export async function registerRoutes(
         const fyParamRaw = typeof req.query.fyStart === "string" ? req.query.fyStart : "";
         const fyFromQuery = /^\d{4}$/.test(fyParamRaw) ? Number(fyParamRaw) : NaN;
         const fiscalYearStart = Number.isFinite(fyFromQuery) ? fyFromQuery : getFiscalYearStart(today);
+        const employeeIdFilterRaw = typeof req.query.employeeId === "string" ? req.query.employeeId.trim() : "";
+        const employeeIdFilter = employeeIdFilterRaw ? employeeIdFilterRaw : null;
+        const validStaffIds = new Set(employees.map((e) => e.id));
+        const selectedEmployeeId = employeeIdFilter && validStaffIds.has(employeeIdFilter) ? employeeIdFilter : null;
         const monthStart = new Date(year, now.getMonth(), 1).toISOString().slice(0, 10);
         const monthEnd = new Date(year, now.getMonth() + 1, 0).toISOString().slice(0, 10);
         const ytdStart = `${year}-01-01`;
@@ -3117,7 +3121,10 @@ export async function registerRoutes(
         for (const q of quarterRanges) {
           const leadsQuarter = await storage.getAllLeads({ fromDate: q.from, toDate: q.to });
           const leadsQuarterVisible = filterByVisible(leadsQuarter);
-          const disbursed = leadsQuarterVisible.filter((l) => String(l.status || "").toLowerCase() === "disbursed");
+          const leadsQuarterScoped = selectedEmployeeId
+            ? leadsQuarterVisible.filter((l) => l.employeeId === selectedEmployeeId)
+            : leadsQuarterVisible;
+          const disbursed = leadsQuarterScoped.filter((l) => String(l.status || "").toLowerCase() === "disbursed");
           let amount = 0;
           for (const l of disbursed) amount += getLeadAmount(l as any);
           quarterlyDisbursal.push({
@@ -3133,6 +3140,7 @@ export async function registerRoutes(
           startYear: fiscalYearStart,
           label: `FY ${fiscalYearStart}-${String((fiscalYearStart + 1) % 100).padStart(2, "0")}`,
         };
+        payload.quarterlyDisbursalEmployeeId = selectedEmployeeId;
         payload.allEmployeeTargetAchievement = allEmployeeTargetAchievement;
         payload.conveyanceReport = conveyanceReport;
         payload.expenditure = {

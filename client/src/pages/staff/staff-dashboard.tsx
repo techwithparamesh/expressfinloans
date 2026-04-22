@@ -196,6 +196,7 @@ type Dashboard = {
     startYear: number;
     label: string;
   };
+  quarterlyDisbursalEmployeeId?: string | null;
 };
 
 type EmployeeOption = {
@@ -203,6 +204,7 @@ type EmployeeOption = {
   fullName: string | null;
   employeeNumber: string | null;
   username: string;
+  role?: "admin" | "team_lead" | "employee";
 };
 
 export default function StaffDashboard() {
@@ -248,6 +250,7 @@ export default function StaffDashboard() {
   });
   const [reportsTo, setReportsTo] = useState(() => new Date().toISOString().slice(0, 10));
   const [fiscalYearStart, setFiscalYearStart] = useState<number>(currentFyStartYear);
+  const [quarterlyEmployeeId, setQuarterlyEmployeeId] = useState<string>("all");
 
   // Leader expense requests (team lead)
   const [leaderExpenses, setLeaderExpenses] = useState<LeaderExpenseRequest[]>([]);
@@ -288,8 +291,11 @@ export default function StaffDashboard() {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams();
+    params.set("fyStart", String(fiscalYearStart));
+    if (quarterlyEmployeeId !== "all") params.set("employeeId", quarterlyEmployeeId);
     Promise.all([
-      staffJson<Dashboard>(`/staff/dashboard?fyStart=${fiscalYearStart}`).catch(() => null),
+      staffJson<Dashboard>(`/staff/dashboard?${params.toString()}`).catch(() => null),
       staffJson<EmployeeOption[]>("/staff/employees").catch(() => []),
     ]).then(([dashboard, empList]) => {
       setData(dashboard ?? null);
@@ -301,13 +307,24 @@ export default function StaffDashboard() {
         setReportMonthLabel(dashboard.adminKpi.monthLabel);
       }
     }).finally(() => setLoading(false));
-  }, [fiscalYearStart]);
+  }, [fiscalYearStart, quarterlyEmployeeId]);
 
   const fiscalYearOptions = useMemo(() => {
     const out: number[] = [];
     for (let y = currentFyStartYear - 3; y <= currentFyStartYear + 1; y++) out.push(y);
     return out;
   }, [currentFyStartYear]);
+
+  const quarterlyEmployeeOptions = useMemo(
+    () =>
+      employees
+        .filter((e) => e.role === "employee" || e.role === "team_lead")
+        .map((e) => ({
+          id: e.id,
+          label: `${e.fullName || e.username || e.id}${e.employeeNumber ? ` (${e.employeeNumber})` : ""}`,
+        })),
+    [employees]
+  );
 
   // Load leader expense requests for team lead
   useEffect(() => {
@@ -720,22 +737,37 @@ export default function StaffDashboard() {
                 Fiscal year view from April to next March.
               </CardDescription>
             </div>
-            <div className="w-[180px]">
-              <Select
-                value={String(fiscalYearStart)}
-                onValueChange={(v) => setFiscalYearStart(Number(v) || currentFyStartYear)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select FY" />
-                </SelectTrigger>
-                <SelectContent>
-                  {fiscalYearOptions.map((y) => (
-                    <SelectItem key={y} value={String(y)}>
-                      {`FY ${y}-${String((y + 1) % 100).padStart(2, "0")}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex gap-2">
+              <div className="w-[220px]">
+                <Select value={quarterlyEmployeeId} onValueChange={setQuarterlyEmployeeId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All employees</SelectItem>
+                    {quarterlyEmployeeOptions.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>{e.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-[180px]">
+                <Select
+                  value={String(fiscalYearStart)}
+                  onValueChange={(v) => setFiscalYearStart(Number(v) || currentFyStartYear)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select FY" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {fiscalYearOptions.map((y) => (
+                      <SelectItem key={y} value={String(y)}>
+                        {`FY ${y}-${String((y + 1) % 100).padStart(2, "0")}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
