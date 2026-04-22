@@ -9,6 +9,10 @@ import {
   type InsertInsuranceLead,
   type LeaveRequest,
   type InsertLeaveRequest,
+  type ResignationRequest,
+  type InsertResignationRequest,
+  type ProbationConfirmation,
+  type InsertProbationConfirmation,
   type AdminExpense,
   type InsertAdminExpense,
   type LeaderExpenseRequest,
@@ -30,6 +34,8 @@ import {
   leads,
   insuranceLeads,
   leaveRequests,
+  resignationRequests,
+  probationConfirmations,
   adminExpenses,
   leaderExpenseRequests,
   salaryStructures,
@@ -49,7 +55,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser & { password: string }): Promise<User>;
-  updateUser(id: string, data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget" | "teamLeadId" | "designation" | "bankAccountNumber" | "bankIfsc" | "pan" | "uan" | "dateOfJoining" | "department" | "location" | "dateOfBirth" | "gender">>): Promise<User | undefined>;
+  updateUser(id: string, data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget" | "teamLeadId" | "designation" | "bankAccountNumber" | "bankIfsc" | "pan" | "uan" | "dateOfJoining" | "department" | "location" | "dateOfBirth" | "gender" | "employmentStatus" | "probationStartDate" | "confirmedAt">>): Promise<User | undefined>;
   deleteUser(id: string): Promise<void>;
   getNextEmployeeNumber(): Promise<string>;
   backfillEmployeeNumbers(): Promise<void>;
@@ -94,6 +100,26 @@ export interface IStorage {
   getLeaveRequestsByEmployee(employeeId: string, fromDate?: string, toDate?: string): Promise<LeaveRequest[]>;
   getLeaveRequestsForApproval(employeeIds: string[], filters?: { status?: string; fromDate?: string; toDate?: string }): Promise<LeaveRequest[]>;
   updateLeaveRequest(id: string, data: Partial<Pick<LeaveRequest, "status" | "approvedById" | "approvedAt" | "leaveType" | "startDate" | "endDate" | "reason">>): Promise<LeaveRequest | undefined>;
+  createResignationRequest(data: InsertResignationRequest): Promise<ResignationRequest>;
+  getResignationRequest(id: string): Promise<ResignationRequest | undefined>;
+  getResignationRequestsByEmployee(employeeId: string): Promise<ResignationRequest[]>;
+  getResignationRequestsForApproval(
+    actorRole: "admin" | "team_lead",
+    actorUserId: string,
+    employeeIds: string[]
+  ): Promise<ResignationRequest[]>;
+  updateResignationRequest(id: string, data: Partial<InsertResignationRequest>): Promise<ResignationRequest | undefined>;
+
+  createProbationConfirmation(data: InsertProbationConfirmation): Promise<ProbationConfirmation>;
+  getProbationConfirmation(id: string): Promise<ProbationConfirmation | undefined>;
+  getProbationConfirmationsByEmployee(employeeId: string): Promise<ProbationConfirmation[]>;
+  getProbationConfirmationsForApproval(
+    actorRole: "admin" | "team_lead",
+    actorUserId: string,
+    employeeIds: string[]
+  ): Promise<ProbationConfirmation[]>;
+  updateProbationConfirmation(id: string, data: Partial<InsertProbationConfirmation>): Promise<ProbationConfirmation | undefined>;
+  ensureProbationConfirmationsForEmployees(employeeIds: string[]): Promise<void>;
 
   getAdminExpenses(filters?: { month?: string; purpose?: string }): Promise<AdminExpense[]>;
   getAdminExpense(id: string): Promise<AdminExpense | undefined>;
@@ -224,6 +250,10 @@ export class DrizzleStorage implements IStorage {
       const tlId = (data as any).teamLeadId;
       if (tlId !== undefined && tlId !== null) values.teamLeadId = tlId;
     }
+    if ((data as any).dateOfJoining !== undefined) values.dateOfJoining = (data as any).dateOfJoining;
+    if ((data as any).probationStartDate !== undefined) values.probationStartDate = (data as any).probationStartDate;
+    if ((data as any).employmentStatus !== undefined) values.employmentStatus = (data as any).employmentStatus;
+    if ((data as any).confirmedAt !== undefined) values.confirmedAt = (data as any).confirmedAt;
     await db.insert(users).values(values as any);
     const [u] = await db.select().from(users).where(eq(users.username, data.username)).limit(1);
     if (!u) throw new Error("Failed to create user");
@@ -232,7 +262,7 @@ export class DrizzleStorage implements IStorage {
 
   async updateUser(
     id: string,
-    data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget" | "teamLeadId" | "designation" | "bankAccountNumber" | "bankIfsc" | "pan" | "uan" | "dateOfJoining" | "department" | "location" | "dateOfBirth" | "gender">>
+    data: Partial<Pick<User, "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget" | "teamLeadId" | "designation" | "bankAccountNumber" | "bankIfsc" | "pan" | "uan" | "dateOfJoining" | "department" | "location" | "dateOfBirth" | "gender" | "employmentStatus" | "probationStartDate" | "confirmedAt">>
   ): Promise<User | undefined> {
     await guardDb();
     const payload: Record<string, unknown> = { ...data };
@@ -882,6 +912,171 @@ export class DrizzleStorage implements IStorage {
     return this.getLeaveRequest(id);
   }
 
+  async createResignationRequest(data: InsertResignationRequest): Promise<ResignationRequest> {
+    await guardDb();
+    const id = crypto.randomUUID();
+    await db.insert(resignationRequests).values({ ...data, id } as any);
+    const row = await this.getResignationRequest(id);
+    if (!row) throw new Error("Failed to create resignation request");
+    return row;
+  }
+
+  async getResignationRequest(id: string): Promise<ResignationRequest | undefined> {
+    await guardDb();
+    const [r] = await db.select().from(resignationRequests).where(eq(resignationRequests.id, id)).limit(1);
+    return r;
+  }
+
+  async getResignationRequestsByEmployee(employeeId: string): Promise<ResignationRequest[]> {
+    await guardDb();
+    return db
+      .select()
+      .from(resignationRequests)
+      .where(eq(resignationRequests.employeeId, employeeId))
+      .orderBy(desc(resignationRequests.createdAt));
+  }
+
+  async getResignationRequestsForApproval(
+    actorRole: "admin" | "team_lead",
+    actorUserId: string,
+    employeeIds: string[]
+  ): Promise<ResignationRequest[]> {
+    await guardDb();
+    if (actorRole === "team_lead") {
+      if (employeeIds.length === 0) return [];
+      return db
+        .select()
+        .from(resignationRequests)
+        .where(
+          and(
+            inArray(resignationRequests.employeeId, employeeIds),
+            eq(resignationRequests.status, "pending_team_lead")
+          )
+        )
+        .orderBy(desc(resignationRequests.createdAt));
+    }
+    return db
+      .select()
+      .from(resignationRequests)
+      .where(eq(resignationRequests.status, "pending_admin"))
+      .orderBy(desc(resignationRequests.createdAt));
+  }
+
+  async updateResignationRequest(
+    id: string,
+    data: Partial<InsertResignationRequest>
+  ): Promise<ResignationRequest | undefined> {
+    await guardDb();
+    await db
+      .update(resignationRequests)
+      .set({ ...(data as any), updatedAt: new Date() })
+      .where(eq(resignationRequests.id, id));
+    return this.getResignationRequest(id);
+  }
+
+  async createProbationConfirmation(data: InsertProbationConfirmation): Promise<ProbationConfirmation> {
+    await guardDb();
+    const id = crypto.randomUUID();
+    await db.insert(probationConfirmations).values({ ...data, id } as any);
+    const row = await this.getProbationConfirmation(id);
+    if (!row) throw new Error("Failed to create probation confirmation");
+    return row;
+  }
+
+  async getProbationConfirmation(id: string): Promise<ProbationConfirmation | undefined> {
+    await guardDb();
+    const [r] = await db.select().from(probationConfirmations).where(eq(probationConfirmations.id, id)).limit(1);
+    return r;
+  }
+
+  async getProbationConfirmationsByEmployee(employeeId: string): Promise<ProbationConfirmation[]> {
+    await guardDb();
+    return db
+      .select()
+      .from(probationConfirmations)
+      .where(eq(probationConfirmations.employeeId, employeeId))
+      .orderBy(desc(probationConfirmations.createdAt));
+  }
+
+  async getProbationConfirmationsForApproval(
+    actorRole: "admin" | "team_lead",
+    actorUserId: string,
+    employeeIds: string[]
+  ): Promise<ProbationConfirmation[]> {
+    await guardDb();
+    if (actorRole === "team_lead") {
+      if (employeeIds.length === 0) return [];
+      return db
+        .select()
+        .from(probationConfirmations)
+        .where(
+          and(
+            inArray(probationConfirmations.employeeId, employeeIds),
+            eq(probationConfirmations.status, "pending_team_lead")
+          )
+        )
+        .orderBy(desc(probationConfirmations.createdAt));
+    }
+    return db
+      .select()
+      .from(probationConfirmations)
+      .where(eq(probationConfirmations.status, "pending_admin"))
+      .orderBy(desc(probationConfirmations.createdAt));
+  }
+
+  async updateProbationConfirmation(
+    id: string,
+    data: Partial<InsertProbationConfirmation>
+  ): Promise<ProbationConfirmation | undefined> {
+    await guardDb();
+    await db
+      .update(probationConfirmations)
+      .set({ ...(data as any), updatedAt: new Date() })
+      .where(eq(probationConfirmations.id, id));
+    return this.getProbationConfirmation(id);
+  }
+
+  async ensureProbationConfirmationsForEmployees(employeeIds: string[]): Promise<void> {
+    await guardDb();
+    if (employeeIds.length === 0) return;
+    const list = await db
+      .select()
+      .from(users)
+      .where(and(inArray(users.id, employeeIds), eq(users.role, "employee")));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (const u of list) {
+      const status = String((u as any).employmentStatus ?? "confirmed");
+      if (status !== "probation") continue;
+      const dojRaw = (u as any).dateOfJoining ?? (u as any).probationStartDate;
+      if (!dojRaw) continue;
+      const doj = new Date(String(dojRaw).slice(0, 10) + "T00:00:00");
+      if (Number.isNaN(doj.getTime())) continue;
+      const completes = new Date(doj);
+      completes.setMonth(completes.getMonth() + 3);
+      completes.setHours(0, 0, 0, 0);
+      if (completes > today) continue;
+      const existing = await db
+        .select()
+        .from(probationConfirmations)
+        .where(
+          and(
+            eq(probationConfirmations.employeeId, u.id),
+            inArray(probationConfirmations.status, ["pending_team_lead", "pending_admin", "approved"])
+          )
+        )
+        .limit(1);
+      if (existing.length > 0) continue;
+      await db.insert(probationConfirmations).values({
+        id: crypto.randomUUID(),
+        employeeId: u.id,
+        probationStartDate: (u as any).probationStartDate ?? (u as any).dateOfJoining ?? null,
+        probationCompletedOn: completes.toISOString().slice(0, 10) as any,
+        status: "pending_team_lead",
+      } as any);
+    }
+  }
+
   async getJointVisitsCount(_teamLeadId: string, _fromDate: string, _toDate: string): Promise<number> {
     await guardDb();
     // Placeholder: joint visits not yet logged in CRM. When implemented, query joint_visits (or equivalent) table.
@@ -1206,6 +1401,49 @@ class NoDbStorage implements IStorage {
   async updateLeaveRequest() {
     this.guard();
     return undefined;
+  }
+  async createResignationRequest() {
+    this.guard();
+    throw new Error("Not implemented");
+  }
+  async getResignationRequest() {
+    this.guard();
+    return undefined;
+  }
+  async getResignationRequestsByEmployee() {
+    this.guard();
+    return [];
+  }
+  async getResignationRequestsForApproval() {
+    this.guard();
+    return [];
+  }
+  async updateResignationRequest() {
+    this.guard();
+    return undefined;
+  }
+  async createProbationConfirmation() {
+    this.guard();
+    throw new Error("Not implemented");
+  }
+  async getProbationConfirmation() {
+    this.guard();
+    return undefined;
+  }
+  async getProbationConfirmationsByEmployee() {
+    this.guard();
+    return [];
+  }
+  async getProbationConfirmationsForApproval() {
+    this.guard();
+    return [];
+  }
+  async updateProbationConfirmation() {
+    this.guard();
+    return undefined;
+  }
+  async ensureProbationConfirmationsForEmployees() {
+    this.guard();
   }
   async getLeadsCountForEmployeeOnDate() {
     this.guard();

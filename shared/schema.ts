@@ -37,6 +37,9 @@ export const users = mysqlTable("users", {
   location: varchar("location", { length: 100 }),
   dateOfBirth: date("date_of_birth"),
   gender: varchar("gender", { length: 10 }),
+  employmentStatus: varchar("employment_status", { length: 20 }).notNull().default("confirmed"), // probation | confirmed | resigned
+  probationStartDate: date("probation_start_date"),
+  confirmedAt: timestamp("confirmed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -320,6 +323,88 @@ export const insertLeaveRequestSchema = createInsertSchema(leaveRequests).pick({
 
 export type LeaveRequest = typeof leaveRequests.$inferSelect;
 export type InsertLeaveRequest = z.infer<typeof insertLeaveRequestSchema>;
+
+// --- Employee resignation workflow (employee -> team lead -> admin) ---
+export const resignationRequests = mysqlTable("resignation_requests", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  employeeId: varchar("employee_id", { length: 36 })
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  reason: text("reason"),
+  requestedLastWorkingDay: date("requested_last_working_day"),
+  effectiveLastWorkingDay: date("effective_last_working_day"),
+  noticeDays: int("notice_days").notNull().default(30), // 30 (probation) | 90 (confirmed)
+  status: varchar("status", { length: 30 }).notNull().default("pending_team_lead"),
+  teamLeadDecision: varchar("team_lead_decision", { length: 20 }), // approved | rejected
+  teamLeadDecisionBy: varchar("team_lead_decision_by", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
+  teamLeadDecisionAt: timestamp("team_lead_decision_at"),
+  teamLeadRemarks: text("team_lead_remarks"),
+  adminDecision: varchar("admin_decision", { length: 20 }), // approved | rejected
+  adminDecisionBy: varchar("admin_decision_by", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
+  adminDecisionAt: timestamp("admin_decision_at"),
+  adminRemarks: text("admin_remarks"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export const insertResignationRequestSchema = createInsertSchema(resignationRequests).pick({
+  employeeId: true,
+  reason: true,
+  requestedLastWorkingDay: true,
+  effectiveLastWorkingDay: true,
+  noticeDays: true,
+  status: true,
+  teamLeadDecision: true,
+  teamLeadDecisionBy: true,
+  teamLeadDecisionAt: true,
+  teamLeadRemarks: true,
+  adminDecision: true,
+  adminDecisionBy: true,
+  adminDecisionAt: true,
+  adminRemarks: true,
+});
+
+export type ResignationRequest = typeof resignationRequests.$inferSelect;
+export type InsertResignationRequest = z.infer<typeof insertResignationRequestSchema>;
+
+// --- Employee probation confirmation workflow (team lead -> admin) ---
+export const probationConfirmations = mysqlTable("probation_confirmations", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  employeeId: varchar("employee_id", { length: 36 })
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  probationStartDate: date("probation_start_date"),
+  probationCompletedOn: date("probation_completed_on").notNull(),
+  status: varchar("status", { length: 30 }).notNull().default("pending_team_lead"),
+  teamLeadDecision: varchar("team_lead_decision", { length: 20 }), // approved | rejected
+  teamLeadDecisionBy: varchar("team_lead_decision_by", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
+  teamLeadDecisionAt: timestamp("team_lead_decision_at"),
+  teamLeadRemarks: text("team_lead_remarks"),
+  adminDecision: varchar("admin_decision", { length: 20 }), // approved | rejected
+  adminDecisionBy: varchar("admin_decision_by", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
+  adminDecisionAt: timestamp("admin_decision_at"),
+  adminRemarks: text("admin_remarks"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export const insertProbationConfirmationSchema = createInsertSchema(probationConfirmations).pick({
+  employeeId: true,
+  probationStartDate: true,
+  probationCompletedOn: true,
+  status: true,
+  teamLeadDecision: true,
+  teamLeadDecisionBy: true,
+  teamLeadDecisionAt: true,
+  teamLeadRemarks: true,
+  adminDecision: true,
+  adminDecisionBy: true,
+  adminDecisionAt: true,
+  adminRemarks: true,
+});
+
+export type ProbationConfirmation = typeof probationConfirmations.$inferSelect;
+export type InsertProbationConfirmation = z.infer<typeof insertProbationConfirmationSchema>;
 
 // --- Payroll & Payslips (Option B: rules + inputs, app calculates) ---
 export const salaryStructures = mysqlTable("salary_structures", {

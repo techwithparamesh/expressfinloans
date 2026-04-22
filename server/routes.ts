@@ -88,6 +88,13 @@ function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function addDaysYmd(dateStr: string, days: number): string {
+  const d = new Date(dateStr + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return dateStr;
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 function isSecondSaturday(dateStr: string): boolean {
   const d = new Date(dateStr + "T00:00:00");
   if (Number.isNaN(d.getTime())) return false;
@@ -1252,6 +1259,213 @@ export async function registerRoutes(
     }
   });
 
+  // --- Staff: workflow alerts (resignation + probation confirmation) ---
+  app.get("/api/staff/workflow-alerts", requireAuth, async (req, res, next) => {
+    try {
+      const role = (req.user as any).role as "admin" | "team_lead" | "employee";
+      const userId = (req.user as any).id as string;
+      if (role !== "admin" && role !== "team_lead") {
+        return res.json({ pendingResignations: [], pendingProbationConfirmations: [] });
+      }
+      const visibleIds = await getVisibleEmployeeIds(req);
+      const employeeIds = visibleIds === null ? (await storage.listEmployees()).map((u) => u.id) : visibleIds;
+      await storage.ensureProbationConfirmationsForEmployees(employeeIds);
+      const [resignations, confirmations, employees] = await Promise.all([
+        storage.getResignationRequestsForApproval(role, userId, employeeIds),
+        storage.getProbationConfirmationsForApproval(role, userId, employeeIds),
+        visibleIds === null ? storage.listEmployees() : storage.listEmployees({ teamLeadId: userId }),
+      ]);
+      const byId: Record<string, { name: string; number: string }> = {};
+      for (const u of employees) {
+        byId[u.id] = {
+          name: (u as any).fullName?.trim() || u.username || u.id,
+          number: (u as any).employeeNumber ?? "",
+        };
+      }
+      return res.json({
+        pendingResignations: resignations.map((r) => ({
+          ...r,
+          employeeName: byId[r.employeeId]?.name ?? r.employeeId,
+          employeeNumber: byId[r.employeeId]?.number ?? "",
+        })),
+        pendingProbationConfirmations: confirmations.map((r) => ({
+          ...r,
+          employeeName: byId[r.employeeId]?.name ?? r.employeeId,
+          employeeNumber: byId[r.employeeId]?.number ?? "",
+        })),
+      });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // --- Staff: resignation requests (employee/team_lead applies; approval TL -> admin) ---
+  app.post("/api/staff/resignations", requireAuth, async (req, res, next) => {
+    try {
+      const userId = (req.user as any).id as string;
+      const role = (req.user as any).role as string;
+      if (role !== "employee") {
+        return res.status(403).json({ message: "Only employees can raise resignation requests" });
+      }
+      const [employee] = await Promise.all([storage.getUser(userId)]);
+      if (!employee) return res.status(404).json({ message: "User not found" });
+      const open = (await storage.getResignationRequestsByEmployee(userId)).find((r) =>
+        ["pending_team_lead", "pending_admin", "approved"].includes(String((r as any).status || ""))
+      );
+      if (open) return res.status(400).json({ message: "A resignation request is already active" });
+      const body = req.body || {};
+      const reason = typeof body.reason === "string" ? body.reason.trim() || null : null;
+      const requestedLastWorkingDay =
+        typeof body.requestedLastWorkingDay === "string" && body.requestedLastWorkingDay.trim()
+          ? body.requestedLastWorkingDay.trim().slice(0, 10)
+          : null;
+      const status = String((employee as any).employmentStatus ?? "confirmed");
+      const noticeDays = status === "confirmed" ? 90 : 30;
+      const minLwd = addDaysYmd(todayStr(), noticeDays);
+      const effectiveLastWorkingDay =
+        requestedLastWorkingDay && requestedLastWorkingDay > minLwd ? requestedLastWorkingDay : minLwd;
+      const created = await storage.createResignationRequest({
+        employeeId: userId,
+        reason,
+        requestedLastWorkingDay: requestedLastWorkingDay as any,
+        effectiveLastWorkingDay: effectiveLastWorkingDay as any,
+        noticeDays,
+        status: "pending_team_lead",
+      } as any);
+      return res.status(201).json(created);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/resignations/me", requireAuth, async (req, res, next) => {
+    try {
+      const userId = (req.user as any).id as string;
+      const list = await storage.getResignationRequestsByEmployee(userId);
+      return res.json(list);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.patch("/api/staff/resignations/:id/decision", requireAuth, async (req, res, next) => {
+    try {
+      const id = req.params.id;
+      const actorId = (req.user as any).id as string;
+      const role = (req.user as any).role as "admin" | "team_lead" | "employee";
+      if (role !== "admin" && role !== "team_lead") {
+        return res.status(403).json({ message: "Only admin or team lead can decide" });
+      }
+      const row = await storage.getResignationRequest(id);
+      if (!row) return res.status(404).json({ message: "Resignation request not found" });
+      const body = req.body || {};
+      const decision = String(body.decision || "").toLowerCase();
+      if (!["approved", "rejected"].includes(decision)) {
+        return res.status(400).json({ message: "decision must be approved or rejected" });
+      }
+      const remarks = typeof body.remarks === "string" ? body.remarks.trim() || null : null;
+      if (role === "team_lead") {
+        const visibleIds = await getVisibleEmployeeIds(req);
+        if (!visibleIds || !visibleIds.includes(row.employeeId)) {
+          return res.status(403).json({ message: "Not allowed for this employee" });
+        }
+        if (row.status !== "pending_team_lead") {
+          return res.status(400).json({ message: "Only pending team lead requests can be decided" });
+        }
+        const updated = await storage.updateResignationRequest(id, {
+          teamLeadDecision: decision,
+          teamLeadDecisionBy: actorId,
+          teamLeadDecisionAt: new Date(),
+          teamLeadRemarks: remarks,
+          status: decision === "approved" ? "pending_admin" : "rejected_by_team_lead",
+        } as any);
+        return res.json(updated);
+      }
+      if (row.status !== "pending_admin") {
+        return res.status(400).json({ message: "Only pending admin requests can be decided" });
+      }
+      const updated = await storage.updateResignationRequest(id, {
+        adminDecision: decision,
+        adminDecisionBy: actorId,
+        adminDecisionAt: new Date(),
+        adminRemarks: remarks,
+        status: decision === "approved" ? "approved" : "rejected_by_admin",
+      } as any);
+      if (decision === "approved") {
+        await storage.updateUser(row.employeeId, { employmentStatus: "resigned" as any });
+      }
+      return res.json(updated);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // --- Staff: probation confirmation (eligible after 3 months, approval TL -> admin) ---
+  app.get("/api/staff/probation-confirmations/mine", requireAuth, async (req, res, next) => {
+    try {
+      const userId = (req.user as any).id as string;
+      const list = await storage.getProbationConfirmationsByEmployee(userId);
+      res.json(list);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.patch("/api/staff/probation-confirmations/:id/decision", requireAuth, async (req, res, next) => {
+    try {
+      const id = req.params.id;
+      const actorId = (req.user as any).id as string;
+      const role = (req.user as any).role as "admin" | "team_lead" | "employee";
+      if (role !== "admin" && role !== "team_lead") {
+        return res.status(403).json({ message: "Only admin or team lead can decide" });
+      }
+      const row = await storage.getProbationConfirmation(id);
+      if (!row) return res.status(404).json({ message: "Probation confirmation not found" });
+      const body = req.body || {};
+      const decision = String(body.decision || "").toLowerCase();
+      if (!["approved", "rejected"].includes(decision)) {
+        return res.status(400).json({ message: "decision must be approved or rejected" });
+      }
+      const remarks = typeof body.remarks === "string" ? body.remarks.trim() || null : null;
+      if (role === "team_lead") {
+        const visibleIds = await getVisibleEmployeeIds(req);
+        if (!visibleIds || !visibleIds.includes(row.employeeId)) {
+          return res.status(403).json({ message: "Not allowed for this employee" });
+        }
+        if (row.status !== "pending_team_lead") {
+          return res.status(400).json({ message: "Only pending team lead confirmations can be decided" });
+        }
+        const updated = await storage.updateProbationConfirmation(id, {
+          teamLeadDecision: decision,
+          teamLeadDecisionBy: actorId,
+          teamLeadDecisionAt: new Date(),
+          teamLeadRemarks: remarks,
+          status: decision === "approved" ? "pending_admin" : "rejected_by_team_lead",
+        } as any);
+        return res.json(updated);
+      }
+      if (row.status !== "pending_admin") {
+        return res.status(400).json({ message: "Only pending admin confirmations can be decided" });
+      }
+      const updated = await storage.updateProbationConfirmation(id, {
+        adminDecision: decision,
+        adminDecisionBy: actorId,
+        adminDecisionAt: new Date(),
+        adminRemarks: remarks,
+        status: decision === "approved" ? "approved" : "rejected_by_admin",
+      } as any);
+      if (decision === "approved") {
+        await storage.updateUser(row.employeeId, {
+          employmentStatus: "confirmed" as any,
+          confirmedAt: new Date(),
+        });
+      }
+      return res.json(updated);
+    } catch (e) {
+      next(e);
+    }
+  });
+
   // --- Staff: leave requests ---
   app.post("/api/staff/leave", requireAuth, async (req, res, next) => {
     try {
@@ -1934,6 +2148,13 @@ export async function registerRoutes(
         if (body.location !== undefined) data.location = typeof body.location === "string" ? body.location.trim() || null : null;
         if (body.dateOfBirth !== undefined) data.dateOfBirth = typeof body.dateOfBirth === "string" ? (body.dateOfBirth.trim() || null) : null;
         if (body.gender !== undefined) data.gender = typeof body.gender === "string" ? body.gender.trim() || null : null;
+        if (body.employmentStatus !== undefined) {
+          const v = String(body.employmentStatus || "").trim().toLowerCase();
+          if (["probation", "confirmed", "resigned"].includes(v)) data.employmentStatus = v;
+        }
+        if (body.probationStartDate !== undefined) {
+          data.probationStartDate = typeof body.probationStartDate === "string" ? (body.probationStartDate.trim() || null) : null;
+        }
       } else if (role === "team_lead") {
         if ((target as any).role !== "employee") return res.status(403).json({ message: "Can only assign employees to your team" });
         if (body.teamLeadId !== undefined) {
@@ -1979,6 +2200,9 @@ export async function registerRoutes(
         location: (updated as any).location ?? null,
         dateOfBirth: (updated as any).dateOfBirth ?? null,
         gender: (updated as any).gender ?? null,
+        employmentStatus: (updated as any).employmentStatus ?? null,
+        probationStartDate: (updated as any).probationStartDate ?? null,
+        confirmedAt: (updated as any).confirmedAt ?? null,
       });
     } catch (e) {
       next(e);
@@ -2091,6 +2315,9 @@ export async function registerRoutes(
           location: (u as any).location ?? null,
           dateOfBirth: (u as any).dateOfBirth ?? null,
           gender: (u as any).gender ?? null,
+          employmentStatus: (u as any).employmentStatus ?? null,
+          probationStartDate: (u as any).probationStartDate ?? null,
+          confirmedAt: (u as any).confirmedAt ?? null,
         }))
       );
     } catch (e) {
@@ -2131,6 +2358,10 @@ export async function registerRoutes(
       const monthlyLeadTarget = body.monthlyLeadTarget != null ? Number(body.monthlyLeadTarget) : undefined;
       const role = body.role === "team_lead" ? "team_lead" : "employee";
       const teamLeadId = body.teamLeadId != null && body.teamLeadId !== "" ? String(body.teamLeadId) : undefined;
+      const dateOfJoining =
+        typeof body.dateOfJoining === "string" && body.dateOfJoining.trim()
+          ? body.dateOfJoining.trim().slice(0, 10)
+          : todayStr();
       const user = await storage.createUser({
         username,
         password,
@@ -2140,6 +2371,9 @@ export async function registerRoutes(
         phone,
         ...(monthlyLeadTarget != null && !Number.isNaN(monthlyLeadTarget) ? { monthlyLeadTarget } : {}),
         ...(teamLeadId && role === "employee" ? { teamLeadId } : {}),
+        dateOfJoining,
+        probationStartDate: role === "employee" ? dateOfJoining : null,
+        employmentStatus: role === "employee" ? "probation" : "confirmed",
       } as any);
       res.status(201).json({
         id: user.id,
