@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import StaffMyLeave from "./staff-my-leave";
 import StaffMyPayslips from "./staff-my-payslips";
+import StaffOfferLetters from "./staff-offer-letters";
 import { formatDateDdMmYyyy } from "@/lib/utils";
 
 type ResignationItem = {
@@ -250,7 +251,7 @@ export default function StaffHrWorkflows() {
       <div>
         <h1 className="text-2xl font-bold">HR Workflows</h1>
         <p className="text-slate-600 mt-0.5">
-          Manage HR requests, approvals, leave, and payslips from one place.
+          Manage HR requests, approvals, leave, payslips, and offer letters from one place.
         </p>
       </div>
 
@@ -261,6 +262,7 @@ export default function StaffHrWorkflows() {
           {isApprover && <TabsTrigger value="on-notice">On Notice</TabsTrigger>}
           {(isEmployee || user?.role === "team_lead") && <TabsTrigger value="leave">Leave</TabsTrigger>}
           {(isEmployee || user?.role === "team_lead") && <TabsTrigger value="payslips">Payslips</TabsTrigger>}
+          {(isEmployee || user?.role === "team_lead" || user?.role === "admin") && <TabsTrigger value="offer-letters">Offer Letter</TabsTrigger>}
         </TabsList>
 
         {showWorkflowsTab && (
@@ -507,6 +509,12 @@ export default function StaffHrWorkflows() {
         {(isEmployee || user?.role === "team_lead") && (
           <TabsContent value="payslips">
             <StaffMyPayslips />
+          </TabsContent>
+        )}
+
+        {(isEmployee || user?.role === "team_lead" || user?.role === "admin") && (
+          <TabsContent value="offer-letters">
+            <StaffOfferLetters user={user} />
           </TabsContent>
         )}
       </Tabs>

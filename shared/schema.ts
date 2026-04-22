@@ -493,6 +493,69 @@ export const insertPayslipSchema = createInsertSchema(payslips).pick({
 export type Payslip = typeof payslips.$inferSelect;
 export type InsertPayslip = z.infer<typeof insertPayslipSchema>;
 
+// --- Offer Letters (template + generated letter workflow) ---
+export const offerLetterTemplates = mysqlTable("offer_letter_templates", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: varchar("name", { length: 255 }).notNull(),
+  templatePath: varchar("template_path", { length: 512 }),
+  templateBody: text("template_body").notNull(),
+  placeholdersJson: text("placeholders_json"),
+  isActive: int("is_active").notNull().default(1),
+  createdBy: varchar("created_by", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export const insertOfferLetterTemplateSchema = createInsertSchema(offerLetterTemplates).pick({
+  name: true,
+  templatePath: true,
+  templateBody: true,
+  placeholdersJson: true,
+  isActive: true,
+  createdBy: true,
+});
+
+export type OfferLetterTemplate = typeof offerLetterTemplates.$inferSelect;
+export type InsertOfferLetterTemplate = z.infer<typeof insertOfferLetterTemplateSchema>;
+
+export const offerLetters = mysqlTable("offer_letters", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  employeeId: varchar("employee_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+  templateId: varchar("template_id", { length: 36 }).references(() => offerLetterTemplates.id, { onDelete: "set null" }),
+  title: varchar("title", { length: 255 }).notNull().default("Offer Letter"),
+  status: varchar("status", { length: 30 }).notNull().default("generated"), // generated | published | accepted | rejected
+  payloadJson: text("payload_json"),
+  letterBody: text("letter_body").notNull(),
+  pdfPath: varchar("pdf_path", { length: 512 }),
+  generatedBy: varchar("generated_by", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
+  publishedBy: varchar("published_by", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
+  publishedAt: timestamp("published_at"),
+  acceptedAt: timestamp("accepted_at"),
+  rejectedAt: timestamp("rejected_at"),
+  decisionRemarks: text("decision_remarks"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export const insertOfferLetterSchema = createInsertSchema(offerLetters).pick({
+  employeeId: true,
+  templateId: true,
+  title: true,
+  status: true,
+  payloadJson: true,
+  letterBody: true,
+  pdfPath: true,
+  generatedBy: true,
+  publishedBy: true,
+  publishedAt: true,
+  acceptedAt: true,
+  rejectedAt: true,
+  decisionRemarks: true,
+});
+
+export type OfferLetter = typeof offerLetters.$inferSelect;
+export type InsertOfferLetter = z.infer<typeof insertOfferLetterSchema>;
+
 // --- Admin Expenses (office/admin ledger: Rent, Electricity, Water, Other) ---
 export const ADMIN_EXPENSE_PURPOSES = ["Rent", "Electricity Bill", "Water Bill", "Other"] as const;
 export type AdminExpensePurpose = (typeof ADMIN_EXPENSE_PURPOSES)[number];

@@ -20,6 +20,8 @@ import { computePayslip, formatCurrency, getWorkingDaysInMonth, type ComputedPay
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 const AVATARS_DIR = path.join(UPLOADS_DIR, "avatars");
 const PAYSLIPS_DIR = path.join(UPLOADS_DIR, "payslips");
+const OFFER_TEMPLATES_DIR = path.join(UPLOADS_DIR, "offer-templates");
+const OFFER_LETTERS_DIR = path.join(UPLOADS_DIR, "offer-letters");
 
 /** Resolve company logo path for payslips (checks .png then .jpg). Returns path if file exists. */
 function getCompanyLogoPath(): string | null {
@@ -84,6 +86,16 @@ const adminLeadImportUpload = multer({
   },
 });
 
+const offerTemplateUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const name = (file.originalname || "").toLowerCase();
+    if (name.endsWith(".txt") || name.endsWith(".html")) cb(null, true);
+    else cb(new Error("Only .txt or .html templates are allowed"));
+  },
+});
+
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -130,6 +142,48 @@ function pickActiveApprovedResignation<T extends { status?: string; effectiveLas
     }
   }
   return best;
+}
+
+function extractTemplatePlaceholders(body: string): string[] {
+  const out = new Set<string>();
+  const re = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
+  let m: RegExpExecArray | null = null;
+  while ((m = re.exec(body)) !== null) {
+    if (m[1]) out.add(m[1]);
+  }
+  return Array.from(out);
+}
+
+function renderTemplateBody(body: string, values: Record<string, string>): string {
+  return body.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_all, key: string) => values[key] ?? "");
+}
+
+function stripSimpleHtml(input: string): string {
+  return input
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\r\n/g, "\n")
+    .trim();
+}
+
+function drawOfferLetterPdf(
+  doc: any,
+  opts: { title: string; employeeName: string; letterBody: string; generatedOn: Date }
+) {
+  const margin = 50;
+  const body = stripSimpleHtml(opts.letterBody);
+  doc.font("Helvetica-Bold").fontSize(18).text(opts.title, margin, 60, { align: "center" });
+  doc.moveDown(1.2);
+  doc.font("Helvetica").fontSize(10).text(`Generated on: ${opts.generatedOn.toLocaleDateString("en-IN")}`, {
+    align: "right",
+  });
+  doc.moveDown(1);
+  doc.font("Helvetica").fontSize(11).text(`Candidate: ${opts.employeeName}`);
+  doc.moveDown(1);
+  doc.font("Helvetica").fontSize(11).text(body, {
+    align: "left",
+  });
 }
 
 function isSecondSaturday(dateStr: string): boolean {
@@ -263,6 +317,12 @@ export async function registerRoutes(
   }
   if (!fs.existsSync(PAYSLIPS_DIR)) {
     fs.mkdirSync(PAYSLIPS_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(OFFER_TEMPLATES_DIR)) {
+    fs.mkdirSync(OFFER_TEMPLATES_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(OFFER_LETTERS_DIR)) {
+    fs.mkdirSync(OFFER_LETTERS_DIR, { recursive: true });
   }
   app.use("/uploads", express.static(UPLOADS_DIR));
 
@@ -624,6 +684,213 @@ export async function registerRoutes(
     try {
       await storage.deleteHoliday(req.params.id);
       res.status(204).send();
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // --- Staff: Offer Letter templates + workflow ---
+  app.get("/api/staff/offer-templates", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const activeOnly = String(req.query.activeOnly ?? "false") === "true";
+      const list = await storage.listOfferLetterTemplates(activeOnly);
+      res.json(
+        list.map((t) => ({
+          id: t.id,
+          name: t.name,
+          templatePath: t.templatePath ?? null,
+          placeholders: t.placeholdersJson ? JSON.parse(String(t.placeholdersJson)) : [],
+          isActive: t.isActive,
+          createdAt: t.createdAt,
+        }))
+      );
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.post("/api/staff/offer-templates/upload", requireAuth, requireAdmin, offerTemplateUpload.single("template"), async (req, res, next) => {
+    try {
+      const file = req.file;
+      if (!file) return res.status(400).json({ message: "Template file is required" });
+      const bodyText = file.buffer.toString("utf8");
+      if (!bodyText.trim()) return res.status(400).json({ message: "Template content cannot be empty" });
+      const nameRaw = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+      const templateName = nameRaw || file.originalname || "Offer Letter Template";
+      const ext = path.extname(file.originalname || "").toLowerCase() || ".txt";
+      const templateId = randomBytes(16).toString("hex");
+      const filename = `${templateId}${ext}`;
+      const savedPath = path.join(OFFER_TEMPLATES_DIR, filename);
+      fs.writeFileSync(savedPath, file.buffer);
+      const placeholders = extractTemplatePlaceholders(bodyText);
+      const created = await storage.createOfferLetterTemplate({
+        name: templateName,
+        templatePath: path.join("offer-templates", filename),
+        templateBody: bodyText,
+        placeholdersJson: JSON.stringify(placeholders),
+        isActive: 1,
+        createdBy: (req.user as any).id,
+      } as any);
+      res.status(201).json({
+        id: created.id,
+        name: created.name,
+        placeholders,
+        templatePath: created.templatePath,
+        isActive: created.isActive,
+      });
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/offer-letters", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const status = typeof req.query.status === "string" ? req.query.status : undefined;
+      const employeeId = typeof req.query.employeeId === "string" ? req.query.employeeId : undefined;
+      const [rows, staff] = await Promise.all([
+        storage.listOfferLetters({ status, employeeId }),
+        storage.listEmployees(),
+      ]);
+      const byId = new Map(staff.map((u) => [u.id, u]));
+      res.json(rows.map((r) => ({
+        ...r,
+        employeeName: (byId.get(r.employeeId) as any)?.fullName ?? (byId.get(r.employeeId) as any)?.username ?? r.employeeId,
+        employeeNumber: (byId.get(r.employeeId) as any)?.employeeNumber ?? "",
+      })));
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.post("/api/staff/offer-letters/generate", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const body = req.body || {};
+      const employeeId = typeof body.employeeId === "string" ? body.employeeId : "";
+      const templateId = typeof body.templateId === "string" ? body.templateId : "";
+      const title = typeof body.title === "string" && body.title.trim() ? body.title.trim() : "Offer Letter";
+      const payloadInput = typeof body.values === "object" && body.values ? body.values as Record<string, unknown> : {};
+      if (!employeeId) return res.status(400).json({ message: "employeeId is required" });
+      const employee = await storage.getUser(employeeId);
+      if (!employee || !["employee", "team_lead"].includes(employee.role)) {
+        return res.status(400).json({ message: "Offer letter can be generated only for employee or team lead" });
+      }
+      const template = templateId
+        ? await storage.getOfferLetterTemplate(templateId)
+        : (await storage.listOfferLetterTemplates(true))[0];
+      if (!template) return res.status(400).json({ message: "No active offer letter template found" });
+      const mergedValues: Record<string, string> = {
+        fullName: String((employee as any).fullName ?? employee.username ?? ""),
+        employeeName: String((employee as any).fullName ?? employee.username ?? ""),
+        employeeNumber: String((employee as any).employeeNumber ?? ""),
+        designation: String((employee as any).designation ?? ""),
+        dateOfJoining: normalizeYmd((employee as any).dateOfJoining) ?? "",
+        department: String((employee as any).department ?? ""),
+        location: String((employee as any).location ?? ""),
+      };
+      for (const [k, v] of Object.entries(payloadInput)) mergedValues[k] = String(v ?? "");
+      const letterBody = renderTemplateBody(String(template.templateBody ?? ""), mergedValues);
+      const pdfName = `offer_${randomBytes(16).toString("hex")}.pdf`;
+      const fullPath = path.join(OFFER_LETTERS_DIR, pdfName);
+      const doc = new PDFDocument({ margin: 50 });
+      const stream = fs.createWriteStream(fullPath);
+      doc.pipe(stream);
+      drawOfferLetterPdf(doc, {
+        title,
+        employeeName: mergedValues.fullName || mergedValues.employeeName || employee.username,
+        letterBody,
+        generatedOn: new Date(),
+      });
+      doc.end();
+      await new Promise<void>((resolve, reject) => {
+        stream.on("finish", () => resolve());
+        stream.on("error", reject);
+      });
+      const created = await storage.createOfferLetter({
+        employeeId,
+        templateId: template.id,
+        title,
+        status: "generated",
+        payloadJson: JSON.stringify(mergedValues),
+        letterBody,
+        pdfPath: path.join("offer-letters", pdfName),
+        generatedBy: (req.user as any).id,
+      } as any);
+      res.status(201).json(created);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.post("/api/staff/offer-letters/:id/publish", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const id = req.params.id;
+      const row = await storage.getOfferLetterById(id);
+      if (!row) return res.status(404).json({ message: "Offer letter not found" });
+      if (row.status !== "generated") return res.status(400).json({ message: "Only generated letters can be published" });
+      const updated = await storage.updateOfferLetter(id, {
+        status: "published",
+        publishedBy: (req.user as any).id,
+        publishedAt: new Date(),
+      } as any);
+      res.json(updated);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/offer-letters/mine", requireAuth, async (req, res, next) => {
+    try {
+      const user = req.user as any;
+      if (!["employee", "team_lead"].includes(user.role)) return res.json([]);
+      const rows = await storage.listOfferLettersByEmployee(user.id);
+      res.json(rows);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.post("/api/staff/offer-letters/:id/decision", requireAuth, async (req, res, next) => {
+    try {
+      const id = req.params.id;
+      const user = req.user as any;
+      const row = await storage.getOfferLetterById(id);
+      if (!row) return res.status(404).json({ message: "Offer letter not found" });
+      const role = String(user.role || "");
+      if (role !== "admin" && row.employeeId !== user.id) return res.status(403).json({ message: "Forbidden" });
+      const decision = String(req.body?.decision || "").toLowerCase();
+      if (!["accepted", "rejected"].includes(decision)) {
+        return res.status(400).json({ message: "decision must be accepted or rejected" });
+      }
+      if (row.status !== "published") {
+        return res.status(400).json({ message: "Only published offer letters can be accepted/rejected" });
+      }
+      const remarks = typeof req.body?.remarks === "string" ? req.body.remarks.trim() || null : null;
+      const updated = await storage.updateOfferLetter(id, {
+        status: decision,
+        acceptedAt: decision === "accepted" ? new Date() : null,
+        rejectedAt: decision === "rejected" ? new Date() : null,
+        decisionRemarks: remarks,
+      } as any);
+      res.json(updated);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.get("/api/staff/offer-letters/:id/file", requireAuth, async (req, res, next) => {
+    try {
+      const user = req.user as any;
+      const row = await storage.getOfferLetterById(req.params.id);
+      if (!row) return res.status(404).json({ message: "Offer letter not found" });
+      if (user.role !== "admin" && row.employeeId !== user.id) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      if (!row.pdfPath) return res.status(404).json({ message: "Offer letter file not found" });
+      const fullPath = path.join(UPLOADS_DIR, row.pdfPath);
+      if (!fs.existsSync(fullPath)) return res.status(404).json({ message: "Offer letter file missing" });
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="offer-letter-${row.id}.pdf"`);
+      fs.createReadStream(fullPath).pipe(res);
     } catch (e) {
       next(e);
     }

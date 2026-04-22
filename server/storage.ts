@@ -23,6 +23,10 @@ import {
   type InsertPayrollEntry,
   type Payslip,
   type InsertPayslip,
+  type OfferLetterTemplate,
+  type InsertOfferLetterTemplate,
+  type OfferLetter,
+  type InsertOfferLetter,
   type CompanyMonthlyTarget,
   type MonthlyTarget,
   type MonthlyPerformance,
@@ -41,6 +45,8 @@ import {
   salaryStructures,
   payrollEntries,
   payslips,
+  offerLetterTemplates,
+  offerLetters,
   companyMonthlyTarget,
   monthlyTargets,
   monthlyPerformance,
@@ -143,6 +149,15 @@ export interface IStorage {
   getPayslipsByEmployee(employeeId: string): Promise<Payslip[]>;
   getPayslipsByPeriod(period: string): Promise<Payslip[]>;
   upsertPayslip(data: InsertPayslip): Promise<Payslip>;
+  createOfferLetterTemplate(data: InsertOfferLetterTemplate): Promise<OfferLetterTemplate>;
+  listOfferLetterTemplates(activeOnly?: boolean): Promise<OfferLetterTemplate[]>;
+  getOfferLetterTemplate(id: string): Promise<OfferLetterTemplate | undefined>;
+  updateOfferLetterTemplate(id: string, data: Partial<InsertOfferLetterTemplate>): Promise<OfferLetterTemplate | undefined>;
+  createOfferLetter(data: InsertOfferLetter): Promise<OfferLetter>;
+  getOfferLetterById(id: string): Promise<OfferLetter | undefined>;
+  listOfferLettersByEmployee(employeeId: string): Promise<OfferLetter[]>;
+  listOfferLetters(filters?: { employeeId?: string; status?: string }): Promise<OfferLetter[]>;
+  updateOfferLetter(id: string, data: Partial<InsertOfferLetter>): Promise<OfferLetter | undefined>;
 
   /** Joint visits count for team lead in date range (for conveyance). Returns 0 until joint visits are logged in CRM. */
   getJointVisitsCount(teamLeadId: string, fromDate: string, toDate: string): Promise<number>;
@@ -854,6 +869,99 @@ export class DrizzleStorage implements IStorage {
     return row;
   }
 
+  async createOfferLetterTemplate(data: InsertOfferLetterTemplate): Promise<OfferLetterTemplate> {
+    await guardDb();
+    const id = crypto.randomUUID();
+    await db.insert(offerLetterTemplates).values({ ...data, id } as any);
+    const row = await this.getOfferLetterTemplate(id);
+    if (!row) throw new Error("Failed to create offer letter template");
+    return row;
+  }
+
+  async listOfferLetterTemplates(activeOnly?: boolean): Promise<OfferLetterTemplate[]> {
+    await guardDb();
+    if (activeOnly) {
+      return db
+        .select()
+        .from(offerLetterTemplates)
+        .where(eq(offerLetterTemplates.isActive, 1))
+        .orderBy(desc(offerLetterTemplates.createdAt));
+    }
+    return db
+      .select()
+      .from(offerLetterTemplates)
+      .orderBy(desc(offerLetterTemplates.createdAt));
+  }
+
+  async getOfferLetterTemplate(id: string): Promise<OfferLetterTemplate | undefined> {
+    await guardDb();
+    const [row] = await db.select().from(offerLetterTemplates).where(eq(offerLetterTemplates.id, id)).limit(1);
+    return row;
+  }
+
+  async updateOfferLetterTemplate(
+    id: string,
+    data: Partial<InsertOfferLetterTemplate>
+  ): Promise<OfferLetterTemplate | undefined> {
+    await guardDb();
+    await db
+      .update(offerLetterTemplates)
+      .set({ ...(data as any), updatedAt: new Date() })
+      .where(eq(offerLetterTemplates.id, id));
+    return this.getOfferLetterTemplate(id);
+  }
+
+  async createOfferLetter(data: InsertOfferLetter): Promise<OfferLetter> {
+    await guardDb();
+    const id = crypto.randomUUID();
+    await db.insert(offerLetters).values({ ...data, id } as any);
+    const row = await this.getOfferLetterById(id);
+    if (!row) throw new Error("Failed to create offer letter");
+    return row;
+  }
+
+  async getOfferLetterById(id: string): Promise<OfferLetter | undefined> {
+    await guardDb();
+    const [row] = await db.select().from(offerLetters).where(eq(offerLetters.id, id)).limit(1);
+    return row;
+  }
+
+  async listOfferLettersByEmployee(employeeId: string): Promise<OfferLetter[]> {
+    await guardDb();
+    return db
+      .select()
+      .from(offerLetters)
+      .where(eq(offerLetters.employeeId, employeeId))
+      .orderBy(desc(offerLetters.createdAt));
+  }
+
+  async listOfferLetters(filters?: { employeeId?: string; status?: string }): Promise<OfferLetter[]> {
+    await guardDb();
+    const conditions = [];
+    if (filters?.employeeId) conditions.push(eq(offerLetters.employeeId, filters.employeeId));
+    if (filters?.status) conditions.push(eq(offerLetters.status, filters.status));
+    if (conditions.length > 0) {
+      return db
+        .select()
+        .from(offerLetters)
+        .where(and(...conditions))
+        .orderBy(desc(offerLetters.createdAt));
+    }
+    return db
+      .select()
+      .from(offerLetters)
+      .orderBy(desc(offerLetters.createdAt));
+  }
+
+  async updateOfferLetter(id: string, data: Partial<InsertOfferLetter>): Promise<OfferLetter | undefined> {
+    await guardDb();
+    await db
+      .update(offerLetters)
+      .set({ ...(data as any), updatedAt: new Date() })
+      .where(eq(offerLetters.id, id));
+    return this.getOfferLetterById(id);
+  }
+
   async createLeaveRequest(data: InsertLeaveRequest): Promise<LeaveRequest> {
     await guardDb();
     const id = crypto.randomUUID();
@@ -1553,6 +1661,42 @@ class NoDbStorage implements IStorage {
   async upsertPayslip() {
     this.guard();
     throw new Error("Not implemented");
+  }
+  async createOfferLetterTemplate() {
+    this.guard();
+    throw new Error("Not implemented");
+  }
+  async listOfferLetterTemplates() {
+    this.guard();
+    return [];
+  }
+  async getOfferLetterTemplate() {
+    this.guard();
+    return undefined;
+  }
+  async updateOfferLetterTemplate() {
+    this.guard();
+    return undefined;
+  }
+  async createOfferLetter() {
+    this.guard();
+    throw new Error("Not implemented");
+  }
+  async getOfferLetterById() {
+    this.guard();
+    return undefined;
+  }
+  async listOfferLettersByEmployee() {
+    this.guard();
+    return [];
+  }
+  async listOfferLetters() {
+    this.guard();
+    return [];
+  }
+  async updateOfferLetter() {
+    this.guard();
+    return undefined;
   }
   async getJointVisitsCount() {
     this.guard();
