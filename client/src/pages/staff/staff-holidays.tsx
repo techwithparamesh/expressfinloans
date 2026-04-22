@@ -42,7 +42,9 @@ export default function StaffHolidays() {
   async function load() {
     setLoading(true);
     try {
-      const list = await staffJson<HolidayRow[]>(`/staff/holidays?from=${yearStart()}&to=${yearEnd()}`);
+      const list = await staffJson<HolidayRow[]>(
+        `/staff/holidays?from=${yearStart()}&to=${yearEnd()}&includeSecondSaturdays=false`
+      );
       setRows(Array.isArray(list) ? list : []);
     } catch {
       setRows([]);
@@ -58,7 +60,9 @@ export default function StaffHolidays() {
   }, []);
 
   const sorted = useMemo(
-    () => [...rows].sort((a, b) => String(a.date).localeCompare(String(b.date))),
+    () =>
+      [...rows]
+        .sort((a, b) => String(a.date).localeCompare(String(b.date))),
     [rows]
   );
 
@@ -75,7 +79,7 @@ export default function StaffHolidays() {
           <CardHeader>
             <CardTitle>Add holiday</CardTitle>
             <CardDescription>
-              Add full-day or half-day holidays. Second Saturday (half day) appears automatically.
+              Add full-day or half-day holidays for the calendar.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-4">
@@ -148,7 +152,7 @@ export default function StaffHolidays() {
       <Card>
         <CardHeader>
           <CardTitle>Holidays ({new Date().getFullYear()})</CardTitle>
-          <CardDescription>Configured holidays and auto-generated second Saturdays.</CardDescription>
+          <CardDescription>Configured holiday list.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -168,7 +172,6 @@ export default function StaffHolidays() {
                   </tr>
                 ) : (
                   sorted.map((r) => {
-                    const builtIn = String(r.id || "").startsWith("second-saturday-");
                     return (
                       <tr key={r.id} className="border-b">
                         <td className="py-2 px-2">{formatDateDdMmYyyy(r.date) ?? r.date}</td>
@@ -176,26 +179,22 @@ export default function StaffHolidays() {
                         <td className="py-2 px-2">{r.holidayType === "half_day" ? "Half day" : "Full day"}</td>
                         {canManage && (
                           <td className="py-2 px-2">
-                            {builtIn ? (
-                              <span className="text-slate-500">Auto</span>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-red-600 border-red-200 hover:bg-red-50"
-                                onClick={async () => {
-                                  try {
-                                    await staffJson(`/staff/holidays/${r.id}`, { method: "DELETE" });
-                                    await load();
-                                    toast({ title: "Holiday removed" });
-                                  } catch (e) {
-                                    toast({ title: e instanceof Error ? e.message : "Failed to remove holiday", variant: "destructive" });
-                                  }
-                                }}
-                              >
-                                Delete
-                              </Button>
-                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 border-red-200 hover:bg-red-50"
+                              onClick={async () => {
+                                try {
+                                  await staffJson(`/staff/holidays/${r.id}`, { method: "DELETE" });
+                                  await load();
+                                  toast({ title: "Holiday removed" });
+                                } catch (e) {
+                                  toast({ title: e instanceof Error ? e.message : "Failed to remove holiday", variant: "destructive" });
+                                }
+                              }}
+                            >
+                              Delete
+                            </Button>
                           </td>
                         )}
                       </tr>

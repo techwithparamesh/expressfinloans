@@ -548,9 +548,11 @@ export async function registerRoutes(
     try {
       const from = (req.query.from as string) || undefined;
       const to = (req.query.to as string) || undefined;
+      const includeSecondSaturdaysRaw = String(req.query.includeSecondSaturdays ?? "true").toLowerCase();
+      const includeSecondSaturdays = !["false", "0", "no"].includes(includeSecondSaturdaysRaw);
       const list = await storage.getHolidays(from, to);
       const out = Array.isArray(list) ? [...list] : [];
-      if (from && to) {
+      if (includeSecondSaturdays && from && to) {
         const explicit = new Set(out.map((h: any) => String((h as any).date).slice(0, 10)));
         for (const ds of enumerateSecondSaturdays(from, to)) {
           if (!explicit.has(ds)) {
