@@ -133,7 +133,13 @@ export interface IStorage {
   updateAdminExpense(id: string, data: Partial<InsertAdminExpense>): Promise<AdminExpense | undefined>;
   deleteAdminExpense(id: string): Promise<void>;
 
-  getLeaderExpenseRequests(filters?: { month?: string; status?: string; requestedBy?: string }): Promise<LeaderExpenseRequest[]>;
+  getLeaderExpenseRequests(filters?: {
+    month?: string;
+    monthFrom?: string;
+    monthTo?: string;
+    status?: string;
+    requestedBy?: string;
+  }): Promise<LeaderExpenseRequest[]>;
   getLeaderExpenseRequest(id: string): Promise<LeaderExpenseRequest | undefined>;
   createLeaderExpenseRequest(data: InsertLeaderExpenseRequest): Promise<LeaderExpenseRequest>;
   updateLeaderExpenseRequest(id: string, data: Partial<InsertLeaderExpenseRequest>): Promise<LeaderExpenseRequest | undefined>;
@@ -733,10 +739,23 @@ export class DrizzleStorage implements IStorage {
     await db.delete(adminExpenses).where(eq(adminExpenses.id, id));
   }
 
-  async getLeaderExpenseRequests(filters?: { month?: string; status?: string; requestedBy?: string }): Promise<LeaderExpenseRequest[]> {
+  async getLeaderExpenseRequests(filters?: {
+    month?: string;
+    monthFrom?: string;
+    monthTo?: string;
+    status?: string;
+    requestedBy?: string;
+  }): Promise<LeaderExpenseRequest[]> {
     await guardDb();
     const conditions = [];
-    if (filters?.month) conditions.push(eq(leaderExpenseRequests.month, filters.month));
+    if (filters?.monthFrom != null && filters.monthFrom !== "" && filters?.monthTo != null && filters.monthTo !== "") {
+      const lo = filters.monthFrom <= filters.monthTo ? filters.monthFrom : filters.monthTo;
+      const hi = filters.monthFrom <= filters.monthTo ? filters.monthTo : filters.monthFrom;
+      conditions.push(gte(leaderExpenseRequests.month, lo));
+      conditions.push(lte(leaderExpenseRequests.month, hi));
+    } else if (filters?.month) {
+      conditions.push(eq(leaderExpenseRequests.month, filters.month));
+    }
     if (filters?.status) conditions.push(eq(leaderExpenseRequests.status, filters.status));
     if (filters?.requestedBy) conditions.push(eq(leaderExpenseRequests.requestedBy, filters.requestedBy));
     const query = conditions.length
@@ -1603,7 +1622,13 @@ class NoDbStorage implements IStorage {
   async deleteAdminExpense() {
     this.guard();
   }
-  async getLeaderExpenseRequests() {
+  async getLeaderExpenseRequests(_filters?: {
+    month?: string;
+    monthFrom?: string;
+    monthTo?: string;
+    status?: string;
+    requestedBy?: string;
+  }) {
     this.guard();
     return [];
   }

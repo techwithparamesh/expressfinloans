@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
+import { MonthInput } from "@/components/ui/month-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -281,7 +282,39 @@ export default function StaffDashboard() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
+  const [adminExpenseFilterMode, setAdminExpenseFilterMode] = useState<"month" | "range">("month");
+  const [adminLeaderExpenseRangeFrom, setAdminLeaderExpenseRangeFrom] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+  });
+  const [adminLeaderExpenseRangeTo, setAdminLeaderExpenseRangeTo] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
   const [adminLeaderExpenseActionId, setAdminLeaderExpenseActionId] = useState<string | null>(null);
+
+  const buildAdminLeaderExpenseParams = useCallback(() => {
+    const params = new URLSearchParams();
+    if (adminExpenseFilterMode === "range") {
+      const mf = adminLeaderExpenseRangeFrom.slice(0, 7);
+      const mt = adminLeaderExpenseRangeTo.slice(0, 7);
+      if (mf && mt) {
+        params.set("monthFrom", mf <= mt ? mf : mt);
+        params.set("monthTo", mf <= mt ? mt : mf);
+      }
+    } else if (adminLeaderExpenseMonth) {
+      params.set("month", adminLeaderExpenseMonth);
+    }
+    if (adminLeaderExpenseStatusFilter && adminLeaderExpenseStatusFilter !== "all") {
+      params.set("status", adminLeaderExpenseStatusFilter);
+    }
+    return params;
+  }, [
+    adminExpenseFilterMode,
+    adminLeaderExpenseMonth,
+    adminLeaderExpenseRangeFrom,
+    adminLeaderExpenseRangeTo,
+    adminLeaderExpenseStatusFilter,
+  ]);
   const [leadImportBusy, setLeadImportBusy] = useState(false);
   const [leadImportDryRun, setLeadImportDryRun] = useState(true);
   const leadImportInputRef = useRef<HTMLInputElement>(null);
@@ -342,14 +375,12 @@ export default function StaffDashboard() {
   useEffect(() => {
     if (!user || user.role !== "admin") return;
     setAdminLeaderExpensesLoading(true);
-    const params = new URLSearchParams();
-    if (adminLeaderExpenseMonth) params.set("month", adminLeaderExpenseMonth);
-    if (adminLeaderExpenseStatusFilter && adminLeaderExpenseStatusFilter !== "all") params.set("status", adminLeaderExpenseStatusFilter);
+    const params = buildAdminLeaderExpenseParams();
     staffJson<LeaderExpenseRequest[]>(`/staff/leader-expense-requests?${params.toString()}`)
       .then((list) => setAdminLeaderExpenses(Array.isArray(list) ? list : []))
       .catch(() => setAdminLeaderExpenses([]))
       .finally(() => setAdminLeaderExpensesLoading(false));
-  }, [user, adminLeaderExpenseMonth, adminLeaderExpenseStatusFilter]);
+  }, [user, buildAdminLeaderExpenseParams]);
 
   useEffect(() => {
     if (!user || user.role !== "admin") return;
@@ -872,33 +903,94 @@ export default function StaffDashboard() {
 
       {user?.role === "admin" && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <div>
+          <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-1 shrink-0">
               <CardTitle>Miscellaneous expense approvals</CardTitle>
               <CardDescription>Requests submitted by team leaders. Approve or reject so they appear in expenditure.</CardDescription>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="admin-expense-month" className="text-xs text-slate-600">Month</Label>
-                <Input
-                  id="admin-expense-month"
-                  type="month"
-                  value={adminLeaderExpenseMonth}
-                  onChange={(e) => setAdminLeaderExpenseMonth(e.target.value)}
-                  title="Select month"
-                  className="h-9 w-[150px] text-xs [color-scheme:light]"
-                  style={{ colorScheme: "light" }}
-                />
+            <div className="flex flex-col items-stretch gap-3 sm:items-end w-full lg:max-w-xl">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    id="admin-expense-mode-month"
+                    name="admin-expense-mode"
+                    checked={adminExpenseFilterMode === "month"}
+                    onChange={() => setAdminExpenseFilterMode("month")}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="admin-expense-mode-month" className="text-xs font-normal cursor-pointer">
+                    By month
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    id="admin-expense-mode-range"
+                    name="admin-expense-mode"
+                    checked={adminExpenseFilterMode === "range"}
+                    onChange={() => setAdminExpenseFilterMode("range")}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="admin-expense-mode-range" className="text-xs font-normal cursor-pointer">
+                    Custom dates
+                  </Label>
+                </div>
               </div>
-              <Select value={adminLeaderExpenseStatusFilter} onValueChange={setAdminLeaderExpenseStatusFilter}>
-                <SelectTrigger className="h-9 w-[130px] text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="all">All</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex flex-wrap items-end gap-3">
+                {adminExpenseFilterMode === "month" ? (
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="admin-expense-month" className="text-xs text-slate-600 shrink-0">
+                      Month
+                    </Label>
+                    <MonthInput
+                      id="admin-expense-month"
+                      value={adminLeaderExpenseMonth}
+                      onChange={(e) => setAdminLeaderExpenseMonth(e.target.value)}
+                      className="h-9 w-[min(100vw-6rem,180px)] text-xs"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-end gap-2 sm:gap-3">
+                    <div className="flex flex-col gap-1">
+                      <Label htmlFor="admin-expense-from" className="text-xs text-slate-600">
+                        From
+                      </Label>
+                      <DateInput
+                        id="admin-expense-from"
+                        value={adminLeaderExpenseRangeFrom}
+                        onChange={(e) => setAdminLeaderExpenseRangeFrom(e.target.value)}
+                        className="h-9 min-w-[140px] text-xs"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Label htmlFor="admin-expense-to" className="text-xs text-slate-600">
+                        To
+                      </Label>
+                      <DateInput
+                        id="admin-expense-to"
+                        value={adminLeaderExpenseRangeTo}
+                        onChange={(e) => setAdminLeaderExpenseRangeTo(e.target.value)}
+                        className="h-9 min-w-[140px] text-xs"
+                      />
+                    </div>
+                  </div>
+                )}
+                <Select value={adminLeaderExpenseStatusFilter} onValueChange={setAdminLeaderExpenseStatusFilter}>
+                  <SelectTrigger className="h-9 w-[130px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {adminExpenseFilterMode === "range" && (
+                <p className="text-[11px] text-slate-500 -mt-1">
+                  Shows requests whose <span className="font-medium">expense month</span> (YYYY-MM) falls between the months of the selected dates.
+                </p>
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -906,7 +998,9 @@ export default function StaffDashboard() {
               <p className="text-slate-500 text-sm py-2">Loading…</p>
             ) : adminLeaderExpenses.length === 0 ? (
               <p className="text-slate-500 text-sm py-2">
-                {adminLeaderExpenseStatusFilter === "pending" ? "No pending expense requests for this month." : "No expense requests for this month."}
+                {adminLeaderExpenseStatusFilter === "pending"
+                  ? "No pending expense requests for this period."
+                  : "No expense requests for this period."}
               </p>
             ) : (
               <div className="rounded-md border overflow-x-auto">
@@ -974,10 +1068,10 @@ export default function StaffDashboard() {
                                           headers: { "Content-Type": "application/json" },
                                           body: JSON.stringify({ status: "approved" }),
                                         });
-                                        const params = new URLSearchParams();
-                                        if (adminLeaderExpenseMonth) params.set("month", adminLeaderExpenseMonth);
-                                        if (adminLeaderExpenseStatusFilter && adminLeaderExpenseStatusFilter !== "all") params.set("status", adminLeaderExpenseStatusFilter);
-                                        const list = await staffJson<LeaderExpenseRequest[]>(`/staff/leader-expense-requests?${params.toString()}`);
+                                        const params = buildAdminLeaderExpenseParams();
+                                        const list = await staffJson<LeaderExpenseRequest[]>(
+                                          `/staff/leader-expense-requests?${params.toString()}`
+                                        );
                                         setAdminLeaderExpenses(Array.isArray(list) ? list : []);
                                       } finally {
                                         setAdminLeaderExpenseActionId(null);
@@ -998,10 +1092,10 @@ export default function StaffDashboard() {
                                           headers: { "Content-Type": "application/json" },
                                           body: JSON.stringify({ status: "rejected" }),
                                         });
-                                        const params = new URLSearchParams();
-                                        if (adminLeaderExpenseMonth) params.set("month", adminLeaderExpenseMonth);
-                                        if (adminLeaderExpenseStatusFilter && adminLeaderExpenseStatusFilter !== "all") params.set("status", adminLeaderExpenseStatusFilter);
-                                        const list = await staffJson<LeaderExpenseRequest[]>(`/staff/leader-expense-requests?${params.toString()}`);
+                                        const params = buildAdminLeaderExpenseParams();
+                                        const list = await staffJson<LeaderExpenseRequest[]>(
+                                          `/staff/leader-expense-requests?${params.toString()}`
+                                        );
                                         setAdminLeaderExpenses(Array.isArray(list) ? list : []);
                                       } finally {
                                         setAdminLeaderExpenseActionId(null);
@@ -1064,14 +1158,11 @@ export default function StaffDashboard() {
               {reportsRangeMode === "month" ? (
                 <div className="flex items-center gap-2">
                   <Label htmlFor="report-month" className="text-sm text-slate-600 shrink-0">Month</Label>
-                  <Input
+                  <MonthInput
                     id="report-month"
-                    type="month"
                     value={reportMonth}
                     onChange={(e) => setReportMonth(e.target.value)}
-                    title="Select month"
-                    className="min-w-[180px] h-10 px-3 text-base [color-scheme:light]"
-                    style={{ colorScheme: "light" }}
+                    className="min-w-[180px] h-10 px-3 text-base"
                     aria-label="Select month for reports"
                   />
                 </div>
@@ -1418,17 +1509,14 @@ export default function StaffDashboard() {
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <Label htmlFor="leader-expense-month" className="text-xs text-slate-600">Month</Label>
-                <Input
+                <MonthInput
                   id="leader-expense-month"
-                  type="month"
                   value={leaderExpenseMonth}
                   onChange={(e) => {
                     setLeaderExpenseMonth(e.target.value);
                     setLeaderExpenseForm((f) => ({ ...f, month: e.target.value || f.month }));
                   }}
-                  title="Select month"
-                  className="h-9 w-[150px] text-xs [color-scheme:light]"
-                  style={{ colorScheme: "light" }}
+                  className="h-9 w-[min(100vw-6rem,160px)] text-xs"
                 />
               </div>
               <Button size="sm" onClick={() => { setLeaderExpenseForm((f) => ({ ...f, month: leaderExpenseMonth || f.month })); setLeaderExpenseDialogOpen(true); }}>
@@ -1532,13 +1620,10 @@ export default function StaffDashboard() {
               )}
               <div className="space-y-1">
                 <Label className="text-sm">Month</Label>
-                <Input
-                  type="month"
+                <MonthInput
                   value={leaderExpenseForm.month}
                   onChange={(e) => setLeaderExpenseForm((f) => ({ ...f, month: e.target.value }))}
-                  title="Select month"
-                  className="h-9 text-sm [color-scheme:light]"
-                  style={{ colorScheme: "light" }}
+                  className="h-9 text-sm"
                 />
               </div>
               <div className="space-y-1">

@@ -1468,19 +1468,45 @@ export async function registerRoutes(
       const userId = (req.user as any).id;
       const role = (req.user as any).role;
       const month = (req.query.month as string)?.trim() || undefined;
+      let monthFrom = (req.query.monthFrom as string)?.trim() || undefined;
+      let monthTo = (req.query.monthTo as string)?.trim() || undefined;
       const status = (req.query.status as string)?.trim() || undefined;
       const requestedByParam = (req.query.requestedBy as string)?.trim() || undefined;
 
+      const ymOk = (s: string) => /^\d{4}-\d{2}$/.test(s);
+      if (month && !ymOk(month)) {
+        return res.status(400).json({ message: "month must be YYYY-MM" });
+      }
+      if (monthFrom && !ymOk(monthFrom)) {
+        return res.status(400).json({ message: "monthFrom must be YYYY-MM" });
+      }
+      if (monthTo && !ymOk(monthTo)) {
+        return res.status(400).json({ message: "monthTo must be YYYY-MM" });
+      }
+      if (monthFrom && !monthTo) monthTo = monthFrom;
+      if (!monthFrom && monthTo) monthFrom = monthTo;
+
+      const rangeFilter =
+        monthFrom && monthTo
+          ? { monthFrom: monthFrom <= monthTo ? monthFrom : monthTo, monthTo: monthFrom <= monthTo ? monthTo : monthFrom }
+          : undefined;
+      const monthFilter = rangeFilter ? undefined : month;
+
+      const baseFilters = {
+        ...(rangeFilter ?? {}),
+        ...(monthFilter ? { month: monthFilter } : {}),
+        ...(status ? { status } : {}),
+      };
+
       if (role === "team_lead") {
-        const list = await storage.getLeaderExpenseRequests({ month, status, requestedBy: userId });
+        const list = await storage.getLeaderExpenseRequests({ ...baseFilters, requestedBy: userId });
         return res.json(list);
       }
 
       if (role === "admin") {
         const list = await storage.getLeaderExpenseRequests({
-          month,
-          status,
-          requestedBy: requestedByParam,
+          ...baseFilters,
+          ...(requestedByParam ? { requestedBy: requestedByParam } : {}),
         });
         return res.json(list);
       }
