@@ -32,7 +32,7 @@ import {
 import { formatDateDdMmYyyy } from "@/lib/utils";
 import { staffJson, staffFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Receipt } from "lucide-react";
+import { Plus, Pencil, Trash2, Receipt, Download } from "lucide-react";
 
 const PURPOSES = ["Rent", "Electricity Bill", "Water Bill", "Other"] as const;
 
@@ -104,6 +104,7 @@ export default function StaffAdminExpenses() {
   const [form, setForm] = useState(defaultForm);
   const [saving, setSaving] = useState(false);
   const [deleteRow, setDeleteRow] = useState<AdminExpense | null>(null);
+  const [exportBusy, setExportBusy] = useState(false);
 
   function load() {
     setLoading(true);
@@ -193,6 +194,36 @@ export default function StaffAdminExpenses() {
     }
   }
 
+  async function handleExportExcel() {
+    setExportBusy(true);
+    try {
+      let url = `/api/staff/admin-expenses/export?month=${encodeURIComponent(month)}`;
+      if (purpose) url += `&purpose=${encodeURIComponent(purpose)}`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(data.message || "Export failed");
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get("Content-Disposition");
+      let filename = `admin-expenses-${month}.xlsx`;
+      const match = cd && /filename="([^"]+)"/.exec(cd);
+      if (match?.[1]) filename = match[1];
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+      toast({ title: "Download started" });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Export failed", variant: "destructive" });
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
   const paymentDate = (row: AdminExpense) => row.paymentDate ?? row.payment_date ?? null;
   const transactionDetail = (row: AdminExpense) => row.transactionDetail ?? row.transaction_detail ?? null;
   const bankName = (row: AdminExpense) => row.bankName ?? row.bank_name ?? null;
@@ -269,17 +300,23 @@ export default function StaffAdminExpenses() {
 
       <Card>
         <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <CardTitle>Expenses</CardTitle>
               <CardDescription>
                 {list.length} expense{list.length !== 1 ? "s" : ""} in selected period.
               </CardDescription>
             </div>
-            <Button onClick={openAdd}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add expense
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="outline" onClick={handleExportExcel} disabled={exportBusy}>
+                <Download className="h-4 w-4 mr-2" />
+                {exportBusy ? "Preparing…" : "Download Excel"}
+              </Button>
+              <Button onClick={openAdd}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add expense
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>

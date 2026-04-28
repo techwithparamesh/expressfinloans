@@ -1388,6 +1388,131 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/staff/admin-expenses/export", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const month = (req.query.month as string)?.trim() || undefined;
+      const purpose = (req.query.purpose as string)?.trim() || undefined;
+      const list = await storage.getAdminExpenses({ month, purpose });
+
+      const MONTH_NAMES = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+      function formatMonthLabel(ym: string): string {
+        if (!ym || ym.length < 7) return ym;
+        const [y, m] = ym.split("-");
+        const idx = parseInt(m, 10) - 1;
+        if (Number.isNaN(idx) || idx < 0 || idx > 11) return ym;
+        return `${MONTH_NAMES[idx]} ${y}`;
+      }
+      function formatPaymentDdMmYyyy(val: unknown): string {
+        if (val == null || val === "") return "";
+        if (val instanceof Date) {
+          const y = val.getFullYear();
+          const m = String(val.getMonth() + 1).padStart(2, "0");
+          const d = String(val.getDate()).padStart(2, "0");
+          return `${d}/${m}/${y}`;
+        }
+        const s = String(val).trim().slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+        const [y, mm, dd] = s.split("-");
+        return `${dd}/${mm}/${y}`;
+      }
+      function purposeDisplay(row: {
+        purpose: string;
+        purposeOther?: string | null;
+      }): string {
+        const other = row.purposeOther ?? (row as { purpose_other?: string | null }).purpose_other;
+        if (row.purpose === "Other" && other) return `Other: ${other}`;
+        return row.purpose || "";
+      }
+      function formatAmountAmt(val: string | null | undefined): string {
+        if (val == null || String(val).trim() === "") return "";
+        const n = Number(String(val).replace(/,/g, ""));
+        if (Number.isNaN(n)) return String(val);
+        return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(n);
+      }
+
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet("Admin expenses");
+      sheet.columns = [
+        { header: "Purpose", width: 40 },
+        { header: "Address", width: 28 },
+        { header: "Month", width: 18 },
+        { header: "Amount", width: 14 },
+        { header: "Payment date", width: 14 },
+        { header: "Transaction detail", width: 32 },
+        { header: "Bank name", width: 22 },
+        { header: "Remarks", width: 36 },
+      ];
+      sheet.getRow(1).font = { bold: true };
+
+      for (const row of list) {
+        const r = row as {
+          purpose: string;
+          purposeOther?: string | null;
+          purpose_other?: string | null;
+          address?: string | null;
+          month: string;
+          amount?: string | null;
+          paymentDate?: unknown;
+          payment_date?: unknown;
+          transactionDetail?: string | null;
+          transaction_detail?: string | null;
+          bankName?: string | null;
+          bank_name?: string | null;
+          remarks?: string | null;
+        };
+        const pd = r.paymentDate ?? r.payment_date;
+        sheet.addRow([
+          purposeDisplay(r),
+          r.address ?? "",
+          formatMonthLabel(r.month),
+          formatAmountAmt(r.amount ?? null),
+          formatPaymentDdMmYyyy(pd),
+          r.transactionDetail ?? r.transaction_detail ?? "",
+          r.bankName ?? r.bank_name ?? "",
+          r.remarks ?? "",
+        ]);
+      }
+
+      const base =
+        month != null && month !== ""
+          ? month.replace(/[^\d-]/g, "").slice(0, 7) || "export"
+          : "all-months";
+      const purposeSlug =
+        purpose != null && purpose !== ""
+          ? "-" +
+            purpose
+              .trim()
+              .replace(/[^\w\s-]/g, "")
+              .replace(/\s+/g, "-")
+              .slice(0, 40)
+          : "";
+      const filename = `admin-expenses-${base}${purposeSlug}.xlsx`;
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      const buffer = await workbook.xlsx.writeBuffer();
+      res.send(Buffer.from(buffer));
+    } catch (e) {
+      next(e);
+    }
+  });
+
   app.get("/api/staff/admin-expenses/:id", requireAuth, requireAdmin, async (req, res, next) => {
     try {
       const row = await storage.getAdminExpense(req.params.id);
