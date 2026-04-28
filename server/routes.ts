@@ -2829,6 +2829,87 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/staff/employees/export", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const employees = await storage.listEmployees();
+      const teamLeads = await storage.listTeamLeads();
+      const teamLeadNameById = new Map<string, string>();
+      for (const tl of teamLeads) {
+        const name = tl.fullName?.trim() || tl.username || tl.id;
+        teamLeadNameById.set(tl.id, name);
+      }
+
+      function roleLabel(role: string): string {
+        if (role === "team_lead") return "Team leader";
+        if (role === "employee") return "Employee";
+        if (role === "admin") return "Admin";
+        return role;
+      }
+      function ymd(val: unknown): string {
+        if (val == null || val === "") return "";
+        if (val instanceof Date) return val.toISOString().slice(0, 10);
+        return String(val).slice(0, 10);
+      }
+      function valOrDash(val: unknown): string {
+        if (val == null) return "-";
+        const s = String(val).trim();
+        return s ? s : "-";
+      }
+
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet("Employees");
+      sheet.columns = [
+        { header: "Employee ID", key: "employeeNumber", width: 14 },
+        { header: "Name", key: "fullName", width: 28 },
+        { header: "Username", key: "username", width: 18 },
+        { header: "Role", key: "role", width: 14 },
+        { header: "Team lead", key: "teamLead", width: 28 },
+        { header: "Month target", key: "monthlyLeadTarget", width: 14 },
+        { header: "Email", key: "email", width: 28 },
+        { header: "Phone", key: "phone", width: 16 },
+        { header: "Department", key: "department", width: 20 },
+        { header: "Designation", key: "designation", width: 22 },
+        { header: "Date of joining", key: "dateOfJoining", width: 14 },
+        { header: "Employment status", key: "employmentStatus", width: 18 },
+        { header: "Location", key: "location", width: 18 },
+      ];
+      sheet.getRow(1).font = { bold: true };
+
+      for (const u of employees) {
+        const uAny = u as any;
+        const teamLeadId = uAny.teamLeadId ? String(uAny.teamLeadId) : "";
+        const teamLeadName = teamLeadId ? teamLeadNameById.get(teamLeadId) || teamLeadId : "-";
+        sheet.addRow({
+          employeeNumber: valOrDash(uAny.employeeNumber),
+          fullName: valOrDash(uAny.fullName || u.username),
+          username: u.username,
+          role: roleLabel(String(u.role || "")),
+          teamLead: teamLeadName,
+          monthlyLeadTarget: uAny.monthlyLeadTarget == null ? "-" : String(uAny.monthlyLeadTarget),
+          email: valOrDash(uAny.email),
+          phone: valOrDash(uAny.phone),
+          department: valOrDash(uAny.department),
+          designation: valOrDash(uAny.designation),
+          dateOfJoining: valOrDash(ymd(uAny.dateOfJoining)),
+          employmentStatus: valOrDash(uAny.employmentStatus),
+          location: valOrDash(uAny.location),
+        });
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      const filename = `employees-${today}.xlsx`;
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      const buffer = await workbook.xlsx.writeBuffer();
+      res.send(Buffer.from(buffer));
+    } catch (e) {
+      next(e);
+    }
+  });
+
   app.get("/api/staff/team-leads", requireAuth, requireAdmin, async (req, res, next) => {
     try {
       const list = await storage.listTeamLeads();

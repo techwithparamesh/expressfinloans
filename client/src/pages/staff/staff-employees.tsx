@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { staffJson, staffFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { Download } from "lucide-react";
 
 type Employee = {
   id: string;
@@ -106,6 +107,7 @@ export default function StaffEmployees() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
   const [savingDelete, setSavingDelete] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const loadList = () => {
     setLoading(true);
@@ -244,13 +246,47 @@ export default function StaffEmployees() {
     }
   }
 
+  async function handleExportEmployees() {
+    setExporting(true);
+    try {
+      const res = await fetch("/api/staff/employees/export", { credentials: "include" });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(data.message || "Export failed");
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get("Content-Disposition");
+      const filenameMatch = cd ? /filename="([^"]+)"/.exec(cd) : null;
+      const filename = filenameMatch?.[1] || "employees.xlsx";
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(href);
+      toast({ title: "Employees Excel downloaded" });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Export failed", variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  }
+
   if (loading) return <p className="text-slate-500">Loading…</p>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Employees</h1>
-        <Button onClick={openDialog}>Add staff</Button>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" onClick={handleExportEmployees} disabled={exporting}>
+            <Download className="h-4 w-4 mr-2" />
+            {exporting ? "Preparing..." : "Download Excel"}
+          </Button>
+          <Button onClick={openDialog}>Add staff</Button>
+        </div>
       </div>
       {teamLeads.length > 0 && (
         <Card>
