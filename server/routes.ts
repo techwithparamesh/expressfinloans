@@ -2833,10 +2833,14 @@ export async function registerRoutes(
     try {
       const employees = await storage.listEmployees();
       const teamLeads = await storage.listTeamLeads();
-      const teamLeadNameById = new Map<string, string>();
-      for (const tl of teamLeads) {
-        const name = tl.fullName?.trim() || tl.username || tl.id;
-        teamLeadNameById.set(tl.id, name);
+      // Build a name lookup that covers everyone who could appear as a team lead or reporting manager
+      const nameLookup = new Map<string, string>();
+      const lookupSources: { id: string; fullName?: string | null; username: string }[] = [
+        ...(employees as { id: string; fullName?: string | null; username: string }[]),
+        ...(teamLeads as { id: string; fullName?: string | null; username: string }[]),
+      ];
+      for (const u of lookupSources) {
+        nameLookup.set(u.id, (u.fullName?.trim() || u.username || u.id) as string);
       }
 
       function roleLabel(role: string): string {
@@ -2845,10 +2849,30 @@ export async function registerRoutes(
         if (role === "admin") return "Admin";
         return role;
       }
+      function genderLabel(g: unknown): string {
+        const s = String(g ?? "").trim();
+        if (s === "M") return "Male";
+        if (s === "F") return "Female";
+        return s || "-";
+      }
       function ymd(val: unknown): string {
         if (val == null || val === "") return "";
-        if (val instanceof Date) return val.toISOString().slice(0, 10);
+        if (val instanceof Date) {
+          if (Number.isNaN(val.getTime())) return "";
+          return val.toISOString().slice(0, 10);
+        }
         return String(val).slice(0, 10);
+      }
+      function tsToHuman(val: unknown): string {
+        if (val == null || val === "") return "";
+        const d = val instanceof Date ? val : new Date(String(val));
+        if (Number.isNaN(d.getTime())) return "";
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mi = String(d.getMinutes()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
       }
       function valOrDash(val: unknown): string {
         if (val == null) return "-";
@@ -2859,40 +2883,63 @@ export async function registerRoutes(
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet("Employees");
       sheet.columns = [
-        { header: "Employee ID", key: "employeeNumber", width: 14 },
+        { header: "Employee ID", key: "employeeNumber", width: 12 },
         { header: "Name", key: "fullName", width: 28 },
         { header: "Username", key: "username", width: 18 },
         { header: "Role", key: "role", width: 14 },
-        { header: "Team lead", key: "teamLead", width: 28 },
-        { header: "Month target", key: "monthlyLeadTarget", width: 14 },
-        { header: "Email", key: "email", width: 28 },
-        { header: "Phone", key: "phone", width: 16 },
+        { header: "Employment status", key: "employmentStatus", width: 18 },
+        { header: "Active", key: "isActive", width: 10 },
+        { header: "Team lead", key: "teamLead", width: 26 },
+        { header: "Reporting to", key: "reportingTo", width: 26 },
         { header: "Department", key: "department", width: 20 },
         { header: "Designation", key: "designation", width: 22 },
-        { header: "Date of joining", key: "dateOfJoining", width: 14 },
-        { header: "Employment status", key: "employmentStatus", width: 18 },
         { header: "Location", key: "location", width: 18 },
+        { header: "Email", key: "email", width: 30 },
+        { header: "Phone", key: "phone", width: 16 },
+        { header: "Date of birth", key: "dateOfBirth", width: 14 },
+        { header: "Gender", key: "gender", width: 10 },
+        { header: "Date of joining", key: "dateOfJoining", width: 14 },
+        { header: "Probation start", key: "probationStartDate", width: 14 },
+        { header: "Confirmed at", key: "confirmedAt", width: 18 },
+        { header: "Month target", key: "monthlyLeadTarget", width: 12 },
+        { header: "PAN", key: "pan", width: 14 },
+        { header: "UAN (PF)", key: "uan", width: 16 },
+        { header: "Bank account number", key: "bankAccountNumber", width: 22 },
+        { header: "IFSC", key: "bankIfsc", width: 14 },
+        { header: "Created at", key: "createdAt", width: 18 },
       ];
       sheet.getRow(1).font = { bold: true };
+      sheet.views = [{ state: "frozen", ySplit: 1 }];
 
       for (const u of employees) {
-        const uAny = u as any;
+        const uAny = u as Record<string, unknown>;
         const teamLeadId = uAny.teamLeadId ? String(uAny.teamLeadId) : "";
-        const teamLeadName = teamLeadId ? teamLeadNameById.get(teamLeadId) || teamLeadId : "-";
+        const reportingToId = uAny.reportingTo ? String(uAny.reportingTo) : "";
         sheet.addRow({
           employeeNumber: valOrDash(uAny.employeeNumber),
-          fullName: valOrDash(uAny.fullName || u.username),
+          fullName: valOrDash((uAny.fullName as string) || u.username),
           username: u.username,
           role: roleLabel(String(u.role || "")),
-          teamLead: teamLeadName,
-          monthlyLeadTarget: uAny.monthlyLeadTarget == null ? "-" : String(uAny.monthlyLeadTarget),
-          email: valOrDash(uAny.email),
-          phone: valOrDash(uAny.phone),
+          employmentStatus: valOrDash(uAny.employmentStatus),
+          isActive: Number(uAny.isActive ?? 1) === 1 ? "Yes" : "No",
+          teamLead: teamLeadId ? nameLookup.get(teamLeadId) || teamLeadId : "-",
+          reportingTo: reportingToId ? nameLookup.get(reportingToId) || reportingToId : "-",
           department: valOrDash(uAny.department),
           designation: valOrDash(uAny.designation),
-          dateOfJoining: valOrDash(ymd(uAny.dateOfJoining)),
-          employmentStatus: valOrDash(uAny.employmentStatus),
           location: valOrDash(uAny.location),
+          email: valOrDash(uAny.email),
+          phone: valOrDash(uAny.phone),
+          dateOfBirth: valOrDash(ymd(uAny.dateOfBirth)),
+          gender: genderLabel(uAny.gender),
+          dateOfJoining: valOrDash(ymd(uAny.dateOfJoining)),
+          probationStartDate: valOrDash(ymd(uAny.probationStartDate)),
+          confirmedAt: valOrDash(tsToHuman(uAny.confirmedAt)),
+          monthlyLeadTarget: uAny.monthlyLeadTarget == null ? "-" : String(uAny.monthlyLeadTarget),
+          pan: valOrDash(uAny.pan),
+          uan: valOrDash(uAny.uan),
+          bankAccountNumber: valOrDash(uAny.bankAccountNumber),
+          bankIfsc: valOrDash(uAny.bankIfsc),
+          createdAt: valOrDash(tsToHuman(uAny.createdAt)),
         });
       }
 
