@@ -67,6 +67,16 @@ function roleLabel(role: string): string {
 function fetchEmployees() {
   return staffJson<Employee[]>("/staff/employees").catch(() => []);
 }
+
+function toYmd(value: string | null | undefined): string {
+  if (!value) return "";
+  const s = String(value).trim();
+  if (!s) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s.slice(0, 10))) return s.slice(0, 10);
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+}
 function fetchTeamLeads() {
   return staffJson<TeamLead[]>("/staff/team-leads").catch(() => []);
 }
@@ -146,10 +156,10 @@ export default function StaffEmployees() {
       bankIfsc: e.bankIfsc ?? "",
       pan: e.pan ?? "",
       uan: e.uan ?? "",
-      dateOfJoining: e.dateOfJoining ?? "",
+      dateOfJoining: toYmd(e.dateOfJoining),
       department: e.department ?? "",
       location: e.location ?? "",
-      dateOfBirth: e.dateOfBirth ?? "",
+      dateOfBirth: toYmd(e.dateOfBirth),
       gender: e.gender ?? "",
     });
   }
@@ -169,10 +179,10 @@ export default function StaffEmployees() {
         bankIfsc: editForm.bankIfsc.trim() || null,
         pan: editForm.pan.trim() || null,
         uan: editForm.uan.trim() || null,
-        dateOfJoining: editForm.dateOfJoining.trim() || null,
+        dateOfJoining: toYmd(editForm.dateOfJoining) || null,
         department: editForm.department.trim() || null,
         location: editForm.location.trim() || null,
-        dateOfBirth: editForm.dateOfBirth?.trim().slice(0, 10) || null,
+        dateOfBirth: toYmd(editForm.dateOfBirth) || null,
         gender: editForm.gender.trim() || null,
       };
       if (editEmployee.role === "employee") {

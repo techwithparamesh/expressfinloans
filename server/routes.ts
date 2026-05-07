@@ -2649,17 +2649,17 @@ export async function registerRoutes(
         if (body.bankIfsc !== undefined) data.bankIfsc = typeof body.bankIfsc === "string" ? body.bankIfsc.trim() || null : null;
         if (body.pan !== undefined) data.pan = typeof body.pan === "string" ? body.pan.trim() || null : null;
         if (body.uan !== undefined) data.uan = typeof body.uan === "string" ? body.uan.trim() || null : null;
-        if (body.dateOfJoining !== undefined) data.dateOfJoining = typeof body.dateOfJoining === "string" ? (body.dateOfJoining.trim() || null) : null;
+        if (body.dateOfJoining !== undefined) data.dateOfJoining = normalizeYmd(body.dateOfJoining);
         if (body.department !== undefined) data.department = typeof body.department === "string" ? body.department.trim() || null : null;
         if (body.location !== undefined) data.location = typeof body.location === "string" ? body.location.trim() || null : null;
-        if (body.dateOfBirth !== undefined) data.dateOfBirth = typeof body.dateOfBirth === "string" ? (body.dateOfBirth.trim() || null) : null;
+        if (body.dateOfBirth !== undefined) data.dateOfBirth = normalizeYmd(body.dateOfBirth);
         if (body.gender !== undefined) data.gender = typeof body.gender === "string" ? body.gender.trim() || null : null;
         if (body.employmentStatus !== undefined) {
           const v = String(body.employmentStatus || "").trim().toLowerCase();
           if (["probation", "confirmed", "resigned"].includes(v)) data.employmentStatus = v;
         }
         if (body.probationStartDate !== undefined) {
-          data.probationStartDate = typeof body.probationStartDate === "string" ? (body.probationStartDate.trim() || null) : null;
+          data.probationStartDate = normalizeYmd(body.probationStartDate);
         }
       } else if (role === "team_lead") {
         if ((target as any).role !== "employee") return res.status(403).json({ message: "Can only assign employees to your team" });
