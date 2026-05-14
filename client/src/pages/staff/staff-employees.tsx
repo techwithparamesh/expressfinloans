@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/select";
 import { staffJson, staffFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { Download } from "lucide-react";
+import { Download, UserCheck } from "lucide-react";
 
 type Employee = {
   id: string;
@@ -117,6 +117,8 @@ export default function StaffEmployees() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
   const [savingDelete, setSavingDelete] = useState(false);
+  const [promoteEmployee, setPromoteEmployee] = useState<Employee | null>(null);
+  const [savingPromote, setSavingPromote] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   const loadList = () => {
@@ -196,6 +198,7 @@ export default function StaffEmployees() {
       toast({ title: "Employee updated" });
       setEditEmployee(null);
       loadList();
+      fetchTeamLeads().then(setTeamLeads);
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : "Update failed", variant: "destructive" });
     } finally {
@@ -211,10 +214,29 @@ export default function StaffEmployees() {
       toast({ title: "Employee removed" });
       setDeleteEmployee(null);
       loadList();
+      fetchTeamLeads().then(setTeamLeads);
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : "Delete failed", variant: "destructive" });
     } finally {
       setSavingDelete(false);
+    }
+  }
+
+  async function confirmPromoteEmployee() {
+    if (!promoteEmployee) return;
+    setSavingPromote(true);
+    try {
+      await staffJson<Employee>(`/staff/employees/${promoteEmployee.id}/promote-team-lead`, {
+        method: "POST",
+      });
+      toast({ title: "Employee promoted to team lead" });
+      setPromoteEmployee(null);
+      loadList();
+      fetchTeamLeads().then(setTeamLeads);
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Promotion failed", variant: "destructive" });
+    } finally {
+      setSavingPromote(false);
     }
   }
 
@@ -246,6 +268,7 @@ export default function StaffEmployees() {
       toast({ title: "Staff created successfully" });
       setDialogOpen(false);
       loadList();
+      fetchTeamLeads().then(setTeamLeads);
     } catch (err) {
       toast({
         title: err instanceof Error ? err.message : "Failed to create staff",
@@ -302,7 +325,7 @@ export default function StaffEmployees() {
         <Card>
           <CardHeader>
             <CardTitle>Team leads</CardTitle>
-            <CardDescription>{teamLeads.length} team lead(s). Assign employees to a team lead from the Edit action.</CardDescription>
+            <CardDescription>{teamLeads.length} team lead(s). Promote employees from Actions or assign employees from Edit.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
@@ -318,7 +341,7 @@ export default function StaffEmployees() {
       <Card>
         <CardHeader>
           <CardTitle>All employees</CardTitle>
-          <CardDescription>Staff members. Create employees or team leads with Add staff. Assign employees to a team lead via Edit.</CardDescription>
+          <CardDescription>Staff members. Create employees or team leads with Add staff, promote existing employees, and assign teams via Edit.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -333,7 +356,7 @@ export default function StaffEmployees() {
                   <th className="text-left py-2 px-2 min-w-[72px]">Month target</th>
                   <th className="text-left py-2 px-2 min-w-[140px]">Email</th>
                   <th className="text-left py-2 px-2 min-w-[100px]">Phone</th>
-                  <th className="text-left py-2 px-2 min-w-[80px]">Actions</th>
+                  <th className="text-left py-2 px-2 min-w-[210px]">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -354,18 +377,31 @@ export default function StaffEmployees() {
                       <td className="py-2 px-2">{e.monthlyLeadTarget ?? "—"}</td>
                       <td className="py-2 px-2">{e.email ?? "—"}</td>
                       <td className="py-2 px-2">{e.phone ?? "—"}</td>
-                      <td className="py-2 px-2 flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => openEdit(e)}>
-                          Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => setDeleteEmployee(e)}
-                        >
-                          Delete
-                        </Button>
+                      <td className="py-2 px-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => openEdit(e)}>
+                            Edit
+                          </Button>
+                          {e.role === "employee" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-blue-700 hover:text-blue-800 hover:bg-blue-50"
+                              onClick={() => setPromoteEmployee(e)}
+                            >
+                              <UserCheck className="h-4 w-4 mr-1" />
+                              Promote to TL
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => setDeleteEmployee(e)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -501,6 +537,23 @@ export default function StaffEmployees() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDeleteEmployee} disabled={savingDelete} className="bg-red-600 hover:bg-red-700">
               {savingDelete ? "Removing…" : "Remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!promoteEmployee} onOpenChange={(open) => !open && setPromoteEmployee(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Promote to team lead?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {promoteEmployee?.fullName || promoteEmployee?.username} will get team lead permissions and will no longer be assigned under their current team lead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPromoteEmployee} disabled={savingPromote}>
+              {savingPromote ? "Promoting…" : "Promote"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

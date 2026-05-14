@@ -29,15 +29,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { staffJson, staffFetch, getAuthMe } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
 import { formatDateDdMmYyyy } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { Target, Eye } from "lucide-react";
+import {
+  BANKS_LOGGED,
+  INCOME_TYPES,
+  LOAN_STATUSES,
+  LOAN_TYPES,
+  LOAN_TYPE_SUBTYPES,
+} from "@/data/leadFormOptions";
 
 const RECONSIL_OPTIONS = ["Yes Received", "Not Revived", "Not as per Rate"] as const;
 const PAYMENT_STATUS_OPTIONS = ["Received", "Pending", "Not Received"] as const;
+const CLEAR_SELECT_VALUE = "__clear__";
 
 type Lead = {
   id: string;
@@ -77,6 +86,37 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 type Employee = { id: string; username: string; fullName: string | null; employeeNumber: string | null };
 
+function emptyLeadForm() {
+  return {
+    date: today(),
+    customerName: "",
+    dateOfBirth: "",
+    customerPhone: "",
+    customerEmail: "",
+    location: "",
+    loanType: "",
+    subLoanType: "",
+    incomeType: "",
+    incomeComments: "",
+    amount: "",
+    cibil: "",
+    companyLogged: "",
+    bankOthers: "",
+    applicationNumber: "",
+    tenure: "",
+    roi: "",
+    loanDisbursed: "",
+    loanSanctionedAt: "",
+    loanDisbursedAt: "",
+    status: "Open",
+    notes: "",
+    payoutPercent: "",
+    payoutAmount: "",
+    reconsil: "",
+    paymentStatus: "",
+  };
+}
+
 export default function StaffLeads() {
   const { toast } = useToast();
   const [user, setUser] = useState<StaffUser | null>(null);
@@ -93,15 +133,10 @@ export default function StaffLeads() {
   const [saving, setSaving] = useState(false);
   const [loadingView, setLoadingView] = useState(false);
   const [showAdminFields, setShowAdminFields] = useState(false);
-  const [adminForm, setAdminForm] = useState({
-    payoutPercent: "",
-    payoutAmount: "",
-    reconsil: "",
-    paymentStatus: "",
-  });
+  const [leadForm, setLeadForm] = useState(emptyLeadForm);
 
   useEffect(() => {
-    getAuthMe().then(setUser).catch(() => setUser(null));
+    getAuthMe().then((data) => setUser(data?.user ?? null)).catch(() => setUser(null));
   }, []);
   useEffect(() => {
     staffJson<Employee[]>("/staff/employees").then(setEmployees).catch(() => setEmployees([]));
@@ -122,7 +157,31 @@ export default function StaffLeads() {
 
   function openEdit(l: Lead) {
     setEditLead(l);
-    setAdminForm({
+    const companyLogged = l.companyLogged ?? "";
+    const knownBank = companyLogged && (BANKS_LOGGED as readonly string[]).includes(companyLogged);
+    setLeadForm({
+      date: l.date ? String(l.date).slice(0, 10) : today(),
+      customerName: l.customerName ?? "",
+      dateOfBirth: l.dateOfBirth ? String(l.dateOfBirth).slice(0, 10) : "",
+      customerPhone: l.customerPhone ?? "",
+      customerEmail: l.customerEmail ?? "",
+      location: l.location ?? "",
+      loanType: l.loanType ?? "",
+      subLoanType: l.subLoanType ?? "",
+      incomeType: l.incomeType ?? "",
+      incomeComments: l.incomeComments ?? "",
+      amount: l.amount ?? "",
+      cibil: l.cibil ?? "",
+      companyLogged: knownBank ? companyLogged : companyLogged ? "OTHERS" : "",
+      bankOthers: knownBank ? "" : companyLogged,
+      applicationNumber: l.applicationNumber ?? "",
+      tenure: l.tenure ?? "",
+      roi: l.roi ?? "",
+      loanDisbursed: l.loanDisbursed ?? "",
+      loanSanctionedAt: l.loanSanctionedAt ? String(l.loanSanctionedAt).slice(0, 10) : "",
+      loanDisbursedAt: l.loanDisbursedAt ? String(l.loanDisbursedAt).slice(0, 10) : "",
+      status: l.status ?? "Open",
+      notes: l.notes ?? "",
       payoutPercent: l.payoutPercent ?? "",
       payoutAmount: l.payoutAmount ?? "",
       reconsil: l.reconsil ?? "",
@@ -167,7 +226,7 @@ export default function StaffLeads() {
     }
   }
 
-  async function saveAdminFields() {
+  async function saveLead() {
     if (!editLead) return;
     setSaving(true);
     try {
@@ -175,14 +234,36 @@ export default function StaffLeads() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          payoutPercent: adminForm.payoutPercent || null,
-          payoutAmount: adminForm.payoutAmount || null,
-          reconsil: adminForm.reconsil || null,
-          paymentStatus: adminForm.paymentStatus || null,
+          date: leadForm.date || null,
+          customerName: leadForm.customerName.trim() || null,
+          dateOfBirth: leadForm.dateOfBirth || null,
+          customerPhone: leadForm.customerPhone.trim() || null,
+          customerEmail: leadForm.customerEmail.trim() || null,
+          location: leadForm.location.trim() || null,
+          loanType: leadForm.loanType || null,
+          subLoanType: leadForm.subLoanType || null,
+          incomeType: leadForm.incomeType || null,
+          incomeComments: leadForm.incomeComments.trim() || null,
+          amount: leadForm.amount.trim() || null,
+          cibil: leadForm.cibil.trim() || null,
+          companyLogged: leadForm.companyLogged === "OTHERS" ? leadForm.bankOthers.trim() || "OTHERS" : leadForm.companyLogged || null,
+          applicationNumber: leadForm.applicationNumber.trim() || null,
+          tenure: leadForm.tenure.trim() || null,
+          roi: leadForm.roi.trim() || null,
+          loanDisbursed: leadForm.loanDisbursed.trim() || null,
+          loanSanctionedAt: leadForm.loanSanctionedAt || null,
+          loanDisbursedAt: leadForm.loanDisbursedAt || null,
+          status: leadForm.status || "Open",
+          notes: leadForm.notes.trim() || null,
+          payoutPercent: leadForm.payoutPercent.trim() || null,
+          payoutAmount: leadForm.payoutAmount.trim() || null,
+          reconsil: leadForm.reconsil || null,
+          paymentStatus: leadForm.paymentStatus || null,
         }),
       });
       toast({ title: "Lead updated" });
       setEditLead(null);
+      setLeadForm(emptyLeadForm());
       load();
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : "Update failed", variant: "destructive" });
@@ -255,7 +336,7 @@ export default function StaffLeads() {
               <CardDescription>
                 {employeeId
                   ? `Total: ${leads.length} lead${leads.length !== 1 ? "s" : ""} (for ${employees.find((e) => e.id === employeeId)?.fullName || employees.find((e) => e.id === employeeId)?.username || "selected staff"})`
-                  : `Total: ${leads.length} lead${leads.length !== 1 ? "s" : ""}. Edit admin fields (payout, reconsil, payment status) via Edit.`}
+                  : `Total: ${leads.length} lead${leads.length !== 1 ? "s" : ""}. Admin can edit lead details, status, payout, and payment fields.`}
               </CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={() => setShowAdminFields((v) => !v)}>
@@ -400,7 +481,7 @@ export default function StaffLeads() {
             </Button>
             {viewLead && (
               <Button variant="outline" onClick={() => { setViewLead(null); openEdit(leads.find((l) => l.id === viewLead.id) ?? viewLead); }}>
-                Edit admin fields
+                Edit lead
               </Button>
             )}
           </DialogFooter>
@@ -425,72 +506,235 @@ export default function StaffLeads() {
       </AlertDialog>
 
       <Dialog open={!!editLead} onOpenChange={(open) => !open && setEditLead(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Admin: Payout &amp; Payment Status</DialogTitle>
+            <DialogTitle>Edit loan lead</DialogTitle>
             <DialogDescription>
-              Update payout and whether payment is received from bank. Only admins can edit these.
+              Admin can update employee-entered lead details, status, payout, and bank payment tracking.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Payout %</Label>
-              <Input
-                placeholder="e.g. 0.02"
-                value={adminForm.payoutPercent}
-                onChange={(e) => setAdminForm((f) => ({ ...f, payoutPercent: e.target.value }))}
-              />
+          <div className="space-y-6 py-4">
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-slate-700 border-b pb-2">Customer details</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Lead date</Label>
+                  <DateInput value={leadForm.date} onChange={(e) => setLeadForm((f) => ({ ...f, date: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Date of birth</Label>
+                  <DateInput value={leadForm.dateOfBirth} onChange={(e) => setLeadForm((f) => ({ ...f, dateOfBirth: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Customer name</Label>
+                  <Input value={leadForm.customerName} onChange={(e) => setLeadForm((f) => ({ ...f, customerName: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone</Label>
+                  <Input value={leadForm.customerPhone} onChange={(e) => setLeadForm((f) => ({ ...f, customerPhone: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input type="email" value={leadForm.customerEmail} onChange={(e) => setLeadForm((f) => ({ ...f, customerEmail: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Location</Label>
+                  <Input value={leadForm.location} onChange={(e) => setLeadForm((f) => ({ ...f, location: e.target.value }))} />
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Payout Amount</Label>
-              <Input
-                placeholder="Amount"
-                value={adminForm.payoutAmount}
-                onChange={(e) => setAdminForm((f) => ({ ...f, payoutAmount: e.target.value }))}
-              />
+
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-slate-700 border-b pb-2">Loan details</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Loan type</Label>
+                  <Select value={leadForm.loanType || undefined} onValueChange={(v) => setLeadForm((f) => ({ ...f, loanType: v, subLoanType: "" }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select loan type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LOAN_TYPES.map((t) => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Sub loan type</Label>
+                  <Select
+                    value={leadForm.subLoanType || undefined}
+                    onValueChange={(v) => setLeadForm((f) => ({ ...f, subLoanType: v }))}
+                    disabled={!leadForm.loanType}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={leadForm.loanType ? "Select sub type" : "Select loan type first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {leadForm.loanType && LOAN_TYPE_SUBTYPES[leadForm.loanType as keyof typeof LOAN_TYPE_SUBTYPES]?.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Income type</Label>
+                  <Select value={leadForm.incomeType || undefined} onValueChange={(v) => setLeadForm((f) => ({ ...f, incomeType: v }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select income type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INCOME_TYPES.map((t) => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select value={leadForm.status || undefined} onValueChange={(v) => setLeadForm((f) => ({ ...f, status: v }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LOAN_STATUSES.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Income comments</Label>
+                <Textarea value={leadForm.incomeComments} onChange={(e) => setLeadForm((f) => ({ ...f, incomeComments: e.target.value }))} className="min-h-[80px]" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label>Required amount</Label>
+                  <Input value={leadForm.amount} onChange={(e) => setLeadForm((f) => ({ ...f, amount: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>CIBIL</Label>
+                  <Input value={leadForm.cibil} onChange={(e) => setLeadForm((f) => ({ ...f, cibil: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Tenure</Label>
+                  <Input value={leadForm.tenure} onChange={(e) => setLeadForm((f) => ({ ...f, tenure: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Application number</Label>
+                  <Input value={leadForm.applicationNumber} onChange={(e) => setLeadForm((f) => ({ ...f, applicationNumber: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>ROI</Label>
+                  <Input value={leadForm.roi} onChange={(e) => setLeadForm((f) => ({ ...f, roi: e.target.value }))} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Bank logged</Label>
+                <Select
+                  value={leadForm.companyLogged || undefined}
+                  onValueChange={(v) => setLeadForm((f) => ({ ...f, companyLogged: v, bankOthers: v === "OTHERS" ? f.bankOthers : "" }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select bank" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[280px] overflow-y-auto">
+                    {BANKS_LOGGED.map((b) => (
+                      <SelectItem key={b} value={b}>{b}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {leadForm.companyLogged === "OTHERS" && (
+                <div className="space-y-2">
+                  <Label>Other bank / NBFC</Label>
+                  <Input value={leadForm.bankOthers} onChange={(e) => setLeadForm((f) => ({ ...f, bankOthers: e.target.value }))} />
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label>Loan amount</Label>
+                  <Input value={leadForm.loanDisbursed} onChange={(e) => setLeadForm((f) => ({ ...f, loanDisbursed: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Loan sanctioned date</Label>
+                  <DateInput value={leadForm.loanSanctionedAt} onChange={(e) => setLeadForm((f) => ({ ...f, loanSanctionedAt: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Loan disbursed date</Label>
+                  <DateInput value={leadForm.loanDisbursedAt} onChange={(e) => setLeadForm((f) => ({ ...f, loanDisbursedAt: e.target.value }))} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Remarks</Label>
+                <Textarea value={leadForm.notes} onChange={(e) => setLeadForm((f) => ({ ...f, notes: e.target.value }))} className="min-h-[80px]" />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Reconsil</Label>
-              <Select
-                value={adminForm.reconsil || undefined}
-                onValueChange={(v) => setAdminForm((f) => ({ ...f, reconsil: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  {RECONSIL_OPTIONS.map((o) => (
-                    <SelectItem key={o} value={o}>
-                      {o}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Payment Status (received from bank)</Label>
-              <Select
-                value={adminForm.paymentStatus || undefined}
-                onValueChange={(v) => setAdminForm((f) => ({ ...f, paymentStatus: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PAYMENT_STATUS_OPTIONS.map((o) => (
-                    <SelectItem key={o} value={o}>
-                      {o}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-slate-700 border-b pb-2">Payout &amp; payment</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Payout %</Label>
+                  <Input placeholder="e.g. 0.02" value={leadForm.payoutPercent} onChange={(e) => setLeadForm((f) => ({ ...f, payoutPercent: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Payout Amount</Label>
+                  <Input placeholder="Amount" value={leadForm.payoutAmount} onChange={(e) => setLeadForm((f) => ({ ...f, payoutAmount: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Reconsil</Label>
+                  <Select
+                    value={leadForm.reconsil || CLEAR_SELECT_VALUE}
+                    onValueChange={(v) => setLeadForm((f) => ({ ...f, reconsil: v === CLEAR_SELECT_VALUE ? "" : v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={CLEAR_SELECT_VALUE}>Clear</SelectItem>
+                      {RECONSIL_OPTIONS.map((o) => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Payment Status (received from bank)</Label>
+                  <Select
+                    value={leadForm.paymentStatus || CLEAR_SELECT_VALUE}
+                    onValueChange={(v) => setLeadForm((f) => ({ ...f, paymentStatus: v === CLEAR_SELECT_VALUE ? "" : v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={CLEAR_SELECT_VALUE}>Clear</SelectItem>
+                      {PAYMENT_STATUS_OPTIONS.map((o) => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditLead(null)}>
               Cancel
             </Button>
-            <Button onClick={saveAdminFields} disabled={saving}>
+            <Button onClick={saveLead} disabled={saving}>
               {saving ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>

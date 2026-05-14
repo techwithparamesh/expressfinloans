@@ -1074,6 +1074,9 @@ export async function registerRoutes(
       const body = req.body || {};
       const dobErr = validateDateOfBirthAndAge(body.dateOfBirth);
       if (dobErr) return res.status(400).json({ message: dobErr });
+      const oldEmpId = (lead as any).employeeId ?? (lead as any).employee_id;
+      const oldRawDate = (lead as any).date;
+      const oldDateStr = oldRawDate ? (typeof oldRawDate === "string" ? oldRawDate.slice(0, 10) : String(oldRawDate).slice(0, 10)) : "";
       const data: Record<string, unknown> = {};
       if (body.customerName !== undefined) data.customerName = body.customerName;
       if (body.dateOfBirth !== undefined) data.dateOfBirth = body.dateOfBirth && String(body.dateOfBirth).trim() ? String(body.dateOfBirth).trim().slice(0, 10) : null;
@@ -1110,10 +1113,15 @@ export async function registerRoutes(
       const empId = (updated as any).employeeId ?? (updated as any).employee_id;
       const rawDate = (updated as any).date;
       const dateStr = rawDate ? (typeof rawDate === "string" ? rawDate.slice(0, 10) : String(rawDate).slice(0, 10)) : "";
-      if (empId && dateStr) {
+      const attendanceKeys = new Set<string>();
+      if (oldEmpId && oldDateStr) attendanceKeys.add(`${oldEmpId}:${oldDateStr}`);
+      if (empId && dateStr) attendanceKeys.add(`${empId}:${dateStr}`);
+      for (const key of attendanceKeys) {
+        const [employeeIdForCount, dateForCount] = key.split(":");
+        if (!employeeIdForCount || !dateForCount) continue;
         try {
-          const count = await storage.getLeadsCountForEmployeeOnDate(empId, dateStr);
-          await storage.updateAttendanceFromLeadsCount(empId, dateStr, count);
+          const count = await storage.getLeadsCountForEmployeeOnDate(employeeIdForCount, dateForCount);
+          await storage.updateAttendanceFromLeadsCount(employeeIdForCount, dateForCount, count);
         } catch (_) { /* non-fatal */ }
       }
       res.json(updated);
@@ -2620,6 +2628,55 @@ export async function registerRoutes(
       }
       await storage.deleteUser(id);
       res.status(204).send();
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.post("/api/staff/employees/:id/promote-team-lead", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const id = req.params.id;
+      const target = await storage.getUser(id);
+      if (!target) return res.status(404).json({ message: "User not found" });
+      if ((target as any).role === "admin") {
+        return res.status(400).json({ message: "Admin users cannot be promoted to team lead" });
+      }
+      if ((target as any).role === "team_lead") {
+        return res.status(400).json({ message: "Employee is already a team lead" });
+      }
+      if ((target as any).role !== "employee") {
+        return res.status(400).json({ message: "Only employees can be promoted to team lead" });
+      }
+
+      const updated = await storage.updateUser(id, {
+        role: "team_lead" as any,
+        teamLeadId: null,
+      });
+      if (!updated) return res.status(500).json({ message: "Promotion failed" });
+      res.json({
+        id: updated.id,
+        username: updated.username,
+        role: updated.role,
+        fullName: updated.fullName ?? null,
+        email: updated.email ?? null,
+        phone: updated.phone ?? null,
+        employeeNumber: (updated as any).employeeNumber ?? null,
+        monthlyLeadTarget: (updated as any).monthlyLeadTarget ?? null,
+        teamLeadId: (updated as any).teamLeadId ?? null,
+        designation: (updated as any).designation ?? null,
+        bankAccountNumber: (updated as any).bankAccountNumber ?? null,
+        bankIfsc: (updated as any).bankIfsc ?? null,
+        pan: (updated as any).pan ?? null,
+        uan: (updated as any).uan ?? null,
+        dateOfJoining: (updated as any).dateOfJoining ?? null,
+        department: (updated as any).department ?? null,
+        location: (updated as any).location ?? null,
+        dateOfBirth: (updated as any).dateOfBirth ?? null,
+        gender: (updated as any).gender ?? null,
+        employmentStatus: (updated as any).employmentStatus ?? null,
+        probationStartDate: (updated as any).probationStartDate ?? null,
+        confirmedAt: (updated as any).confirmedAt ?? null,
+      });
     } catch (e) {
       next(e);
     }
