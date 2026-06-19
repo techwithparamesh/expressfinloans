@@ -248,6 +248,20 @@ function getLeadRequestAmount(lead: { amount?: string | null }): number {
   return parseAmount((lead as any).amount);
 }
 
+/**
+ * Lead customer DOB / business incorporation date: must be a valid, non-future date.
+ * No minimum/maximum age limit (businesses can be incorporated recently).
+ */
+function validateLeadDateOfBirth(dobStr: string | null | undefined): string | null {
+  if (dobStr == null || dobStr === "") return null;
+  const s = String(dobStr).trim().slice(0, 10);
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return "Invalid date of birth";
+  if (d.toISOString().slice(0, 10) !== s) return "Invalid date of birth";
+  if (s > todayStr()) return "Date of birth cannot be in the future";
+  return null;
+}
+
 /** Normalize a DB date value (string or JS Date from mysql2) to "YYYY-MM-DD". */
 function toDateStr(value: unknown): string {
   if (value == null) return "";
@@ -1095,7 +1109,7 @@ export async function registerRoutes(
       if (!body.dateOfBirth || (typeof body.dateOfBirth === "string" && !body.dateOfBirth.trim())) {
         return res.status(400).json({ message: "Date of birth is required" });
       }
-      const dobErr = validateDateOfBirthAndAge(body.dateOfBirth);
+      const dobErr = validateLeadDateOfBirth(body.dateOfBirth);
       if (dobErr) return res.status(400).json({ message: dobErr });
       if (!body.loanType || (typeof body.loanType === "string" && !body.loanType.trim())) {
         return res.status(400).json({ message: "Loan type is required" });
@@ -1218,7 +1232,7 @@ export async function registerRoutes(
         }
       } else if (!isAdmin && lead.employeeId !== userId) return res.status(403).json({ message: "Forbidden" });
       const body = req.body || {};
-      const dobErr = validateDateOfBirthAndAge(body.dateOfBirth);
+      const dobErr = validateLeadDateOfBirth(body.dateOfBirth);
       if (dobErr) return res.status(400).json({ message: dobErr });
       const oldEmpId = (lead as any).employeeId ?? (lead as any).employee_id;
       const oldRawDate = (lead as any).date;
