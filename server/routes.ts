@@ -248,6 +248,18 @@ function getLeadRequestAmount(lead: { amount?: string | null }): number {
   return parseAmount((lead as any).amount);
 }
 
+/** Normalize a DB date value (string or JS Date from mysql2) to "YYYY-MM-DD". */
+function toDateStr(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value.slice(0, 10);
+  const d = value instanceof Date ? value : new Date(value as any);
+  if (Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 type ProductionRow = {
   employeeId: string;
   employeeName: string;
@@ -298,11 +310,11 @@ async function buildProductionHierarchy(fromDate: string, toDate: string): Promi
     let count = 0;
     for (const l of ls) {
       const s = (l.status || "").toLowerCase();
-      const logDate = l.date ? String(l.date).slice(0, 10) : "";
+      const logDate = toDateStr(l.date);
       if (s === "disbursed") {
         // Counted once, in the month it was disbursed (no carry forward).
         const dAtRaw = (l as any).loanDisbursedAt ?? (l as any).loan_disbursed_at;
-        const dAt = dAtRaw ? String(dAtRaw).slice(0, 10) : logDate;
+        const dAt = toDateStr(dAtRaw) || logDate;
         if (inPeriod(dAt)) {
           disbursed += getLeadAmount(l as any);
           count++;
