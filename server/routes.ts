@@ -248,6 +248,140 @@ function getLeadRequestAmount(lead: { amount?: string | null }): number {
   return parseAmount((lead as any).amount);
 }
 
+type ProductionRow = {
+  employeeId: string;
+  employeeName: string;
+  employeeNumber: string;
+  logged: number;
+  sanctioned: number;
+  disbursed: number;
+  mtd: number;
+};
+type ProductionGroup = {
+  teamLeadId: string;
+  rhName: string;
+  rhNumber: string;
+  self: ProductionRow | null;
+  members: ProductionRow[];
+  total: { logged: number; sanctioned: number; disbursed: number; mtd: number };
+};
+
+/**
+ * Build the RH -> SM production hierarchy for a date range (admin scope = all teams).
+ * Logged/Sanctioned amounts use the lead's request amount for leads currently in that
+ * status; Disbursed uses the disbursed amount for disbursed leads. MTD = total leads in range.
+ */
+async function buildProductionHierarchy(fromDate: string, toDate: string): Promise<ProductionGroup[]> {
+  const employees = await storage.listEmployees();
+  const byId: Record<string, { name: string; number: string }> = {};
+  for (const u of employees) {
+    byId[u.id] = {
+      name: (u as any).fullName?.trim() || u.username || u.id,
+      number: (u as any).employeeNumber ?? "",
+    };
+  }
+  // Fetch all leads logged on or before the period end so still-pending leads from
+  // earlier months carry forward into the selected period.
+  const leads = await storage.getAllLeads({ toDate });
+  const leadsByEmp = new Map<string, typeof leads>();
+  for (const l of leads) {
+    const arr = leadsByEmp.get(l.employeeId) ?? [];
+    arr.push(l);
+    leadsByEmp.set(l.employeeId, arr);
+  }
+  const inPeriod = (d: string) => d >= fromDate && d <= toDate;
+  const rowFor = (uId: string): ProductionRow => {
+    const ls = leadsByEmp.get(uId) ?? [];
+    let logged = 0;
+    let sanctioned = 0;
+    let disbursed = 0;
+    let count = 0;
+    for (const l of ls) {
+      const s = (l.status || "").toLowerCase();
+      const logDate = l.date ? String(l.date).slice(0, 10) : "";
+      if (s === "disbursed") {
+        // Counted once, in the month it was disbursed (no carry forward).
+        const dAtRaw = (l as any).loanDisbursedAt ?? (l as any).loan_disbursed_at;
+        const dAt = dAtRaw ? String(dAtRaw).slice(0, 10) : logDate;
+        if (inPeriod(dAt)) {
+          disbursed += getLeadAmount(l as any);
+          count++;
+        }
+      } else if (s === "rejected" || s === "not interested") {
+        // Dead leads: shown only in the month they were logged, never carried forward.
+        if (inPeriod(logDate)) {
+          logged += getLeadRequestAmount(l as any);
+          count++;
+        }
+      } else if (s === "sanctioned") {
+        // Pending disbursal: carries forward every month until disbursed.
+        if (logDate && logDate <= toDate) {
+          sanctioned += getLeadRequestAmount(l as any);
+          count++;
+        }
+      } else {
+        // open / logged / doc collected / discrepancy: pending, carries forward.
+        if (logDate && logDate <= toDate) {
+          logged += getLeadRequestAmount(l as any);
+          count++;
+        }
+      }
+    }
+    return {
+      employeeId: uId,
+      employeeName: byId[uId]?.name ?? uId,
+      employeeNumber: byId[uId]?.number ?? "",
+      logged,
+      sanctioned,
+      disbursed,
+      mtd: count,
+    };
+  };
+  const sumRows = (rows: ProductionRow[]) =>
+    rows.reduce(
+      (t, r) => ({
+        logged: t.logged + r.logged,
+        sanctioned: t.sanctioned + r.sanctioned,
+        disbursed: t.disbursed + r.disbursed,
+        mtd: t.mtd + r.mtd,
+      }),
+      { logged: 0, sanctioned: 0, disbursed: 0, mtd: 0 }
+    );
+  const teamLeads = await storage.listTeamLeads();
+  const teamLeadIdSet = new Set(teamLeads.map((t) => t.id));
+  const assignedMemberIds = new Set<string>();
+  const hierarchy: ProductionGroup[] = [];
+  for (const tl of teamLeads) {
+    const members = await storage.listEmployees({ teamLeadId: tl.id });
+    for (const m of members) assignedMemberIds.add(m.id);
+    const self = rowFor(tl.id);
+    const memberRows = members.map((m) => rowFor(m.id));
+    hierarchy.push({
+      teamLeadId: tl.id,
+      rhName: byId[tl.id]?.name ?? (tl as any).fullName?.trim() ?? tl.username ?? tl.id,
+      rhNumber: byId[tl.id]?.number ?? (tl as any).employeeNumber ?? "",
+      self,
+      members: memberRows,
+      total: sumRows([self, ...memberRows]),
+    });
+  }
+  const unassigned = employees.filter(
+    (e) => e.role === "employee" && !assignedMemberIds.has(e.id) && !teamLeadIdSet.has(e.id)
+  );
+  if (unassigned.length > 0) {
+    const memberRows = unassigned.map((m) => rowFor(m.id));
+    hierarchy.push({
+      teamLeadId: "",
+      rhName: "Unassigned",
+      rhNumber: "",
+      self: null,
+      members: memberRows,
+      total: sumRows(memberRows),
+    });
+  }
+  return hierarchy;
+}
+
 /** Read assigned budget from a monthly target row (camelCase or snake_case from DB). */
 function getTargetBudget(row: { assignedBudget?: string | number | null; assigned_budget?: string | number | null } | null | undefined): number {
   if (row == null) return 0;
@@ -3480,93 +3614,8 @@ export async function registerRoutes(
         payload.allEmployeeTargetAchievement = allEmployeeTargetAchievement;
         payload.conveyanceReport = conveyanceReport;
 
-        // --- Production hierarchy (RH -> SM) for current month ---
-        const leadsByEmpMonth = new Map<string, typeof leadsMtd>();
-        for (const l of leadsMtd) {
-          const arr = leadsByEmpMonth.get(l.employeeId) ?? [];
-          arr.push(l);
-          leadsByEmpMonth.set(l.employeeId, arr);
-        }
-        type ProdRow = {
-          employeeId: string;
-          employeeName: string;
-          employeeNumber: string;
-          logged: number;
-          sanctioned: number;
-          disbursed: number;
-          mtd: number;
-        };
-        const prodRowFor = (uId: string): ProdRow => {
-          const ls = leadsByEmpMonth.get(uId) ?? [];
-          let logged = 0;
-          let sanctioned = 0;
-          let disbursed = 0;
-          for (const l of ls) {
-            const s = (l.status || "").toLowerCase();
-            if (s === "logged") logged += getLeadRequestAmount(l as any);
-            else if (s === "sanctioned") sanctioned += getLeadRequestAmount(l as any);
-            else if (s === "disbursed") disbursed += getLeadAmount(l as any);
-          }
-          return {
-            employeeId: uId,
-            employeeName: byId[uId]?.name ?? uId,
-            employeeNumber: byId[uId]?.number ?? "",
-            logged,
-            sanctioned,
-            disbursed,
-            mtd: ls.length,
-          };
-        };
-        const sumProdRows = (rows: ProdRow[]) =>
-          rows.reduce(
-            (t, r) => ({
-              logged: t.logged + r.logged,
-              sanctioned: t.sanctioned + r.sanctioned,
-              disbursed: t.disbursed + r.disbursed,
-              mtd: t.mtd + r.mtd,
-            }),
-            { logged: 0, sanctioned: 0, disbursed: 0, mtd: 0 }
-          );
-        const prodTeamLeads = await storage.listTeamLeads();
-        const teamLeadIdSet = new Set(prodTeamLeads.map((t) => t.id));
-        const assignedMemberIds = new Set<string>();
-        const productionHierarchy: Array<{
-          teamLeadId: string;
-          rhName: string;
-          rhNumber: string;
-          self: ProdRow | null;
-          members: ProdRow[];
-          total: { logged: number; sanctioned: number; disbursed: number; mtd: number };
-        }> = [];
-        for (const tl of prodTeamLeads) {
-          const members = await storage.listEmployees({ teamLeadId: tl.id });
-          for (const m of members) assignedMemberIds.add(m.id);
-          const self = prodRowFor(tl.id);
-          const memberRows = members.map((m) => prodRowFor(m.id));
-          productionHierarchy.push({
-            teamLeadId: tl.id,
-            rhName: byId[tl.id]?.name ?? (tl as any).fullName?.trim() ?? tl.username ?? tl.id,
-            rhNumber: byId[tl.id]?.number ?? (tl as any).employeeNumber ?? "",
-            self,
-            members: memberRows,
-            total: sumProdRows([self, ...memberRows]),
-          });
-        }
-        const unassignedEmployees = employees.filter(
-          (e) => e.role === "employee" && !assignedMemberIds.has(e.id) && !teamLeadIdSet.has(e.id)
-        );
-        if (unassignedEmployees.length > 0) {
-          const memberRows = unassignedEmployees.map((m) => prodRowFor(m.id));
-          productionHierarchy.push({
-            teamLeadId: "",
-            rhName: "Unassigned",
-            rhNumber: "",
-            self: null,
-            members: memberRows,
-            total: sumProdRows(memberRows),
-          });
-        }
-        payload.productionHierarchy = productionHierarchy;
+        // --- Production hierarchy (RH -> SM) for current month (default view) ---
+        payload.productionHierarchy = await buildProductionHierarchy(monthStart, monthEnd);
         payload.expenditure = {
           loans: companyAchievedMtd,
           miscellaneous: expenditureMisc,
@@ -3590,6 +3639,38 @@ export async function registerRoutes(
         payload.attendanceToday = attendanceWithTargets;
       }
       res.json(payload);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  // --- Staff: production hierarchy report (month = YYYY-MM, or from & to = YYYY-MM-DD) ---
+  app.get("/api/staff/reports/production", requireAuth, requireAdmin, async (req, res, next) => {
+    try {
+      const monthParam = (req.query.month as string)?.trim();
+      const fromParam = (req.query.from as string)?.trim();
+      const toParam = (req.query.to as string)?.trim();
+      const useRange =
+        fromParam && toParam &&
+        /^\d{4}-\d{2}-\d{2}$/.test(fromParam) &&
+        /^\d{4}-\d{2}-\d{2}$/.test(toParam) &&
+        fromParam <= toParam;
+      let fromDate: string, toDate: string, monthLabel: string;
+      if (useRange) {
+        fromDate = fromParam;
+        toDate = toParam;
+        monthLabel = `${fromParam} to ${toParam}`;
+      } else {
+        const now = new Date();
+        const year = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? parseInt(monthParam.slice(0, 4), 10) : now.getFullYear();
+        const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? parseInt(monthParam.slice(5, 7), 10) : now.getMonth() + 1;
+        fromDate = `${year}-${String(month).padStart(2, "0")}-01`;
+        const lastDay = new Date(year, month, 0).getDate();
+        toDate = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+        monthLabel = new Date(year, month - 1, 1).toLocaleString("default", { month: "long", year: "numeric" });
+      }
+      const productionHierarchy = await buildProductionHierarchy(fromDate, toDate);
+      res.json({ from: fromDate, to: toDate, monthLabel, productionHierarchy });
     } catch (e) {
       next(e);
     }

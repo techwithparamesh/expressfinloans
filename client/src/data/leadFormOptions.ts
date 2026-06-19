@@ -55,6 +55,7 @@ export const INCOME_TYPES = [
 
 export const LOAN_STATUSES = [
   "Open",
+  "Follow-up",
   "Logged",
   "Doc Collected",
   "Discrepancy",

@@ -273,6 +273,18 @@ export default function StaffDashboard() {
   const [fiscalYearStart, setFiscalYearStart] = useState<number>(currentFyStartYear);
   const [quarterlyEmployeeId, setQuarterlyEmployeeId] = useState<string>("all");
   const [prodTeamLeadId, setProdTeamLeadId] = useState<string>("");
+  const [prodRangeMode, setProdRangeMode] = useState<"month" | "custom">("month");
+  const [prodMonth, setProdMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [prodFrom, setProdFrom] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+  });
+  const [prodTo, setProdTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [prodResult, setProdResult] = useState<{ from: string; to: string; monthLabel: string; productionHierarchy: ProductionGroup[] } | null>(null);
+  const [prodLoading, setProdLoading] = useState(false);
 
   // Leader expense requests (team lead)
   const [leaderExpenses, setLeaderExpenses] = useState<LeaderExpenseRequest[]>([]);
@@ -432,6 +444,18 @@ export default function StaffDashboard() {
       else setExpenditureData(null);
     }).finally(() => setReportsLoading(false));
   }, [user?.role, reportsRangeMode, reportMonth, reportsFrom, reportsTo, data?.adminKpi]);
+
+  useEffect(() => {
+    if (user?.role !== "admin") return;
+    const params = prodRangeMode === "month"
+      ? `month=${prodMonth}`
+      : `from=${prodFrom}&to=${prodTo}`;
+    setProdLoading(true);
+    staffJson<{ from: string; to: string; monthLabel: string; productionHierarchy: ProductionGroup[] }>(`/staff/reports/production?${params}`)
+      .then((r) => setProdResult(r))
+      .catch(() => setProdResult(null))
+      .finally(() => setProdLoading(false));
+  }, [user?.role, prodRangeMode, prodMonth, prodFrom, prodTo]);
 
   const filteredTargetAchievementRows = useMemo(() => {
     const q = targetAchievementSearch.trim().toLowerCase();
@@ -686,25 +710,26 @@ export default function StaffDashboard() {
           <p className="text-slate-600 mt-0.5">{roleLabel} · Dashboard</p>
         </div>
       </div>
-      {user?.role === "admin" && (data.productionHierarchy?.length ?? 0) > 0 && (() => {
-        const prodGroups = data.productionHierarchy ?? [];
+      {user?.role === "admin" && (() => {
+        const prodGroups = prodResult?.productionHierarchy ?? data.productionHierarchy ?? [];
         const groupValue = (g: ProductionGroup) => g.teamLeadId || "__unassigned__";
         const activeValue =
           prodTeamLeadId && prodGroups.some((g) => groupValue(g) === prodTeamLeadId)
             ? prodTeamLeadId
-            : groupValue(prodGroups[0]);
-        const group = prodGroups.find((g) => groupValue(g) === activeValue) ?? prodGroups[0];
+            : (prodGroups[0] ? groupValue(prodGroups[0]) : "");
+        const group = prodGroups.find((g) => groupValue(g) === activeValue) ?? prodGroups[0] ?? null;
         const fmt = (n: number) => new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(n) || 0);
-        const detailRows: ProductionRow[] = group.self ? [group.self, ...group.members] : group.members;
+        const detailRows: ProductionRow[] = group ? (group.self ? [group.self, ...group.members] : group.members) : [];
         const rowSpan = detailRows.length + 1;
+        const periodLabel = prodResult?.monthLabel || "current month";
         return (
           <Card>
             <CardHeader>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <CardTitle>Team production (MTD)</CardTitle>
+                  <CardTitle>Team production</CardTitle>
                   <CardDescription>
-                    Select a team lead to view their team’s individual performance for the current month.
+                    Select a team lead and period to view their team’s individual performance ({periodLabel}).
                   </CardDescription>
                 </div>
                 <div className="w-full sm:w-72">
@@ -722,48 +747,112 @@ export default function StaffDashboard() {
                   </Select>
                 </div>
               </div>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    id="prod-mode-month"
+                    name="prod-mode"
+                    checked={prodRangeMode === "month"}
+                    onChange={() => setProdRangeMode("month")}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="prod-mode-month" className="cursor-pointer font-normal text-sm">Month</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    id="prod-mode-custom"
+                    name="prod-mode"
+                    checked={prodRangeMode === "custom"}
+                    onChange={() => setProdRangeMode("custom")}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="prod-mode-custom" className="cursor-pointer font-normal text-sm">Custom dates</Label>
+                </div>
+                {prodRangeMode === "month" ? (
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="prod-month" className="text-sm text-slate-600 shrink-0">Month</Label>
+                    <MonthInput
+                      id="prod-month"
+                      value={prodMonth}
+                      onChange={(e) => setProdMonth(e.target.value)}
+                      className="min-w-[180px] h-10 px-3 text-base"
+                      aria-label="Select month for production"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="prod-from" className="text-sm text-slate-600 shrink-0">From</Label>
+                      <DateInput
+                        id="prod-from"
+                        value={prodFrom}
+                        onChange={(e) => setProdFrom(e.target.value)}
+                        className="min-w-[140px] h-10 text-base"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="prod-to" className="text-sm text-slate-600 shrink-0">To</Label>
+                      <DateInput
+                        id="prod-to"
+                        value={prodTo}
+                        onChange={(e) => setProdTo(e.target.value)}
+                        className="min-w-[140px] h-10 text-base"
+                      />
+                    </div>
+                  </div>
+                )}
+                {prodLoading && <span className="text-sm text-slate-500">Loading…</span>}
+              </div>
             </CardHeader>
             <CardContent className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr>
-                    <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-left font-semibold">RH Name</th>
-                    <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-left font-semibold">SM Name</th>
-                    <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Logged</th>
-                    <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Sanctioned</th>
-                    <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Disbursed</th>
-                    <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">MTD Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {detailRows.map((r, ri) => (
-                    <tr key={`${group.teamLeadId}-${r.employeeId}-${ri}`} className="bg-white">
-                      {ri === 0 && (
-                        <td
-                          rowSpan={rowSpan}
-                          className="border border-slate-300 bg-green-200 px-3 py-2 align-middle font-bold"
-                        >
-                          {group.rhName}
-                        </td>
-                      )}
-                      <td className="border border-slate-300 px-3 py-2">
-                        {group.self && ri === 0 ? "Self" : r.employeeName}
-                      </td>
-                      <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.logged)}</td>
-                      <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.sanctioned)}</td>
-                      <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.disbursed)}</td>
-                      <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{r.mtd}</td>
+              {!group ? (
+                <p className="text-sm text-slate-500">
+                  {prodLoading ? "Loading…" : "No production data for the selected period."}
+                </p>
+              ) : (
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr>
+                      <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-left font-semibold">RH Name</th>
+                      <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-left font-semibold">SM Name</th>
+                      <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Logged</th>
+                      <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Sanctioned</th>
+                      <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Disbursed</th>
+                      <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Total leads</th>
                     </tr>
-                  ))}
-                  <tr className="bg-green-300">
-                    <td className="border border-slate-300 px-3 py-2 text-center font-semibold">Total</td>
-                    <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.logged)}</td>
-                    <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.sanctioned)}</td>
-                    <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.disbursed)}</td>
-                    <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{group.total.mtd}</td>
-                  </tr>
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {detailRows.map((r, ri) => (
+                      <tr key={`${group.teamLeadId}-${r.employeeId}-${ri}`} className="bg-white">
+                        {ri === 0 && (
+                          <td
+                            rowSpan={rowSpan}
+                            className="border border-slate-300 bg-green-200 px-3 py-2 align-middle font-bold"
+                          >
+                            {group.rhName}
+                          </td>
+                        )}
+                        <td className="border border-slate-300 px-3 py-2">
+                          {r.employeeName}
+                        </td>
+                        <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.logged)}</td>
+                        <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.sanctioned)}</td>
+                        <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.disbursed)}</td>
+                        <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{r.mtd}</td>
+                      </tr>
+                    ))}
+                    <tr className="bg-green-300">
+                      <td className="border border-slate-300 px-3 py-2 text-center font-semibold">Total</td>
+                      <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.logged)}</td>
+                      <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.sanctioned)}</td>
+                      <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.disbursed)}</td>
+                      <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{group.total.mtd}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              )}
             </CardContent>
           </Card>
         );
