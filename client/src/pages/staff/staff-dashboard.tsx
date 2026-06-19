@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, Fragment } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -198,6 +198,26 @@ type Dashboard = {
     label: string;
   };
   quarterlyDisbursalEmployeeId?: string | null;
+  productionHierarchy?: ProductionGroup[];
+};
+
+type ProductionRow = {
+  employeeId: string;
+  employeeName: string;
+  employeeNumber: string;
+  logged: number;
+  sanctioned: number;
+  disbursed: number;
+  mtd: number;
+};
+
+type ProductionGroup = {
+  teamLeadId: string;
+  rhName: string;
+  rhNumber: string;
+  self: ProductionRow | null;
+  members: ProductionRow[];
+  total: { logged: number; sanctioned: number; disbursed: number; mtd: number };
 };
 
 type EmployeeOption = {
@@ -665,6 +685,77 @@ export default function StaffDashboard() {
           <p className="text-slate-600 mt-0.5">{roleLabel} · Dashboard</p>
         </div>
       </div>
+      {user?.role === "admin" && (data.productionHierarchy?.length ?? 0) > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Team production (MTD)</CardTitle>
+            <CardDescription>
+              Logged / Sanctioned / Disbursed amounts and total leads for the current month, grouped by team lead.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr>
+                  <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-left font-semibold">RH Name</th>
+                  <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-left font-semibold">SM Name</th>
+                  <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Logged</th>
+                  <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Sanctioned</th>
+                  <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Disbursed</th>
+                  <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">MTD Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data.productionHierarchy ?? []).map((group, gi) => {
+                  const palettes = [
+                    { block: "bg-green-100", rh: "bg-green-200", total: "bg-green-300" },
+                    { block: "bg-orange-100", rh: "bg-orange-200", total: "bg-orange-300" },
+                    { block: "bg-blue-100", rh: "bg-blue-200", total: "bg-blue-300" },
+                    { block: "bg-purple-100", rh: "bg-purple-200", total: "bg-purple-300" },
+                    { block: "bg-pink-100", rh: "bg-pink-200", total: "bg-pink-300" },
+                    { block: "bg-teal-100", rh: "bg-teal-200", total: "bg-teal-300" },
+                  ];
+                  const c = palettes[gi % palettes.length];
+                  const memberCount = group.members.length;
+                  const rowSpan = (group.self ? 1 : 0) + memberCount + 1;
+                  const fmt = (n: number) => new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(n) || 0);
+                  const detailRows: ProductionRow[] = group.self ? [group.self, ...group.members] : group.members;
+                  return (
+                    <Fragment key={group.teamLeadId || `group-${gi}`}>
+                      {detailRows.map((r, ri) => (
+                        <tr key={`${group.teamLeadId}-${r.employeeId}-${ri}`} className="bg-white">
+                          {ri === 0 && (
+                            <td
+                              rowSpan={rowSpan}
+                              className={`border border-slate-300 px-3 py-2 align-middle font-bold ${c.rh}`}
+                            >
+                              {group.rhName}
+                            </td>
+                          )}
+                          <td className="border border-slate-300 px-3 py-2">
+                            {group.self && ri === 0 ? "Self" : r.employeeName}
+                          </td>
+                          <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.logged)}</td>
+                          <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.sanctioned)}</td>
+                          <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.disbursed)}</td>
+                          <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{r.mtd}</td>
+                        </tr>
+                      ))}
+                      <tr className={c.total}>
+                        <td className="border border-slate-300 px-3 py-2 text-center font-semibold">Total</td>
+                        <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.logged)}</td>
+                        <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.sanctioned)}</td>
+                        <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.disbursed)}</td>
+                        <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{group.total.mtd}</td>
+                      </tr>
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
       {(user?.role === "admin" || user?.role === "team_lead") && (data.onNoticeResignations?.length ?? 0) > 0 && (
         <Card>
           <CardHeader>

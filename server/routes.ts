@@ -3479,6 +3479,94 @@ export async function registerRoutes(
         payload.quarterlyDisbursalEmployeeId = selectedEmployeeId;
         payload.allEmployeeTargetAchievement = allEmployeeTargetAchievement;
         payload.conveyanceReport = conveyanceReport;
+
+        // --- Production hierarchy (RH -> SM) for current month ---
+        const leadsByEmpMonth = new Map<string, typeof leadsMtd>();
+        for (const l of leadsMtd) {
+          const arr = leadsByEmpMonth.get(l.employeeId) ?? [];
+          arr.push(l);
+          leadsByEmpMonth.set(l.employeeId, arr);
+        }
+        type ProdRow = {
+          employeeId: string;
+          employeeName: string;
+          employeeNumber: string;
+          logged: number;
+          sanctioned: number;
+          disbursed: number;
+          mtd: number;
+        };
+        const prodRowFor = (uId: string): ProdRow => {
+          const ls = leadsByEmpMonth.get(uId) ?? [];
+          let logged = 0;
+          let sanctioned = 0;
+          let disbursed = 0;
+          for (const l of ls) {
+            const s = (l.status || "").toLowerCase();
+            if (s === "logged") logged += getLeadRequestAmount(l as any);
+            else if (s === "sanctioned") sanctioned += getLeadRequestAmount(l as any);
+            else if (s === "disbursed") disbursed += getLeadAmount(l as any);
+          }
+          return {
+            employeeId: uId,
+            employeeName: byId[uId]?.name ?? uId,
+            employeeNumber: byId[uId]?.number ?? "",
+            logged,
+            sanctioned,
+            disbursed,
+            mtd: ls.length,
+          };
+        };
+        const sumProdRows = (rows: ProdRow[]) =>
+          rows.reduce(
+            (t, r) => ({
+              logged: t.logged + r.logged,
+              sanctioned: t.sanctioned + r.sanctioned,
+              disbursed: t.disbursed + r.disbursed,
+              mtd: t.mtd + r.mtd,
+            }),
+            { logged: 0, sanctioned: 0, disbursed: 0, mtd: 0 }
+          );
+        const prodTeamLeads = await storage.listTeamLeads();
+        const teamLeadIdSet = new Set(prodTeamLeads.map((t) => t.id));
+        const assignedMemberIds = new Set<string>();
+        const productionHierarchy: Array<{
+          teamLeadId: string;
+          rhName: string;
+          rhNumber: string;
+          self: ProdRow | null;
+          members: ProdRow[];
+          total: { logged: number; sanctioned: number; disbursed: number; mtd: number };
+        }> = [];
+        for (const tl of prodTeamLeads) {
+          const members = await storage.listEmployees({ teamLeadId: tl.id });
+          for (const m of members) assignedMemberIds.add(m.id);
+          const self = prodRowFor(tl.id);
+          const memberRows = members.map((m) => prodRowFor(m.id));
+          productionHierarchy.push({
+            teamLeadId: tl.id,
+            rhName: byId[tl.id]?.name ?? (tl as any).fullName?.trim() ?? tl.username ?? tl.id,
+            rhNumber: byId[tl.id]?.number ?? (tl as any).employeeNumber ?? "",
+            self,
+            members: memberRows,
+            total: sumProdRows([self, ...memberRows]),
+          });
+        }
+        const unassignedEmployees = employees.filter(
+          (e) => e.role === "employee" && !assignedMemberIds.has(e.id) && !teamLeadIdSet.has(e.id)
+        );
+        if (unassignedEmployees.length > 0) {
+          const memberRows = unassignedEmployees.map((m) => prodRowFor(m.id));
+          productionHierarchy.push({
+            teamLeadId: "",
+            rhName: "Unassigned",
+            rhNumber: "",
+            self: null,
+            members: memberRows,
+            total: sumProdRows(memberRows),
+          });
+        }
+        payload.productionHierarchy = productionHierarchy;
         payload.expenditure = {
           loans: companyAchievedMtd,
           miscellaneous: expenditureMisc,
