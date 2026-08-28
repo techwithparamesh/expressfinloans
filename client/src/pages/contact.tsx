@@ -39,6 +39,7 @@ import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { SITE_CONTACT, SITE_ADDRESS_SINGLE_LINE, SITE_MAPS_EMBED_URL, SITE_MAPS_LINK_URL } from "@/data/siteContact";
 
 const contactFormSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters"),
@@ -182,39 +183,48 @@ export default function Contact() {
                 <p className="text-slate-500 text-sm mb-6">Speak with our certified financial strategists.</p>
 
                 <div className="space-y-5">
-                  <a href="tel:+919000001339" className="flex gap-4 items-start p-4 rounded-xl bg-slate-50 hover:bg-primary/5 transition-colors group">
+                  <a href={`tel:${SITE_CONTACT.phoneTel}`} className="flex gap-4 items-start p-4 rounded-xl bg-slate-50 hover:bg-primary/5 transition-colors group">
                     <div className="bg-primary/10 p-3 rounded-xl text-primary group-hover:bg-primary group-hover:text-white transition-colors">
                       <Phone className="h-5 w-5" />
                     </div>
                     <div>
                       <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-0.5">Phone</p>
-                      <p className="text-lg font-bold text-slate-900">+91 90000 01339</p>
-                      <p className="text-xs text-slate-500">Mon-Sat, 9am - 6pm</p>
+                      <p className="text-lg font-bold text-slate-900">{SITE_CONTACT.phoneDisplay}</p>
+                      <p className="text-xs text-slate-500">{SITE_CONTACT.officeHours}</p>
                     </div>
                   </a>
 
-                  <a href="mailto:info@expressfinancialservices.com" className="flex gap-4 items-start p-4 rounded-xl bg-slate-50 hover:bg-secondary/5 transition-colors group">
+                  <a href={SITE_CONTACT.emailMailto} className="flex gap-4 items-start p-4 rounded-xl bg-slate-50 hover:bg-secondary/5 transition-colors group">
                     <div className="bg-secondary/10 p-3 rounded-xl text-secondary group-hover:bg-secondary group-hover:text-white transition-colors">
                       <Mail className="h-5 w-5" />
                     </div>
                     <div>
                       <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-0.5">Email</p>
-                      <p className="text-base font-bold text-slate-900 break-all">info@expressfinancialservices.com</p>
+                      <p className="text-base font-bold text-slate-900 break-all">{SITE_CONTACT.email}</p>
                     </div>
                   </a>
 
-                  <div className="flex gap-4 items-start p-4 rounded-xl bg-slate-50">
-                    <div className="bg-slate-200 p-3 rounded-xl text-slate-600">
+                  <a
+                    href={SITE_MAPS_LINK_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex gap-4 items-start p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors group"
+                  >
+                    <div className="bg-slate-200 p-3 rounded-xl text-slate-600 group-hover:bg-slate-300 transition-colors">
                       <MapPin className="h-5 w-5" />
                     </div>
                     <div>
                       <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-0.5">Office</p>
-                      <p className="text-base font-bold text-slate-900 leading-snug">Financial District,<br/>Hyderabad, India</p>
+                      <p className="text-base font-bold text-slate-900 leading-snug">
+                        {SITE_CONTACT.addressLines.map((line, i) => (
+                          <span key={i} className="block">{line}</span>
+                        ))}
+                      </p>
                     </div>
-                  </div>
+                  </a>
 
                   <a
-                    href="https://wa.me/919000001339"
+                    href={SITE_CONTACT.whatsappUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-semibold transition-colors"
@@ -296,7 +306,7 @@ export default function Contact() {
                           <FormItem>
                             <FormLabel className="text-xs font-bold uppercase tracking-wider text-slate-400">Phone Number</FormLabel>
                             <FormControl>
-                              <Input className="h-12 sm:h-14 rounded-xl bg-slate-50 border-slate-200 px-4 focus:ring-2 focus:ring-primary/20 text-base" placeholder="+91 98765 43210" {...field} />
+                              <Input className="h-12 sm:h-14 rounded-xl bg-slate-50 border-slate-200 px-4 focus:ring-2 focus:ring-primary/20 text-base" placeholder={SITE_CONTACT.phoneDisplay} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -493,12 +503,12 @@ export default function Contact() {
         <div className="container mx-auto px-6 py-12">
           <div className="text-center mb-8">
             <h2 className="text-2xl sm:text-3xl font-serif font-bold text-slate-900 mb-2">Visit Our Office</h2>
-            <p className="text-slate-500">Financial District, Hyderabad, India</p>
+            <p className="text-slate-500">{SITE_ADDRESS_SINGLE_LINE}</p>
           </div>
         </div>
         <div className="h-[300px] sm:h-[400px] bg-slate-200">
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3806.2936050984187!2d78.3748053!3d17.4399305!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bcb93dc8c5d6dcb%3A0x2de12ad1c4e6d4f3!2sFinancial%20District%2C%20Hyderabad%2C%20Telangana!5e0!3m2!1sen!2sin!4v1700000000000!5m2!1sen!2sin"
+            src={SITE_MAPS_EMBED_URL}
             width="100%"
             height="100%"
             style={{ border: 0 }}

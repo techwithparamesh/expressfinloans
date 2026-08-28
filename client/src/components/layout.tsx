@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Phone, Mail, Instagram, Menu, ChevronRight, Clock, Calculator } from "lucide-react";
+import { Phone, Mail, Instagram, Menu, ChevronRight, Clock, Calculator, MapPin } from "lucide-react";
+import { SITE_CONTACT, SITE_MAPS_LINK_URL } from "@/data/siteContact";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { motion, AnimatePresence } from "framer-motion";
@@ -51,9 +52,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <TooltipProvider>
         <div className="fixed right-4 sm:right-6 bottom-24 sm:bottom-6 z-50 flex flex-col gap-3 sm:gap-4">
           {[
-            { icon: WhatsAppIcon, color: "bg-[#25D366]", href: "https://wa.me/919000001339", tooltip: "WhatsApp Us" },
+            { icon: WhatsAppIcon, color: "bg-[#25D366]", href: SITE_CONTACT.whatsappUrl, tooltip: "WhatsApp Us" },
             { icon: Instagram, color: "bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888]", href: "https://instagram.com", tooltip: "Follow Us" },
-            { icon: Mail, color: "bg-primary", href: "mailto:info@expressfinancialservices.com", tooltip: "Email Us" }
+            { icon: Mail, color: "bg-primary", href: SITE_CONTACT.emailMailto, tooltip: "Email Us" }
           ].map((item, i) => (
             <Tooltip key={i} delayDuration={0}>
               <TooltipTrigger asChild>
@@ -82,18 +83,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="container mx-auto px-6">
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-6">
-                <a href="tel:+919000001339" className="flex items-center gap-1.5 hover:text-secondary transition-colors">
+                <a href={`tel:${SITE_CONTACT.phoneTel}`} className="flex items-center gap-1.5 hover:text-secondary transition-colors">
                   <Phone className="h-3 w-3" />
-                  <span>+91 90000 01339</span>
+                  <span>{SITE_CONTACT.phoneDisplay}</span>
                 </a>
-                <a href="mailto:info@expressfinancialservices.com" className="flex items-center gap-1.5 hover:text-secondary transition-colors">
+                <a href={SITE_CONTACT.emailMailto} className="flex items-center gap-1.5 hover:text-secondary transition-colors">
                   <Mail className="h-3 w-3" />
-                  <span>info@expressfinancialservices.com</span>
+                  <span>{SITE_CONTACT.email}</span>
                 </a>
               </div>
               <div className="flex items-center gap-1.5 text-slate-400">
                 <Clock className="h-3 w-3" />
-                <span>Mon - Sat: 9:00 AM - 6:00 PM</span>
+                <span>{SITE_CONTACT.officeHours}</span>
               </div>
             </div>
           </div>
@@ -137,7 +138,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </nav>
 
               <div className="lg:hidden flex items-center gap-2">
-                <a href="tel:+919000001339" className="p-2 rounded-full bg-primary/10 text-primary">
+                <a href={`tel:${SITE_CONTACT.phoneTel}`} className="p-2 rounded-full bg-primary/10 text-primary">
                   <Phone className="h-5 w-5" />
                 </a>
                 <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
@@ -284,8 +285,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <Phone className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <a href="tel:+919000001339" className="text-white font-medium block hover:text-secondary transition-colors">+91 90000 01339</a>
-                    <a href="tel:+919091001008" className="text-slate-400 text-sm block hover:text-secondary transition-colors">+91 90910 01008</a>
+                    <a href={`tel:${SITE_CONTACT.phoneTel}`} className="text-white font-medium block hover:text-secondary transition-colors">{SITE_CONTACT.phoneDisplay}</a>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -293,8 +293,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <Mail className="h-4 w-4 text-secondary" />
                   </div>
                   <div>
-                    <a href="mailto:info@expressfinancialservices.com" className="text-white font-medium hover:text-secondary transition-colors text-sm break-all">
-                      info@expressfinancialservices.com
+                    <a href={SITE_CONTACT.emailMailto} className="text-white font-medium hover:text-secondary transition-colors text-sm break-all">
+                      {SITE_CONTACT.email}
+                    </a>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="bg-slate-800 p-2 rounded-lg mt-0.5">
+                    <MapPin className="h-4 w-4 text-slate-300" />
+                  </div>
+                  <div>
+                    <a
+                      href={SITE_MAPS_LINK_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-slate-300 text-sm leading-relaxed hover:text-secondary transition-colors"
+                    >
+                      {SITE_CONTACT.addressLines.map((line, i) => (
+                        <span key={i} className="block">{line}</span>
+                      ))}
                     </a>
                   </div>
                 </div>
@@ -303,7 +320,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <WhatsAppIcon className="h-4 w-4 text-green-500" />
                   </div>
                   <div>
-                    <a href="https://wa.me/919000001339" target="_blank" rel="noopener noreferrer" className="text-white font-medium hover:text-green-400 transition-colors text-sm">
+                    <a href={SITE_CONTACT.whatsappUrl} target="_blank" rel="noopener noreferrer" className="text-white font-medium hover:text-green-400 transition-colors text-sm">
                       WhatsApp Us
                     </a>
                     <p className="text-slate-500 text-xs mt-0.5">Quick Response</p>
@@ -314,7 +331,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <Clock className="h-4 w-4 text-slate-400" />
                   </div>
                   <div>
-                    <p className="text-slate-300 text-sm">Mon - Sat: 9:00 AM - 7:00 PM</p>
+                    <p className="text-slate-300 text-sm">{SITE_CONTACT.officeHoursFooter}</p>
                     <p className="text-slate-500 text-xs mt-0.5">Sunday Closed</p>
                   </div>
                 </div>

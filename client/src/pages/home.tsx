@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Layout from "@/components/layout";
+import { SITE_CONTACT } from "@/data/siteContact";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
@@ -291,11 +292,11 @@ export default function Home() {
 
               {/* Quick contact - hidden on mobile as floating buttons serve this purpose */}
               <div className="hidden md:flex flex-wrap items-center gap-6 pt-4 text-sm">
-                <a href="tel:+919876543210" className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors">
+                <a href={`tel:${SITE_CONTACT.phoneTel}`} className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors">
                   <Phone className="h-4 w-4" />
-                  <span>+91 98765 43210</span>
+                  <span>{SITE_CONTACT.phoneDisplay}</span>
                 </a>
-                <a href="https://wa.me/919876543210" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors">
+                <a href={SITE_CONTACT.whatsappUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors">
                   <MessageCircle className="h-4 w-4" />
                   <span>WhatsApp Us</span>
                 </a>
@@ -587,7 +588,7 @@ export default function Home() {
                     Get Free Consultation
                   </Button>
                 </Link>
-                <a href="tel:+919876543210">
+                <a href={`tel:${SITE_CONTACT.phoneTel}`}>
                   <Button size="lg" variant="outline" className="h-14 px-10 rounded-xl border-white/30 text-white hover:bg-white/10 font-bold text-lg w-full sm:w-auto">
                     <Phone className="mr-2 h-5 w-5" /> Call Now
                   </Button>
