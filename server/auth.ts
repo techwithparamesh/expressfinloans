@@ -14,6 +14,13 @@ export function configurePassport() {
         const user = await storage.getUserByUsername(username);
         if (!user) return done(null, false, { message: "Invalid username or password" });
         if (!verifyPassword(password, user.password)) return done(null, false, { message: "Invalid username or password" });
+        const inactive = Number((user as any).isActive ?? 1) === 0;
+        const resigned = String((user as any).employmentStatus || "").toLowerCase() === "resigned";
+        if (inactive || resigned) {
+          return done(null, false, {
+            message: "Your account access has been deactivated. Contact admin.",
+          });
+        }
         return done(null, toStaffUser(user));
       } catch (err) {
         return done(err);
@@ -26,6 +33,9 @@ export function configurePassport() {
     try {
       const user = await storage.getUser(id);
       if (!user) return done(null, null);
+      const inactive = Number((user as any).isActive ?? 1) === 0;
+      const resigned = String((user as any).employmentStatus || "").toLowerCase() === "resigned";
+      if (inactive || resigned) return done(null, null);
       return done(null, toStaffUser(user));
     } catch (err) {
       done(err);

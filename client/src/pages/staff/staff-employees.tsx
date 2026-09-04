@@ -53,6 +53,8 @@ type Employee = {
   location?: string | null;
   dateOfBirth?: string | null;
   gender?: string | null;
+  employmentStatus?: string | null;
+  isActive?: number | null;
 };
 
 type TeamLead = { id: string; username: string; fullName: string | null };
@@ -113,11 +115,15 @@ export default function StaffEmployees() {
     location: "",
     dateOfBirth: "",
     gender: "",
+    employmentStatus: "confirmed",
+    isActive: 1,
   });
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
   const [savingDelete, setSavingDelete] = useState(false);
   const [promoteEmployee, setPromoteEmployee] = useState<Employee | null>(null);
+  const [accessToggleEmployee, setAccessToggleEmployee] = useState<Employee | null>(null);
+  const [savingAccess, setSavingAccess] = useState(false);
   const [savingPromote, setSavingPromote] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -163,6 +169,8 @@ export default function StaffEmployees() {
       location: e.location ?? "",
       dateOfBirth: toYmd(e.dateOfBirth),
       gender: e.gender ?? "",
+      employmentStatus: e.employmentStatus || "confirmed",
+      isActive: Number(e.isActive ?? 1) === 1 ? 1 : 0,
     });
   }
 
@@ -186,6 +194,8 @@ export default function StaffEmployees() {
         location: editForm.location.trim() || null,
         dateOfBirth: toYmd(editForm.dateOfBirth) || null,
         gender: editForm.gender.trim() || null,
+        employmentStatus: editForm.employmentStatus || "confirmed",
+        isActive: editForm.isActive,
       };
       if (editEmployee.role === "employee") {
         payload.teamLeadId = editForm.teamLeadId.trim() || null;
@@ -203,6 +213,38 @@ export default function StaffEmployees() {
       toast({ title: err instanceof Error ? err.message : "Update failed", variant: "destructive" });
     } finally {
       setSavingEdit(false);
+    }
+  }
+
+  async function confirmAccessToggle() {
+    if (!accessToggleEmployee) return;
+    const currentlyActive = Number(accessToggleEmployee.isActive ?? 1) === 1;
+    setSavingAccess(true);
+    try {
+      const payload: Record<string, unknown> = {
+        isActive: currentlyActive ? 0 : 1,
+      };
+      // Reactivating also clears resigned status so they can log in again.
+      if (!currentlyActive) {
+        payload.employmentStatus =
+          accessToggleEmployee.employmentStatus === "resigned"
+            ? "confirmed"
+            : accessToggleEmployee.employmentStatus || "confirmed";
+      }
+      await staffJson<Employee>(`/staff/employees/${accessToggleEmployee.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      toast({
+        title: currentlyActive ? "Portal access deactivated" : "Portal access restored",
+      });
+      setAccessToggleEmployee(null);
+      loadList();
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Update failed", variant: "destructive" });
+    } finally {
+      setSavingAccess(false);
     }
   }
 
@@ -354,27 +396,38 @@ export default function StaffEmployees() {
                   <th className="text-left py-2 px-2 min-w-[80px]">Role</th>
                   <th className="text-left py-2 px-2 min-w-[100px]">Team lead</th>
                   <th className="text-left py-2 px-2 min-w-[72px]">Month target</th>
+                  <th className="text-left py-2 px-2 min-w-[90px]">Status</th>
+                  <th className="text-left py-2 px-2 min-w-[80px]">Access</th>
                   <th className="text-left py-2 px-2 min-w-[140px]">Email</th>
                   <th className="text-left py-2 px-2 min-w-[100px]">Phone</th>
-                  <th className="text-left py-2 px-2 min-w-[210px]">Actions</th>
+                  <th className="text-left py-2 px-2 min-w-[260px]">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {list.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-8 text-center text-slate-500">
+                    <td colSpan={11} className="py-8 text-center text-slate-500">
                       No employees yet. Add staff to get started.
                     </td>
                   </tr>
                 ) : (
-                  list.map((e) => (
-                    <tr key={e.id} className="border-b">
+                  list.map((e) => {
+                    const active = Number(e.isActive ?? 1) === 1;
+                    const status = (e.employmentStatus || "confirmed").replace(/_/g, " ");
+                    return (
+                    <tr key={e.id} className={`border-b ${!active ? "bg-slate-50 text-slate-500" : ""}`}>
                       <td className="py-2 px-2 font-medium">{e.employeeNumber ?? "—"}</td>
                       <td className="py-2 px-2">{e.fullName ?? "—"}</td>
                       <td className="py-2 px-2">{e.username}</td>
                       <td className="py-2 px-2">{roleLabel(e.role)}</td>
                       <td className="py-2 px-2">{e.teamLeadId ? (teamLeads.find((t) => t.id === e.teamLeadId)?.fullName || teamLeads.find((t) => t.id === e.teamLeadId)?.username || "—") : "—"}</td>
                       <td className="py-2 px-2">{e.monthlyLeadTarget ?? "—"}</td>
+                      <td className="py-2 px-2 capitalize">{status}</td>
+                      <td className="py-2 px-2">
+                        <span className={`inline-flex rounded px-2 py-0.5 text-xs font-medium ${active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700"}`}>
+                          {active ? "Active" : "Inactive"}
+                        </span>
+                      </td>
                       <td className="py-2 px-2">{e.email ?? "—"}</td>
                       <td className="py-2 px-2">{e.phone ?? "—"}</td>
                       <td className="py-2 px-2">
@@ -396,6 +449,14 @@ export default function StaffEmployees() {
                           <Button
                             variant="outline"
                             size="sm"
+                            className={active ? "text-amber-700 hover:bg-amber-50" : "text-green-700 hover:bg-green-50"}
+                            onClick={() => setAccessToggleEmployee(e)}
+                          >
+                            {active ? "Deactivate" : "Activate"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             className="text-red-600 hover:text-red-700 hover:bg-red-50"
                             onClick={() => setDeleteEmployee(e)}
                           >
@@ -404,7 +465,8 @@ export default function StaffEmployees() {
                         </div>
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -559,6 +621,31 @@ export default function StaffEmployees() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={!!accessToggleEmployee} onOpenChange={(open) => !open && setAccessToggleEmployee(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {Number(accessToggleEmployee?.isActive ?? 1) === 1 ? "Deactivate portal access?" : "Restore portal access?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {Number(accessToggleEmployee?.isActive ?? 1) === 1
+                ? `${accessToggleEmployee?.fullName || accessToggleEmployee?.username} will not be able to log in to the staff portal.`
+                : `${accessToggleEmployee?.fullName || accessToggleEmployee?.username} will be able to log in again.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmAccessToggle} disabled={savingAccess}>
+              {savingAccess
+                ? "Saving…"
+                : Number(accessToggleEmployee?.isActive ?? 1) === 1
+                  ? "Deactivate"
+                  : "Activate"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog open={!!editEmployee} onOpenChange={(open) => !open && setEditEmployee(null)}>
         <DialogContent>
           <DialogHeader>
@@ -691,6 +778,45 @@ export default function StaffEmployees() {
                         <SelectItem value="M">Male</SelectItem>
                         <SelectItem value="F">Female</SelectItem>
                         <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-employmentStatus">Employment status</Label>
+                    <Select
+                      value={editForm.employmentStatus || "confirmed"}
+                      onValueChange={(v) =>
+                        setEditForm((f) => ({
+                          ...f,
+                          employmentStatus: v,
+                          isActive: v === "resigned" ? 0 : f.isActive,
+                        }))
+                      }
+                    >
+                      <SelectTrigger id="edit-employmentStatus">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="probation">Probation</SelectItem>
+                        <SelectItem value="confirmed">Confirmed</SelectItem>
+                        <SelectItem value="resigned">Resigned</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-isActive">Portal access</Label>
+                    <Select
+                      value={String(editForm.isActive)}
+                      onValueChange={(v) => setEditForm((f) => ({ ...f, isActive: Number(v) }))}
+                    >
+                      <SelectTrigger id="edit-isActive">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Active (can login)</SelectItem>
+                        <SelectItem value="0">Inactive (blocked)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

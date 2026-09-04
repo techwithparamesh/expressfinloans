@@ -1,8 +1,30 @@
 export type GeoCoords = { latitude: number; longitude: number };
 
+function getPositionOnce(options: PositionOptions): Promise<GeoCoords> {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      },
+      reject,
+      options
+    );
+  });
+}
+
+function mapGeoError(err: GeolocationPositionError): Error {
+  if (err.code === err.PERMISSION_DENIED) {
+    return new Error("Location permission denied. Please tap Allow in app/browser permission popup.");
+  }
+  if (err.code === err.TIMEOUT) {
+    return new Error("Unable to get location (timeout). Please enable GPS and try again.");
+  }
+  return new Error("Unable to access location. Please enable location services and try again.");
+}
+
 /**
- * Request device location and return coordinates.
- * Throws a user-friendly Error when permission is denied/unavailable.
+ * Request device location (mandatory). Tries high accuracy first, then a looser
+ * fallback for weak signal — still throws if both fail.
  */
 export async function requireCurrentPosition(): Promise<GeoCoords> {
   if (!navigator?.geolocation) {
@@ -13,23 +35,25 @@ export async function requireCurrentPosition(): Promise<GeoCoords> {
     throw new Error("Location requires HTTPS or secure app context.");
   }
 
-  return new Promise<GeoCoords>((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-      },
-      (err) => {
-        if (err.code === err.PERMISSION_DENIED) {
-          reject(new Error("Location permission denied. Please tap Allow in app/browser permission popup."));
-          return;
-        }
-        if (err.code === err.TIMEOUT) {
-          reject(new Error("Unable to get location (timeout). Please enable GPS and try again."));
-          return;
-        }
-        reject(new Error("Unable to access location. Please enable location services and try again."));
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-    );
-  });
+  try {
+    return await getPositionOnce({
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 0,
+    });
+  } catch {
+    try {
+      return await getPositionOnce({
+        enableHighAccuracy: false,
+        timeout: 20000,
+        maximumAge: 60_000,
+      });
+    } catch (err) {
+      throw err instanceof GeolocationPositionError
+        ? mapGeoError(err)
+        : err instanceof Error
+          ? err
+          : new Error("Unable to access location. Please enable location services and try again.");
+    }
+  }
 }

@@ -61,7 +61,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser & { password: string }): Promise<User>;
-  updateUser(id: string, data: Partial<Pick<User, "role" | "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget" | "teamLeadId" | "designation" | "bankAccountNumber" | "bankIfsc" | "pan" | "uan" | "dateOfJoining" | "department" | "location" | "dateOfBirth" | "gender" | "employmentStatus" | "probationStartDate" | "confirmedAt">>): Promise<User | undefined>;
+  updateUser(id: string, data: Partial<Pick<User, "role" | "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget" | "teamLeadId" | "designation" | "bankAccountNumber" | "bankIfsc" | "pan" | "uan" | "dateOfJoining" | "department" | "location" | "dateOfBirth" | "gender" | "employmentStatus" | "probationStartDate" | "confirmedAt" | "isActive">>): Promise<User | undefined>;
   deleteUser(id: string): Promise<void>;
   getNextEmployeeNumber(): Promise<string>;
   backfillEmployeeNumbers(): Promise<void>;
@@ -207,6 +207,30 @@ function isSecondSaturdayDateString(dateStr: string): boolean {
   return d.getDay() === 6 && d.getDate() >= 8 && d.getDate() <= 14;
 }
 
+/** Normalize DB date (string or JS Date from mysql2) to YYYY-MM-DD for MySQL DATE queries. */
+function toDateStr(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") {
+    const s = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    const d = new Date(s);
+    if (!Number.isNaN(d.getTime())) {
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(d.getUTCDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+    return "";
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const y = value.getUTCFullYear();
+    const m = String(value.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(value.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+  return "";
+}
+
 export class DrizzleStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
     await guardDb();
@@ -283,7 +307,7 @@ export class DrizzleStorage implements IStorage {
 
   async updateUser(
     id: string,
-    data: Partial<Pick<User, "role" | "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget" | "teamLeadId" | "designation" | "bankAccountNumber" | "bankIfsc" | "pan" | "uan" | "dateOfJoining" | "department" | "location" | "dateOfBirth" | "gender" | "employmentStatus" | "probationStartDate" | "confirmedAt">>
+    data: Partial<Pick<User, "role" | "fullName" | "email" | "phone" | "password" | "avatarUrl" | "monthlyLeadTarget" | "teamLeadId" | "designation" | "bankAccountNumber" | "bankIfsc" | "pan" | "uan" | "dateOfJoining" | "department" | "location" | "dateOfBirth" | "gender" | "employmentStatus" | "probationStartDate" | "confirmedAt" | "isActive">>
   ): Promise<User | undefined> {
     await guardDb();
     const payload: Record<string, unknown> = { ...data };
@@ -567,9 +591,11 @@ export class DrizzleStorage implements IStorage {
     const lead = await this.getLead(id);
     if (lead) {
       await db.delete(leads).where(eq(leads.id, id));
-      const dateStr = (lead.date as unknown as string).slice?.(0, 10) ?? String(lead.date);
-      const count = await this.getLeadsCountForEmployeeOnDate(lead.employeeId, dateStr);
-      await this.updateAttendanceFromLeadsCount(lead.employeeId, dateStr, count);
+      const dateStr = toDateStr(lead.date);
+      if (dateStr) {
+        const count = await this.getLeadsCountForEmployeeOnDate(lead.employeeId, dateStr);
+        await this.updateAttendanceFromLeadsCount(lead.employeeId, dateStr, count);
+      }
     }
   }
 

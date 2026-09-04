@@ -522,9 +522,13 @@ export async function registerRoutes(
 
   // --- Auth (no auth required) ---
   app.post("/api/auth/login", (req, res, next) => {
-    passport.authenticate("local", (err: Error | null, user: Express.User | false) => {
+    passport.authenticate("local", (err: Error | null, user: Express.User | false, info?: { message?: string }) => {
       if (err) return next(err);
-      if (!user) return res.status(401).json({ message: "Invalid username or password" });
+      if (!user) {
+        return res.status(401).json({
+          message: info?.message || "Invalid username or password",
+        });
+      }
       req.login(user, (loginErr) => {
         if (loginErr) return next(loginErr);
         return res.json({ user });
@@ -565,24 +569,18 @@ export async function registerRoutes(
       const lng = body.longitude != null ? Number(body.longitude) : NaN;
       const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
 
-      if (hasCoords) {
-        loginLat = String(lat);
-        loginLng = String(lng);
-        try {
-          loginLocation = await reverseGeocode(lat, lng);
-        } catch {
-          loginLocation = null;
-        }
-        if (!loginLocation) loginLocation = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-      } else {
-        const isLocalhost = !clientIp || clientIp === "::1" || clientIp === "127.0.0.1" || clientIp.startsWith("127.");
-        if (isLocalhost) {
-          loginLocation = "Location not captured (allow browser location when logging in for address)";
-        } else {
-          loginLocation = await getLocationFromIp(clientIp);
-          if (!loginLocation && clientIp) loginLocation = `IP: ${clientIp}`;
-        }
+      if (!hasCoords) {
+        return res.status(400).json({ message: "Location is required. Enable GPS and try again." });
       }
+
+      loginLat = String(lat);
+      loginLng = String(lng);
+      try {
+        loginLocation = await reverseGeocode(lat, lng);
+      } catch {
+        loginLocation = null;
+      }
+      if (!loginLocation) loginLocation = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 
       const log = await storage.setAttendanceLogin(userId, dateStr, {
         loginLocation: loginLocation || null,
@@ -619,24 +617,18 @@ export async function registerRoutes(
       const lng = body.longitude != null ? Number(body.longitude) : NaN;
       const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
 
-      if (hasCoords) {
-        logoutLat = String(lat);
-        logoutLng = String(lng);
-        try {
-          logoutLocation = await reverseGeocode(lat, lng);
-        } catch {
-          logoutLocation = null;
-        }
-        if (!logoutLocation) logoutLocation = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-      } else {
-        const isLocalhost = !clientIp || clientIp === "::1" || clientIp === "127.0.0.1" || clientIp.startsWith("127.");
-        if (isLocalhost) {
-          logoutLocation = "Location not captured (allow browser location when logging out for address)";
-        } else {
-          logoutLocation = await getLocationFromIp(clientIp);
-          if (!logoutLocation && clientIp) logoutLocation = `IP: ${clientIp}`;
-        }
+      if (!hasCoords) {
+        return res.status(400).json({ message: "Location is required. Enable GPS and try again." });
       }
+
+      logoutLat = String(lat);
+      logoutLng = String(lng);
+      try {
+        logoutLocation = await reverseGeocode(lat, lng);
+      } catch {
+        logoutLocation = null;
+      }
+      if (!logoutLocation) logoutLocation = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 
       const log = await storage.setAttendanceLogout(userId, dateStr, {
         logoutLocation: logoutLocation || null,
@@ -2066,7 +2058,10 @@ export async function registerRoutes(
         status: decision === "approved" ? "approved" : "rejected_by_admin",
       } as any);
       if (decision === "approved") {
-        await storage.updateUser(row.employeeId, { employmentStatus: "resigned" as any });
+        await storage.updateUser(row.employeeId, {
+          employmentStatus: "resigned" as any,
+          isActive: 0 as any,
+        });
       }
       return res.json(updated);
     } catch (e) {
@@ -2583,16 +2578,34 @@ export async function registerRoutes(
 
   app.post("/api/staff/targets/employees", requireAuth, requireAdminOrTeamLead, async (req, res, next) => {
     try {
-      const body = req.body as { month?: number; year?: number; employeeTargets?: Array<{ userId: string; assignedBudget: number | string; assignedLeads: number }> };
+      const body = req.body as {
+        month?: number;
+        year?: number;
+        leaderId?: string;
+        employeeTargets?: Array<{ userId: string; assignedBudget: number | string; assignedLeads: number }>;
+      };
       const month = Number(body?.month);
       const year = Number(body?.year);
-      const leaderId = (req.user as any).id;
       const role = (req.user as any).role;
+      const actorId = (req.user as any).id as string;
       if (role !== "admin" && role !== "team_lead") {
         return res.status(403).json({ message: "Only admin or leader can allocate" });
       }
       if (Number.isNaN(month) || Number.isNaN(year)) {
         return res.status(400).json({ message: "Valid month and year required" });
+      }
+      const leaderId =
+        role === "admin" && typeof body.leaderId === "string" && body.leaderId.trim()
+          ? body.leaderId.trim()
+          : actorId;
+      if (role === "team_lead" && leaderId !== actorId) {
+        return res.status(403).json({ message: "Can only allocate to your own team" });
+      }
+      if (role === "admin") {
+        const leader = await storage.getUser(leaderId);
+        if (!leader || (leader as any).role !== "team_lead") {
+          return res.status(400).json({ message: "Valid team lead required" });
+        }
       }
       const leaderTarget = await storage.getMonthlyTarget(leaderId, month, year);
       const leaderBudget = getTargetBudget(leaderTarget);
@@ -2608,10 +2621,12 @@ export async function registerRoutes(
         sumBudget += parseAmount(et.assignedBudget);
         sumLeads += Number(et.assignedLeads) || 0;
       }
+      // When leads target is 0 for the leader, only budget must match.
       const budgetMatch = Math.abs(sumBudget - leaderBudget) < 0.01;
-      if (!budgetMatch || sumLeads !== leaderLeads) {
+      const leadsMatch = leaderLeads === 0 ? sumLeads === 0 : sumLeads === leaderLeads;
+      if (!budgetMatch || !leadsMatch) {
         return res.status(400).json({
-          message: "Sum of employee budgets must equal your assigned budget and sum of leads must equal your assigned leads",
+          message: "Sum of employee budgets must equal the team lead’s assigned budget",
           leaderBudget,
           leaderLeads,
           sumBudget,
@@ -2625,7 +2640,7 @@ export async function registerRoutes(
           year,
           assignedBudget: et.assignedBudget,
           assignedLeads: Number(et.assignedLeads) || 0,
-          createdBy: leaderId,
+          createdBy: actorId,
         });
       }
       res.json({ ok: true });
@@ -2873,7 +2888,15 @@ export async function registerRoutes(
         if (body.gender !== undefined) data.gender = typeof body.gender === "string" ? body.gender.trim() || null : null;
         if (body.employmentStatus !== undefined) {
           const v = String(body.employmentStatus || "").trim().toLowerCase();
-          if (["probation", "confirmed", "resigned"].includes(v)) data.employmentStatus = v;
+          if (["probation", "confirmed", "resigned"].includes(v)) {
+            data.employmentStatus = v;
+            // Resigning also revokes portal access; restoring to probation/confirmed reactivates.
+            if (v === "resigned") data.isActive = 0;
+            else if (body.isActive === undefined) data.isActive = 1;
+          }
+        }
+        if (body.isActive !== undefined) {
+          data.isActive = Number(body.isActive) ? 1 : 0;
         }
         if (body.probationStartDate !== undefined) {
           data.probationStartDate = normalizeYmd(body.probationStartDate);
@@ -2926,6 +2949,7 @@ export async function registerRoutes(
         employmentStatus: (updated as any).employmentStatus ?? null,
         probationStartDate: (updated as any).probationStartDate ?? null,
         confirmedAt: (updated as any).confirmedAt ?? null,
+        isActive: Number((updated as any).isActive ?? 1),
       });
     } catch (e) {
       next(e);
@@ -3039,6 +3063,7 @@ export async function registerRoutes(
           employmentStatus: (u as any).employmentStatus ?? null,
           probationStartDate: (u as any).probationStartDate ?? null,
           confirmedAt: (u as any).confirmedAt ?? null,
+          isActive: Number((u as any).isActive ?? 1),
         }))
       );
     } catch (e) {

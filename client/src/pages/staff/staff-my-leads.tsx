@@ -420,6 +420,11 @@ export default function StaffMyLeads() {
       setLoanForm(defaultLoanForm());
       setInsuranceForm(defaultInsuranceForm());
       setOpen(true);
+    } catch (err) {
+      toast({
+        title: err instanceof Error ? err.message : "Location is required to add a lead",
+        variant: "destructive",
+      });
     } finally {
       setGettingLocationForForm(false);
     }

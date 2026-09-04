@@ -115,14 +115,43 @@ export default function StaffTargetAllocation() {
   const leaderBudgetRemain = totalBudget - leaderSumBudget;
 
   const [leaderMyBudget, setLeaderMyBudget] = useState(0);
+  const [adminTeamLeadId, setAdminTeamLeadId] = useState<string>("");
+  const [adminTeamEmployees, setAdminTeamEmployees] = useState<EmployeeRow[]>([]);
+  const [adminTeamLeaderBudget, setAdminTeamLeaderBudget] = useState(0);
+  const [loadingAdminTeam, setLoadingAdminTeam] = useState(false);
   useEffect(() => {
     if (!isLeader || !user) return;
     staffJson<{ assignedBudget: string; assignedLeads: number }>(`/staff/targets/performance?month=${month}&year=${year}&userId=${user.id}`)
       .then((r) => setLeaderMyBudget(parseFloat(r.assignedBudget) || 0))
       .catch(() => setLeaderMyBudget(0));
   }, [isLeader, user, month, year]);
+
+  useEffect(() => {
+    if (!isAdmin || !adminTeamLeadId) {
+      setAdminTeamEmployees([]);
+      setAdminTeamLeaderBudget(0);
+      return;
+    }
+    setLoadingAdminTeam(true);
+    const q = `month=${month}&year=${year}&leaderId=${encodeURIComponent(adminTeamLeadId)}`;
+    Promise.all([
+      staffJson<{ employees: EmployeeRow[] }>(`/staff/targets/employees?${q}`).then((r) => r.employees).catch(() => []),
+      staffJson<{ assignedBudget: string }>(`/staff/targets/performance?month=${month}&year=${year}&userId=${encodeURIComponent(adminTeamLeadId)}`)
+        .then((r) => parseFloat(r.assignedBudget) || 0)
+        .catch(() => 0),
+    ])
+      .then(([emps, budget]) => {
+        setAdminTeamEmployees(emps);
+        setAdminTeamLeaderBudget(budget);
+      })
+      .finally(() => setLoadingAdminTeam(false));
+  }, [isAdmin, adminTeamLeadId, month, year]);
+
   const employeeValid = !isLeader || Math.abs(employeeSumBudget - leaderMyBudget) < 0.01;
   const employeeBudgetRemain = isLeader ? leaderMyBudget - employeeSumBudget : 0;
+  const adminTeamSumBudget = adminTeamEmployees.reduce((s, r) => s + (parseFloat(r.assignedBudget) || 0), 0);
+  const adminTeamValid = Math.abs(adminTeamSumBudget - adminTeamLeaderBudget) < 0.01;
+  const adminTeamRemain = adminTeamLeaderBudget - adminTeamSumBudget;
 
   async function saveCompany() {
     if (!isAdmin) return;
@@ -217,6 +246,32 @@ export default function StaffTargetAllocation() {
     }
   }
 
+  async function saveAdminTeamEmployees() {
+    if (!isAdmin || !adminTeamLeadId || !adminTeamValid) return;
+    setSaving(true);
+    try {
+      await staffJson("/staff/targets/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          month,
+          year,
+          leaderId: adminTeamLeadId,
+          employeeTargets: adminTeamEmployees.map((e) => ({
+            userId: e.userId,
+            assignedBudget: parseFloat(e.assignedBudget) || 0,
+            assignedLeads: 0,
+          })),
+        }),
+      });
+      toast({ title: "Team employee targets saved" });
+    } catch (e) {
+      toast({ title: e instanceof Error ? e.message : "Failed", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function toggleLock() {
     if (!isAdmin) return;
     setSaving(true);
@@ -256,6 +311,12 @@ export default function StaffTargetAllocation() {
   }
   const updateEmployee = (userId: string, field: "assignedBudget" | "assignedLeads", value: string | number) => {
     setEmployees((prev) =>
+      prev.map((r) => (r.userId === userId ? { ...r, [field]: value } : r))
+    );
+  };
+
+  const updateAdminTeamEmployee = (userId: string, field: "assignedBudget" | "assignedLeads", value: string | number) => {
+    setAdminTeamEmployees((prev) =>
       prev.map((r) => (r.userId === userId ? { ...r, [field]: value } : r))
     );
   };
@@ -330,9 +391,9 @@ export default function StaffTargetAllocation() {
       {isAdmin && leaders.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 2: Split to leaders</CardTitle>
+            <CardTitle>Step 2: Team lead target allocation</CardTitle>
             <CardDescription>
-              Sum of leader budgets must equal company budget ({totalBudget.toLocaleString("en-IN")} ₹).
+              Assign each team lead their team budget for the month. Sum must equal company budget (₹ {totalBudget.toLocaleString("en-IN")}).
             </CardDescription>
             <div className="text-sm font-medium mt-2">
               Remaining: ₹ {leaderBudgetRemain.toLocaleString("en-IN")}
@@ -364,13 +425,77 @@ export default function StaffTargetAllocation() {
                   value={l.assignedBudget}
                   onChange={(e) => updateLeader(l.userId, "assignedBudget", e.target.value)}
                   disabled={!!isLocked}
-                  placeholder="Budget (₹)"
+                  placeholder="Team budget (₹)"
                 />
               </div>
             ))}
             <Button onClick={saveLeaders} disabled={saving || !leaderValid || !!isLocked}>
-              Save leader targets
+              Save team lead targets
             </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {isAdmin && leaders.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Step 3 (optional): Split a team lead’s budget to their employees</CardTitle>
+            <CardDescription>
+              Select a team lead to allocate their assigned budget across their team members (same as the team lead would do).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="max-w-sm">
+              <Label>Team lead</Label>
+              <Select value={adminTeamLeadId || undefined} onValueChange={setAdminTeamLeadId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select team lead" />
+                </SelectTrigger>
+                <SelectContent>
+                  {leaders.map((l) => (
+                    <SelectItem key={l.userId} value={l.userId}>
+                      {l.fullName || l.username}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {adminTeamLeadId && (
+              <>
+                <div className="text-sm font-medium">
+                  Team lead budget: ₹ {adminTeamLeaderBudget.toLocaleString("en-IN")} · Remaining: ₹{" "}
+                  {adminTeamRemain.toLocaleString("en-IN")}
+                  {!adminTeamValid && <span className="text-amber-600 ml-2">(Must match to save)</span>}
+                </div>
+                {loadingAdminTeam ? (
+                  <p className="text-sm text-slate-500">Loading team…</p>
+                ) : adminTeamEmployees.length === 0 ? (
+                  <p className="text-sm text-slate-500">No employees under this team lead.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {adminTeamEmployees.map((e) => (
+                      <div key={e.userId} className="flex flex-wrap items-center gap-2 border-b pb-2">
+                        <span className="font-medium min-w-[140px]">
+                          {e.fullName || e.username} {e.employeeNumber && `(${e.employeeNumber})`}
+                        </span>
+                        <Input
+                          type="number"
+                          min={0}
+                          className="w-40"
+                          value={e.assignedBudget}
+                          onChange={(ev) => updateAdminTeamEmployee(e.userId, "assignedBudget", ev.target.value)}
+                          disabled={!!isLocked}
+                          placeholder="Budget (₹)"
+                        />
+                      </div>
+                    ))}
+                    <Button onClick={saveAdminTeamEmployees} disabled={saving || !adminTeamValid || !!isLocked}>
+                      Save employee targets for this team
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
           </CardContent>
         </Card>
       )}
@@ -409,7 +534,9 @@ export default function StaffTargetAllocation() {
       {isAdmin && (
         <Card>
           <CardContent className="py-4">
-            <p className="text-sm text-slate-600">Leaders split targets to their team from this same page (Target allocation) when logged in as Leader.</p>
+            <p className="text-sm text-slate-600">
+              Flow: Company target → Team lead targets (Step 2) → Split to employees (Step 3, or by the team lead on this page).
+            </p>
           </CardContent>
         </Card>
       )}
