@@ -55,13 +55,9 @@ import {
 } from "@shared/schema";
 import { eq, and, desc, gte, lte, isNull, isNotNull, inArray, sql } from "drizzle-orm";
 
-/**
- * A lead's "effective" date: disbursed date for disbursed leads, sanctioned date for
- * sanctioned leads, otherwise the date the lead was logged.
- */
+/** A lead's "effective" date: disbursed date for disbursed leads, otherwise the date the lead was logged. */
 const leadEffectiveDate = sql`(CASE
   WHEN LOWER(${leads.status}) = 'disbursed' AND ${leads.loanDisbursedAt} IS NOT NULL THEN ${leads.loanDisbursedAt}
-  WHEN LOWER(${leads.status}) = 'sanctioned' AND ${leads.loanSanctionedAt} IS NOT NULL THEN ${leads.loanSanctionedAt}
   ELSE ${leads.date}
 END)`;
 import { db, hasDb } from "./db";

@@ -483,14 +483,6 @@ export default function StaffMyLeads() {
       toast({ title: "Bank logged is required", variant: "destructive" });
       return;
     }
-    if (!loanForm.loanSanctionedAt?.trim()) {
-      toast({ title: "Loan sanctioned date is required", variant: "destructive" });
-      return;
-    }
-    if (!loanForm.loanDisbursedAt?.trim()) {
-      toast({ title: "Loan disbursed date is required", variant: "destructive" });
-      return;
-    }
     if (loanForm.loanSanctionedAt && loanForm.loanDisbursedAt && loanForm.loanDisbursedAt < loanForm.loanSanctionedAt) {
       toast({ title: "Loan disbursed date cannot be before the sanctioned date", variant: "destructive" });
       return;
@@ -1333,7 +1325,7 @@ export default function StaffMyLeads() {
                         <tbody>
                           <tr className="border-b">
                             <td className="py-2 px-3 font-medium">
-                              Loan Sanctioned <span className="text-red-500">*</span>
+                              Loan Sanctioned
                             </td>
                             <td className="py-2 px-3">
                               <DateInput
@@ -1350,7 +1342,7 @@ export default function StaffMyLeads() {
                           </tr>
                           <tr>
                             <td className="py-2 px-3 font-medium">
-                              Loan Disbursed <span className="text-red-500">*</span>
+                              Loan Disbursed
                             </td>
                             <td className="py-2 px-3">
                               <DateInput

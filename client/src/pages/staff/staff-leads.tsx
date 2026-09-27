@@ -232,14 +232,6 @@ export default function StaffLeads() {
       toast({ title: "Bank logged is required", variant: "destructive" });
       return;
     }
-    if (!leadForm.loanSanctionedAt) {
-      toast({ title: "Loan sanctioned date is required", variant: "destructive" });
-      return;
-    }
-    if (!leadForm.loanDisbursedAt) {
-      toast({ title: "Loan disbursed date is required", variant: "destructive" });
-      return;
-    }
     if (leadForm.loanSanctionedAt && leadForm.loanDisbursedAt && leadForm.loanDisbursedAt < leadForm.loanSanctionedAt) {
       toast({ title: "Loan disbursed date cannot be before the sanctioned date", variant: "destructive" });
       return;
@@ -688,13 +680,13 @@ export default function StaffLeads() {
                 </div>
                 <div className="space-y-2">
                   <Label>
-                    Loan sanctioned date <span className="text-red-500">*</span>
+                    Loan sanctioned date
                   </Label>
                   <DateInput value={leadForm.loanSanctionedAt} onChange={(e) => setLeadForm((f) => ({ ...f, loanSanctionedAt: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
                   <Label>
-                    Loan disbursed date <span className="text-red-500">*</span>
+                    Loan disbursed date
                   </Label>
                   <DateInput value={leadForm.loanDisbursedAt} onChange={(e) => setLeadForm((f) => ({ ...f, loanDisbursedAt: e.target.value }))} />
                 </div>
