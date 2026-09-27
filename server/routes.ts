@@ -292,6 +292,25 @@ function validateLeadStageFields(v: {
   return null;
 }
 
+/**
+ * Sanction amount for a period: every lead still in "sanctioned" status logged on or before
+ * `toDate` (carried forward until disbursed) plus leads disbursed within the period.
+ */
+async function getSanctionAmountForPeriod(employeeId: string, fromDate: string, toDate: string): Promise<number> {
+  const list = await storage.getLeadsByEmployee(employeeId, undefined, toDate);
+  let total = 0;
+  for (const l of list) {
+    const s = (l.status || "").toLowerCase().trim();
+    if (s === "sanctioned") {
+      total += getLeadAmount(l as any);
+    } else if (s === "disbursed") {
+      const dAt = toDateStr((l as any).loanDisbursedAt) || toDateStr(l.date);
+      if (dAt >= fromDate && dAt <= toDate) total += getLeadAmount(l as any);
+    }
+  }
+  return total;
+}
+
 type ProductionRow = {
   employeeId: string;
   employeeName: string;
@@ -2382,11 +2401,7 @@ export async function registerRoutes(
           const converted = empLeads.filter((l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned").length;
           teamLeadsConverted += converted;
           teamLeadsOpen += empLeads.filter((l) => (l.status || "").toLowerCase() === "open").length;
-          empLeads.forEach((l) => {
-            if ((l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned") {
-              teamSanctionAmount += getLeadAmount(l as any);
-            }
-          });
+          teamSanctionAmount += await getSanctionAmountForPeriod(emp.id, from, to);
         }
         const achievementPct = overallTarget > 0 ? Math.round((teamLeadsThisMonth / overallTarget) * 100) : 0;
         const jointVisits = await storage.getJointVisitsCount(userId, from, to);
@@ -2417,12 +2432,7 @@ export async function registerRoutes(
       const overallLeadsGenerated = leads.length;
       const leadsConverted = leads.filter((l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned").length;
       const leadsOpen = leads.filter((l) => (l.status || "").toLowerCase() === "open").length;
-      let sanctionAmount = 0;
-      leads.forEach((l) => {
-        if ((l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned") {
-          sanctionAmount += getLeadAmount(l as any);
-        }
-      });
+      const sanctionAmount = await getSanctionAmountForPeriod(userId, from, to);
       const achievement = overallLeadsGenerated;
       const achievementPct = monthTarget > 0 ? Math.round((achievement / monthTarget) * 100) : 0;
       const budgetAchievementPct = monthTarget > 0 ? Math.round((leadsConverted / monthTarget) * 100) : 0;
@@ -4554,7 +4564,10 @@ export async function registerRoutes(
         const loggedValue = leadsList
           .filter((l) => getLeadStatus(l as any) === "logged")
           .reduce((sum, l) => sum + getLeadRequestAmount(l as any), 0);
-        const sanctionedValue = leadsList
+        const leadIdsInRange = new Set(leadsList.map((l) => l.id));
+        const carriedSanctioned = (await storage.getLeadsByEmployee(uid, undefined, monthStart))
+          .filter((l) => getLeadStatus(l as any) === "sanctioned" && !leadIdsInRange.has(l.id));
+        const sanctionedValue = [...leadsList, ...carriedSanctioned]
           .filter((l) => getLeadStatus(l as any) === "sanctioned")
           .reduce((sum, l) => sum + getLeadRequestAmount(l as any), 0);
         const disbursedValue = leadsList
@@ -4565,7 +4578,7 @@ export async function registerRoutes(
           const v = (i as any).premiumCollected ?? (i as any).premium_collected ?? (i as any).premiumQuoted ?? (i as any).premium_quoted;
           return sum + parseAmount(v);
         }, 0);
-        // Summary row sources (all from DB): budget=company_monthly_target.totalBudget (admin) or sum(monthly_targets.assignedBudget) (team); achievement/disbursedValue=leads.loan_disbursed/amount where status=disbursed; ftdLoansValue=leads.amount where date=today; mtdLoansValue=leads.amount in range; loggedValue/sanctionedValue=leads.amount where status=logged/sanctioned; mtdInsuranceValue=insurance_leads.premium_collected|premium_quoted; overallLeads=count(leads)+count(insurance_leads); daysPresent=attendance_logs count; leaveDays=approved leave_requests in range.
+        // Summary row sources (all from DB): budget=company_monthly_target.totalBudget (admin) or sum(monthly_targets.assignedBudget) (team); achievement/disbursedValue=leads.loan_disbursed/amount where status=disbursed; ftdLoansValue=leads.amount where date=today; mtdLoansValue=leads.amount in range; loggedValue=leads.amount where status=logged; sanctionedValue=leads.amount where status=sanctioned, including sanctioned leads from earlier months (carried forward until disbursed); mtdInsuranceValue=insurance_leads.premium_collected|premium_quoted; overallLeads=count(leads)+count(insurance_leads); daysPresent=attendance_logs count; leaveDays=approved leave_requests in range.
         rows.push({
           employeeId: uid,
           employeeNumber: empNum,
@@ -4589,7 +4602,7 @@ export async function registerRoutes(
           disbursedValue,
           mtdInsuranceValue,
         });
-        for (const l of leadsList) {
+        for (const l of [...leadsList, ...carriedSanctioned]) {
           const lAny = l as Record<string, unknown>;
           leadRows.push({
             employeeNumber: empNum,
