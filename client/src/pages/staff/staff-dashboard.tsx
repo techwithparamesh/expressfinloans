@@ -207,6 +207,7 @@ type ProductionRow = {
   employeeNumber: string;
   logged: number;
   sanctioned: number;
+  sanctionedTillDate?: number;
   disbursed: number;
   disbursedTillDate?: number;
   mtd: number;
@@ -218,7 +219,7 @@ type ProductionGroup = {
   rhNumber: string;
   self: ProductionRow | null;
   members: ProductionRow[];
-  total: { logged: number; sanctioned: number; disbursed: number; disbursedTillDate?: number; mtd: number };
+  total: { logged: number; sanctioned: number; sanctionedTillDate?: number; disbursed: number; disbursedTillDate?: number; mtd: number };
 };
 
 type EmployeeOption = {
@@ -819,8 +820,9 @@ export default function StaffDashboard() {
                       <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-left font-semibold">RH Name</th>
                       <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-left font-semibold">SM Name</th>
                       <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Logged</th>
-                      <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Sanctioned</th>
-                      <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Disbursed</th>
+                      <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Sanctioned (pending)</th>
+                      <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Total sanctioned (till date)</th>
+                      <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Disbursed (this month)</th>
                       <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Total disbursed (till date)</th>
                       <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Total leads</th>
                     </tr>
@@ -841,6 +843,7 @@ export default function StaffDashboard() {
                         </td>
                         <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.logged)}</td>
                         <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.sanctioned)}</td>
+                        <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.sanctionedTillDate ?? 0)}</td>
                         <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.disbursed)}</td>
                         <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.disbursedTillDate ?? 0)}</td>
                         <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{r.mtd}</td>
@@ -850,6 +853,7 @@ export default function StaffDashboard() {
                       <td className="border border-slate-300 px-3 py-2 text-center font-semibold">Total</td>
                       <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.logged)}</td>
                       <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.sanctioned)}</td>
+                      <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.sanctionedTillDate ?? 0)}</td>
                       <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.disbursed)}</td>
                       <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.disbursedTillDate ?? 0)}</td>
                       <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{group.total.mtd}</td>

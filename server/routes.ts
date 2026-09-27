@@ -254,6 +254,20 @@ function getLeadSanctionAmount(lead: { loanDisbursed?: string | null; amount?: s
 }
 
 /**
+ * Date a lead reached the sanctioned stage (sanctioned or disbursed leads only), else "".
+ * Uses the sanctioned date, then the disbursed date, then the date the lead was logged.
+ */
+function getLeadSanctionDate(lead: { status?: string | null; date?: unknown; loanSanctionedAt?: unknown; loanDisbursedAt?: unknown }): string {
+  const s = String(lead.status ?? "").toLowerCase().trim();
+  if (s !== "sanctioned" && s !== "disbursed") return "";
+  return (
+    toDateStr((lead as any).loanSanctionedAt ?? (lead as any).loan_sanctioned_at) ||
+    (s === "disbursed" ? toDateStr((lead as any).loanDisbursedAt ?? (lead as any).loan_disbursed_at) : "") ||
+    toDateStr(lead.date)
+  );
+}
+
+/**
  * Lead customer DOB / business incorporation date: must be a valid, non-future date.
  * No minimum/maximum age limit (businesses can be incorporated recently).
  */
@@ -331,6 +345,7 @@ type ProductionRow = {
   employeeNumber: string;
   logged: number;
   sanctioned: number;
+  sanctionedTillDate: number;
   disbursed: number;
   disbursedTillDate: number;
   mtd: number;
@@ -341,7 +356,7 @@ type ProductionGroup = {
   rhNumber: string;
   self: ProductionRow | null;
   members: ProductionRow[];
-  total: { logged: number; sanctioned: number; disbursed: number; disbursedTillDate: number; mtd: number };
+  total: { logged: number; sanctioned: number; sanctionedTillDate: number; disbursed: number; disbursedTillDate: number; mtd: number };
 };
 
 /**
@@ -374,10 +389,13 @@ async function buildProductionHierarchy(fromDate: string, toDate: string): Promi
     let sanctioned = 0;
     let disbursed = 0;
     let disbursedTillDate = 0;
+    let sanctionedTillDate = 0;
     let count = 0;
     for (const l of ls) {
       const s = (l.status || "").toLowerCase().trim();
       const logDate = toDateStr(l.date);
+      const sanctionDate = getLeadSanctionDate(l as any);
+      if (sanctionDate && sanctionDate <= toDate) sanctionedTillDate += getLeadSanctionAmount(l as any);
       if (s === "disbursed") {
         // Counted once, in the month it was disbursed (no carry forward).
         const dAtRaw = (l as any).loanDisbursedAt ?? (l as any).loan_disbursed_at;
@@ -413,6 +431,7 @@ async function buildProductionHierarchy(fromDate: string, toDate: string): Promi
       employeeNumber: byId[uId]?.number ?? "",
       logged,
       sanctioned,
+      sanctionedTillDate,
       disbursed,
       disbursedTillDate,
       mtd: count,
@@ -423,11 +442,12 @@ async function buildProductionHierarchy(fromDate: string, toDate: string): Promi
       (t, r) => ({
         logged: t.logged + r.logged,
         sanctioned: t.sanctioned + r.sanctioned,
+        sanctionedTillDate: t.sanctionedTillDate + r.sanctionedTillDate,
         disbursed: t.disbursed + r.disbursed,
         disbursedTillDate: t.disbursedTillDate + r.disbursedTillDate,
         mtd: t.mtd + r.mtd,
       }),
-      { logged: 0, sanctioned: 0, disbursed: 0, disbursedTillDate: 0, mtd: 0 }
+      { logged: 0, sanctioned: 0, sanctionedTillDate: 0, disbursed: 0, disbursedTillDate: 0, mtd: 0 }
     );
   const teamLeads = await storage.listTeamLeads();
   const teamLeadIdSet = new Set(teamLeads.map((t) => t.id));
@@ -4547,7 +4567,7 @@ export async function registerRoutes(
       };
       const todayStr = new Date().toISOString().slice(0, 10);
       const roleLabel = (r: string) => (r === "team_lead" ? "Team leader" : r === "admin" ? "Admin" : "Employee");
-      const rows: { employeeId: string; employeeNumber: string; name: string; role: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number; disbursedAmount: number; ftdLeads: number; overallLeads: number; loggedCount: number; disbursedCount: number; budget: number; achievement: number; ftdLoansValue: number; mtdLoansValue: number; loggedValue: number; sanctionedValue: number; disbursedValue: number; totalDisbursedValue: number; mtdInsuranceValue: number }[] = [];
+      const rows: { employeeId: string; employeeNumber: string; name: string; role: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number; disbursedAmount: number; ftdLeads: number; overallLeads: number; loggedCount: number; disbursedCount: number; budget: number; achievement: number; ftdLoansValue: number; mtdLoansValue: number; loggedValue: number; sanctionedValue: number; totalSanctionedValue: number; disbursedValue: number; totalDisbursedValue: number; mtdInsuranceValue: number }[] = [];
       const leadRows: Record<string, string>[] = [];
       const insuranceRows: Record<string, string>[] = [];
       const attendanceRows: { employeeNumber: string; employeeName: string; date: string; loginAt: string; logoutAt: string; status: string; loginLocation: string; logoutLocation: string; leadsCount: number }[] = [];
@@ -4595,6 +4615,12 @@ export async function registerRoutes(
         const totalDisbursedValue = leadsUpToEnd
           .filter((l) => getLeadStatus(l as any) === "disbursed" && leadEffectiveDateStr(l) <= monthEnd)
           .reduce((sum, l) => sum + getLeadAmount(l as any), 0);
+        const totalSanctionedValue = leadsUpToEnd
+          .filter((l) => {
+            const sd = getLeadSanctionDate(l as any);
+            return !!sd && sd <= monthEnd;
+          })
+          .reduce((sum, l) => sum + getLeadSanctionAmount(l as any), 0);
         const sanctionedValue = [...leadsList, ...carriedSanctioned]
           .filter((l) => getLeadStatus(l as any) === "sanctioned")
           .reduce((sum, l) => sum + getLeadSanctionAmount(l as any), 0);
@@ -4606,7 +4632,7 @@ export async function registerRoutes(
           const v = (i as any).premiumCollected ?? (i as any).premium_collected ?? (i as any).premiumQuoted ?? (i as any).premium_quoted;
           return sum + parseAmount(v);
         }, 0);
-        // Summary row sources (all from DB): budget=company_monthly_target.totalBudget (admin) or sum(monthly_targets.assignedBudget) (team); achievement/disbursedValue=leads.loan_disbursed/amount where status=disbursed; ftdLoansValue=leads.amount where date=today; mtdLoansValue=leads.amount in range; loggedValue=leads.amount where status=logged; sanctionedValue=leads.loan_disbursed (else amount) where status=sanctioned, including sanctioned leads from earlier months (carried forward until disbursed); totalDisbursedValue=all disbursed leads with disbursed date on or before the period end; mtdInsuranceValue=insurance_leads.premium_collected|premium_quoted; overallLeads=count(leads)+count(insurance_leads); daysPresent=attendance_logs count; leaveDays=approved leave_requests in range.
+        // Summary row sources (all from DB): budget=company_monthly_target.totalBudget (admin) or sum(monthly_targets.assignedBudget) (team); achievement/disbursedValue=leads.loan_disbursed/amount where status=disbursed; ftdLoansValue=leads.amount where date=today; mtdLoansValue=leads.amount in range; loggedValue=leads.amount where status=logged; sanctionedValue=leads.loan_disbursed (else amount) where status=sanctioned, including sanctioned leads from earlier months (carried forward until disbursed); totalSanctionedValue=every lead that reached sanctioned stage (sanctioned or disbursed) with sanction date on or before the period end; totalDisbursedValue=all disbursed leads with disbursed date on or before the period end; mtdInsuranceValue=insurance_leads.premium_collected|premium_quoted; overallLeads=count(leads)+count(insurance_leads); daysPresent=attendance_logs count; leaveDays=approved leave_requests in range.
         rows.push({
           employeeId: uid,
           employeeNumber: empNum,
@@ -4627,6 +4653,7 @@ export async function registerRoutes(
           mtdLoansValue,
           loggedValue,
           sanctionedValue,
+          totalSanctionedValue,
           disbursedValue,
           totalDisbursedValue,
           mtdInsuranceValue,
@@ -4748,8 +4775,9 @@ export async function registerRoutes(
           { header: "FTD Loans Value", key: "ftdLoansValue", width: 16 },
           { header: "MTD Loans Value", key: "mtdLoansValue", width: 16 },
           { header: "Logged Value", key: "loggedValue", width: 14 },
-          { header: "Sanctioned Value", key: "sanctionedValue", width: 16 },
-          { header: "Disbursed Value", key: "disbursedValue", width: 16 },
+          { header: "Sanctioned Value (Pending)", key: "sanctionedValue", width: 22 },
+          { header: "Total Sanctioned (Till Date)", key: "totalSanctionedValue", width: 24 },
+          { header: "Disbursed Value (This Month)", key: "disbursedValue", width: 24 },
           { header: "Total Disbursed (Till Date)", key: "totalDisbursedValue", width: 22 },
           { header: "MTD Insurance Value", key: "mtdInsuranceValue", width: 18 },
           { header: "Overall Leads", key: "overallLeads", width: 14 },
@@ -4765,6 +4793,7 @@ export async function registerRoutes(
           mtdLoansValue: sumOf("mtdLoansValue"),
           loggedValue: sumOf("loggedValue"),
           sanctionedValue: sumOf("sanctionedValue"),
+          totalSanctionedValue: sumOf("totalSanctionedValue"),
           disbursedValue: sumOf("disbursedValue"),
           totalDisbursedValue: sumOf("totalDisbursedValue"),
           mtdInsuranceValue: sumOf("mtdInsuranceValue"),
