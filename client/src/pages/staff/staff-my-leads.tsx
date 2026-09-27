@@ -798,6 +798,14 @@ export default function StaffMyLeads() {
                         <span className="text-muted-foreground shrink-0 w-[100px]">Status</span>
                         <span className="text-right font-medium">{l.status ?? "—"}</span>
                       </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[100px]">Sanctioned on</span>
+                        <span className="text-right">{formatDateDdMmYyyy(l.loanSanctionedAt) ?? "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground shrink-0 w-[100px]">Disbursed on</span>
+                        <span className="text-right">{formatDateDdMmYyyy(l.loanDisbursedAt) ?? "—"}</span>
+                      </div>
                       {getFormLocationDisplay(l) && (
                         <div className="flex justify-between gap-3">
                           <span className="text-muted-foreground shrink-0 w-[100px]">Generated at</span>
@@ -830,6 +838,8 @@ export default function StaffMyLeads() {
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Tenure</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Generated at</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Status</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Sanctioned on</th>
+                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Disbursed on</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Actions</th>
                     </tr>
                   </thead>
@@ -847,6 +857,8 @@ export default function StaffMyLeads() {
                         <td className="py-2.5 pr-3">{l.tenure ?? "—"}</td>
                         <td className="py-2.5 pr-3 max-w-[180px] truncate" title={getFormLocationDisplay(l) ?? undefined}>{getFormLocationDisplay(l) ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.status}</td>
+                        <td className="py-2.5 pr-3 whitespace-nowrap">{formatDateDdMmYyyy(l.loanSanctionedAt) ?? "—"}</td>
+                        <td className="py-2.5 pr-3 whitespace-nowrap">{formatDateDdMmYyyy(l.loanDisbursedAt) ?? "—"}</td>
                         <td className="py-2.5 pr-3">
                           <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={() => openEditLoanLead(l)}>
                             <Pencil className="h-3.5 w-3.5 mr-1" />

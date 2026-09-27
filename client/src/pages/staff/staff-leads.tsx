@@ -361,6 +361,8 @@ export default function StaffLeads() {
                   <th className="text-left py-2 px-2 sticky left-[72px] z-10 bg-white min-w-[120px]">Employee name</th>
                   <th className="text-left py-2 px-2 min-w-[96px]">Date</th>
                   <th className="text-left py-2 px-2 min-w-[80px]">Status</th>
+                  <th className="text-left py-2 px-2 min-w-[96px]">Sanctioned on</th>
+                  <th className="text-left py-2 px-2 min-w-[96px]">Disbursed on</th>
                   <th className="text-left py-2 px-2 min-w-[80px]">Amount</th>
                   <th className="text-left py-2 px-2 min-w-[100px]">Customer</th>
                   <th className="text-left py-2 px-2 min-w-[90px]">DOB</th>
@@ -391,6 +393,8 @@ export default function StaffLeads() {
                       )}
                     </td>
                     <td className="py-2 px-2">{l.status}</td>
+                    <td className="py-2 px-2 whitespace-nowrap">{formatDateDdMmYyyy(l.loanSanctionedAt) ?? "—"}</td>
+                    <td className="py-2 px-2 whitespace-nowrap">{formatDateDdMmYyyy(l.loanDisbursedAt) ?? "—"}</td>
                     <td className="py-2 px-2">{l.amount ?? "—"}</td>
                     <td className="py-2 px-2 max-w-[120px] truncate" title={l.customerName ?? undefined}>{l.customerName ?? "—"}</td>
                     <td className="py-2 px-2 whitespace-nowrap">{formatDobDisplay(l.dateOfBirth)}</td>
