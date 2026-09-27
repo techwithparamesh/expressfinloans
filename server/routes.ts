@@ -274,6 +274,29 @@ function toDateStr(value: unknown): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Bank logged is always required; sanctioned/disbursed dates are required once the lead reaches that stage. */
+function validateLeadStageFields(v: {
+  status: unknown;
+  companyLogged: unknown;
+  loanSanctionedAt: unknown;
+  loanDisbursedAt: unknown;
+}): string | null {
+  const status = String(v.status ?? "").trim().toLowerCase();
+  const sanctioned = toDateStr(v.loanSanctionedAt);
+  const disbursed = toDateStr(v.loanDisbursedAt);
+  if (!String(v.companyLogged ?? "").trim()) return "Bank logged is required";
+  if ((status === "sanctioned" || status === "disbursed") && !sanctioned) {
+    return "Loan sanctioned date is required";
+  }
+  if (status === "disbursed" && !disbursed) return "Loan disbursed date is required";
+  if (sanctioned && sanctioned > todayStr()) return "Loan sanctioned date cannot be in the future";
+  if (disbursed && disbursed > todayStr()) return "Loan disbursed date cannot be in the future";
+  if (sanctioned && disbursed && disbursed < sanctioned) {
+    return "Loan disbursed date cannot be before the sanctioned date";
+  }
+  return null;
+}
+
 type ProductionRow = {
   employeeId: string;
   employeeName: string;
@@ -1086,7 +1109,7 @@ export async function registerRoutes(
       const userId = (req.user as any).id;
       const from = (req.query.from as string) || undefined;
       const to = (req.query.to as string) || undefined;
-      const list = await storage.getLeadsByEmployee(userId, from, to);
+      const list = await storage.getLeadsByEmployee(userId, from, to, { byEffectiveDate: true });
       res.json(list);
     } catch (e) {
       next(e);
@@ -1115,6 +1138,13 @@ export async function registerRoutes(
       if (!body.customerPhone || (typeof body.customerPhone === "string" && !body.customerPhone.trim())) {
         return res.status(400).json({ message: "Contact number is required" });
       }
+      const stageErr = validateLeadStageFields({
+        status: body.status ?? "open",
+        companyLogged: body.companyLogged,
+        loanSanctionedAt: body.loanSanctionedAt,
+        loanDisbursedAt: body.loanDisbursedAt,
+      });
+      if (stageErr) return res.status(400).json({ message: stageErr });
       let formLocation: string | null = (body.formLocation && String(body.formLocation).trim()) ? String(body.formLocation).trim().slice(0, 500) : null;
       if (!formLocation && body.latitude != null && body.longitude != null) {
         const lat = Number(body.latitude);
@@ -1161,7 +1191,7 @@ export async function registerRoutes(
       const fromDate = (req.query.from as string) || undefined;
       const toDate = (req.query.to as string) || undefined;
       const status = (req.query.status as string) || undefined;
-      const list = await storage.getAllLeads({ employeeId, fromDate, toDate, status });
+      const list = await storage.getAllLeads({ employeeId, fromDate, toDate, status, byEffectiveDate: true });
       const visibleIds = await getVisibleEmployeeIds(req);
       const employees = visibleIds === null
         ? await storage.listEmployees()
@@ -1226,9 +1256,15 @@ export async function registerRoutes(
       const body = req.body || {};
       const dobErr = validateLeadDateOfBirth(body.dateOfBirth);
       if (dobErr) return res.status(400).json({ message: dobErr });
+      const stageErr = validateLeadStageFields({
+        status: body.status !== undefined ? body.status : lead.status,
+        companyLogged: body.companyLogged !== undefined ? body.companyLogged : lead.companyLogged,
+        loanSanctionedAt: body.loanSanctionedAt !== undefined ? body.loanSanctionedAt : lead.loanSanctionedAt,
+        loanDisbursedAt: body.loanDisbursedAt !== undefined ? body.loanDisbursedAt : lead.loanDisbursedAt,
+      });
+      if (stageErr) return res.status(400).json({ message: stageErr });
       const oldEmpId = (lead as any).employeeId ?? (lead as any).employee_id;
-      const oldRawDate = (lead as any).date;
-      const oldDateStr = oldRawDate ? (typeof oldRawDate === "string" ? oldRawDate.slice(0, 10) : String(oldRawDate).slice(0, 10)) : "";
+      const oldDateStr = toDateStr((lead as any).date);
       const data: Record<string, unknown> = {};
       if (body.customerName !== undefined) data.customerName = body.customerName;
       if (body.dateOfBirth !== undefined) data.dateOfBirth = body.dateOfBirth && String(body.dateOfBirth).trim() ? String(body.dateOfBirth).trim().slice(0, 10) : null;
@@ -1263,8 +1299,7 @@ export async function registerRoutes(
       const updated = await storage.updateLead(id, data);
       if (!updated) return res.status(500).json({ message: "Update failed" });
       const empId = (updated as any).employeeId ?? (updated as any).employee_id;
-      const rawDate = (updated as any).date;
-      const dateStr = rawDate ? (typeof rawDate === "string" ? rawDate.slice(0, 10) : String(rawDate).slice(0, 10)) : "";
+      const dateStr = toDateStr((updated as any).date);
       const attendanceKeys = new Set<string>();
       if (oldEmpId && oldDateStr) attendanceKeys.add(`${oldEmpId}:${oldDateStr}`);
       if (empId && dateStr) attendanceKeys.add(`${empId}:${dateStr}`);
@@ -4494,9 +4529,15 @@ export async function registerRoutes(
         const empName = (u as any).fullName?.trim() || u.username || "";
         const att = await storage.getAttendanceLogsByEmployee(uid, monthStart, monthEnd);
         const daysPresent = att.length;
-        const leadsList = await storage.getLeadsByEmployee(uid, monthStart, monthEnd);
+        const leadsList = await storage.getLeadsByEmployee(uid, monthStart, monthEnd, { byEffectiveDate: true });
         const insList = await storage.getInsuranceLeadsByEmployee(uid, monthStart, monthEnd);
         const leaveList = await storage.getLeaveRequestsByEmployee(uid, monthStart, monthEnd);
+        const leadEffectiveDateStr = (l: any): string => {
+          const st = String(l.status ?? "").toLowerCase().trim();
+          if (st === "disbursed" && l.loanDisbursedAt) return toDateStr(l.loanDisbursedAt);
+          if (st === "sanctioned" && l.loanSanctionedAt) return toDateStr(l.loanSanctionedAt);
+          return toDateStr(l.date);
+        };
         const approvedLeave = leaveList.filter((l) => (l.status || "").toLowerCase() === "approved");
         let leaveDays = 0;
         for (const lv of approvedLeave) {
@@ -4513,7 +4554,7 @@ export async function registerRoutes(
         const ftdLeads = leadsList.length;
         const overallLeads = leadsList.length + insList.length;
         const ftdLoansValue = leadsList
-          .filter((l) => toDateStr((l as any).date) === todayStr)
+          .filter((l) => leadEffectiveDateStr(l) === todayStr)
           .reduce((sum, l) => sum + getLeadRequestAmount(l as any), 0);
         const mtdLoansValue = leadsList.reduce((sum, l) => sum + getLeadRequestAmount(l as any), 0);
         const loggedValue = leadsList
@@ -4559,7 +4600,8 @@ export async function registerRoutes(
           leadRows.push({
             employeeNumber: empNum,
             employeeName: empName,
-            date: toDateStr(lAny.date ?? l.date),
+            date: leadEffectiveDateStr(l),
+            leadDate: toDateStr(lAny.date ?? l.date),
             customerName: String(lAny.customerName ?? l.customerName ?? ""),
             dateOfBirth: toDateStr(lAny.dateOfBirth ?? l.dateOfBirth),
             customerPhone: String(lAny.customerPhone ?? l.customerPhone ?? ""),
@@ -4684,6 +4726,7 @@ export async function registerRoutes(
           { header: "Employee ID", key: "employeeNumber", width: 12 },
           { header: "Employee Name", key: "employeeName", width: 18 },
           { header: "Date", key: "date", width: 12 },
+          { header: "Lead Logged Date", key: "leadDate", width: 14 },
           { header: "Customer Name", key: "customerName", width: 20 },
           { header: "DOB", key: "dateOfBirth", width: 12 },
           { header: "Phone", key: "customerPhone", width: 14 },

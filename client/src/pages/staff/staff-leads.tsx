@@ -32,7 +32,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { staffJson, staffFetch, getAuthMe } from "@/lib/api";
 import type { StaffUser } from "@/lib/api";
-import { formatDateDdMmYyyy } from "@/lib/utils";
+import { formatDateDdMmYyyy, getLeadEffectiveDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { Target, Eye } from "lucide-react";
@@ -228,6 +228,23 @@ export default function StaffLeads() {
 
   async function saveLead() {
     if (!editLead) return;
+    if (!leadForm.companyLogged?.trim() || (leadForm.companyLogged === "OTHERS" && !leadForm.bankOthers.trim())) {
+      toast({ title: "Bank logged is required", variant: "destructive" });
+      return;
+    }
+    const leadStatus = (leadForm.status || "").trim().toLowerCase();
+    if ((leadStatus === "sanctioned" || leadStatus === "disbursed") && !leadForm.loanSanctionedAt) {
+      toast({ title: "Loan sanctioned date is required", variant: "destructive" });
+      return;
+    }
+    if (leadStatus === "disbursed" && !leadForm.loanDisbursedAt) {
+      toast({ title: "Loan disbursed date is required", variant: "destructive" });
+      return;
+    }
+    if (leadForm.loanSanctionedAt && leadForm.loanDisbursedAt && leadForm.loanDisbursedAt < leadForm.loanSanctionedAt) {
+      toast({ title: "Loan disbursed date cannot be before the sanctioned date", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       await staffJson("/staff/leads/" + editLead.id, {
@@ -376,7 +393,12 @@ export default function StaffLeads() {
                   <tr key={l.id} className="border-b">
                     <td className="py-2 px-2 sticky left-0 z-10 bg-white font-medium">{l.employeeNumber ?? "—"}</td>
                     <td className="py-2 px-2 sticky left-[72px] z-10 bg-white">{l.employeeName ?? l.employeeId}</td>
-                    <td className="py-2 px-2 whitespace-nowrap">{formatDateDdMmYyyy(l.date) ?? "—"}</td>
+                    <td className="py-2 px-2 whitespace-nowrap">
+                      {formatDateDdMmYyyy(getLeadEffectiveDate(l)) ?? "—"}
+                      {getLeadEffectiveDate(l) !== (l.date ? String(l.date).slice(0, 10) : null) && l.date && (
+                        <span className="block text-xs text-muted-foreground">Logged {formatDateDdMmYyyy(l.date)}</span>
+                      )}
+                    </td>
                     <td className="py-2 px-2">{l.status}</td>
                     <td className="py-2 px-2">{l.amount ?? "—"}</td>
                     <td className="py-2 px-2 max-w-[120px] truncate" title={l.customerName ?? undefined}>{l.customerName ?? "—"}</td>
@@ -639,7 +661,7 @@ export default function StaffLeads() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Bank logged</Label>
+                <Label>Bank logged <span className="text-red-500">*</span></Label>
                 <Select
                   value={leadForm.companyLogged || undefined}
                   onValueChange={(v) => setLeadForm((f) => ({ ...f, companyLogged: v, bankOthers: v === "OTHERS" ? f.bankOthers : "" }))}
@@ -656,7 +678,7 @@ export default function StaffLeads() {
               </div>
               {leadForm.companyLogged === "OTHERS" && (
                 <div className="space-y-2">
-                  <Label>Other bank / NBFC</Label>
+                  <Label>Other bank / NBFC <span className="text-red-500">*</span></Label>
                   <Input value={leadForm.bankOthers} onChange={(e) => setLeadForm((f) => ({ ...f, bankOthers: e.target.value }))} />
                 </div>
               )}
@@ -666,11 +688,17 @@ export default function StaffLeads() {
                   <Input value={leadForm.loanDisbursed} onChange={(e) => setLeadForm((f) => ({ ...f, loanDisbursed: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Loan sanctioned date</Label>
+                  <Label>
+                    Loan sanctioned date
+                    {["sanctioned", "disbursed"].includes((leadForm.status || "").toLowerCase()) && <span className="text-red-500"> *</span>}
+                  </Label>
                   <DateInput value={leadForm.loanSanctionedAt} onChange={(e) => setLeadForm((f) => ({ ...f, loanSanctionedAt: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Loan disbursed date</Label>
+                  <Label>
+                    Loan disbursed date
+                    {(leadForm.status || "").toLowerCase() === "disbursed" && <span className="text-red-500"> *</span>}
+                  </Label>
                   <DateInput value={leadForm.loanDisbursedAt} onChange={(e) => setLeadForm((f) => ({ ...f, loanDisbursedAt: e.target.value }))} />
                 </div>
               </div>

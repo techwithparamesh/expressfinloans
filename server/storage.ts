@@ -53,7 +53,17 @@ import {
   targetAuditLog,
   holidayCalendar,
 } from "@shared/schema";
-import { eq, and, desc, gte, lte, isNull, isNotNull, inArray } from "drizzle-orm";
+import { eq, and, desc, gte, lte, isNull, isNotNull, inArray, sql } from "drizzle-orm";
+
+/**
+ * A lead's "effective" date: disbursed date for disbursed leads, sanctioned date for
+ * sanctioned leads, otherwise the date the lead was logged.
+ */
+const leadEffectiveDate = sql`(CASE
+  WHEN LOWER(${leads.status}) = 'disbursed' AND ${leads.loanDisbursedAt} IS NOT NULL THEN ${leads.loanDisbursedAt}
+  WHEN LOWER(${leads.status}) = 'sanctioned' AND ${leads.loanSanctionedAt} IS NOT NULL THEN ${leads.loanSanctionedAt}
+  ELSE ${leads.date}
+END)`;
 import { db, hasDb } from "./db";
 import { hashPassword } from "./lib/password";
 
@@ -85,8 +95,8 @@ export interface IStorage {
 
   createLead(data: InsertLead): Promise<Lead>;
   getLead(id: string): Promise<Lead | undefined>;
-  getLeadsByEmployee(employeeId: string, fromDate?: string, toDate?: string): Promise<Lead[]>;
-  getAllLeads(filters?: { employeeId?: string; fromDate?: string; toDate?: string; status?: string }): Promise<Lead[]>;
+  getLeadsByEmployee(employeeId: string, fromDate?: string, toDate?: string, opts?: { byEffectiveDate?: boolean }): Promise<Lead[]>;
+  getAllLeads(filters?: { employeeId?: string; fromDate?: string; toDate?: string; status?: string; byEffectiveDate?: boolean }): Promise<Lead[]>;
   updateLead(id: string, data: Partial<InsertLead>): Promise<Lead | undefined>;
   deleteLead(id: string): Promise<void>;
   listEmployees(filters?: { teamLeadId?: string; unassignedOnly?: boolean }): Promise<User[]>;
@@ -549,10 +559,16 @@ export class DrizzleStorage implements IStorage {
   async getLeadsByEmployee(
     employeeId: string,
     fromDate?: string,
-    toDate?: string
+    toDate?: string,
+    opts?: { byEffectiveDate?: boolean }
   ): Promise<Lead[]> {
     await guardDb();
     const conditions = [eq(leads.employeeId, employeeId)];
+    if (opts?.byEffectiveDate) {
+      if (fromDate) conditions.push(sql`${leadEffectiveDate} >= ${fromDate}`);
+      if (toDate) conditions.push(sql`${leadEffectiveDate} <= ${toDate}`);
+      return db.select().from(leads).where(and(...conditions)).orderBy(sql`${leadEffectiveDate} DESC`, desc(leads.createdAt));
+    }
     if (fromDate) conditions.push(gte(leads.date, fromDate));
     if (toDate) conditions.push(lte(leads.date, toDate));
     return db.select().from(leads).where(and(...conditions)).orderBy(desc(leads.date), desc(leads.createdAt));
@@ -563,21 +579,28 @@ export class DrizzleStorage implements IStorage {
     fromDate?: string;
     toDate?: string;
     status?: string;
+    byEffectiveDate?: boolean;
   }): Promise<Lead[]> {
     await guardDb();
     const conditions = [];
+    const byEffective = !!filters?.byEffectiveDate;
     if (filters?.employeeId) conditions.push(eq(leads.employeeId, filters.employeeId));
-    if (filters?.fromDate) conditions.push(gte(leads.date, filters.fromDate));
-    if (filters?.toDate) conditions.push(lte(leads.date, filters.toDate));
+    if (filters?.fromDate) {
+      conditions.push(byEffective ? sql`${leadEffectiveDate} >= ${filters.fromDate}` : gte(leads.date, filters.fromDate));
+    }
+    if (filters?.toDate) {
+      conditions.push(byEffective ? sql`${leadEffectiveDate} <= ${filters.toDate}` : lte(leads.date, filters.toDate));
+    }
     if (filters?.status) conditions.push(eq(leads.status, filters.status as any));
+    const order = byEffective ? sql`${leadEffectiveDate} DESC` : desc(leads.date);
     if (conditions.length === 0) {
-      return db.select().from(leads).orderBy(desc(leads.date), desc(leads.createdAt));
+      return db.select().from(leads).orderBy(order, desc(leads.createdAt));
     }
     return db
       .select()
       .from(leads)
       .where(and(...conditions))
-      .orderBy(desc(leads.date), desc(leads.createdAt));
+      .orderBy(order, desc(leads.createdAt));
   }
 
   async updateLead(id: string, data: Partial<InsertLead>): Promise<Lead | undefined> {
