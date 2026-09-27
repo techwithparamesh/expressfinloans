@@ -32,7 +32,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { staffJson } from "@/lib/api";
 import { requireCurrentPosition } from "@/lib/location";
-import { formatDateDdMmYyyy, getLeadEffectiveDate } from "@/lib/utils";
+import { formatDateDdMmYyyy } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useMyDashboardInvalidate } from "./staff-layout";
 import { Plus, ArrowLeft, FileText, Shield, MapPin, Pencil, AlertCircle } from "lucide-react";
@@ -161,19 +161,6 @@ function daysBetween(from: string, to: string): number | null {
 /** Format DOB for display: DD/MM/YYYY. */
 function formatDobDisplay(val: string | null | undefined): string {
   return formatDateDdMmYyyy(val) ?? "—";
-}
-
-function renderLeadDate(l: Lead) {
-  const effective = getLeadEffectiveDate(l);
-  const logged = l.date ? String(l.date).slice(0, 10) : null;
-  return (
-    <>
-      <span>{formatDateDdMmYyyy(effective) ?? "—"}</span>
-      {effective && logged && effective !== logged && (
-        <span className="block text-xs text-muted-foreground font-normal">Logged {formatDateDdMmYyyy(logged)}</span>
-      )}
-    </>
-  );
 }
 
 /** Parse DOB from input (MM/DD/YYYY or YYYY-MM-DD) to YYYY-MM-DD for API. Returns null if invalid. */
@@ -479,14 +466,6 @@ export default function StaffMyLeads() {
       toast({ title: "Contact number is required", variant: "destructive" });
       return;
     }
-    if (!loanForm.companyLogged?.trim() || (loanForm.companyLogged === "OTHERS" && !loanForm.bankOthers?.trim())) {
-      toast({ title: "Bank logged is required", variant: "destructive" });
-      return;
-    }
-    if (loanForm.loanSanctionedAt && loanForm.loanDisbursedAt && loanForm.loanDisbursedAt < loanForm.loanSanctionedAt) {
-      toast({ title: "Loan disbursed date cannot be before the sanctioned date", variant: "destructive" });
-      return;
-    }
     setSaving(true);
     try {
       const payload = {
@@ -760,7 +739,7 @@ export default function StaffMyLeads() {
                     <div key={l.id} className="rounded-lg border bg-card p-3 space-y-2 text-sm">
                       <div className="flex justify-between gap-3">
                         <span className="text-muted-foreground shrink-0 w-[100px]">Date</span>
-                        <span className="text-right font-medium min-w-0">{renderLeadDate(l)}</span>
+                        <span className="text-right font-medium truncate min-w-0">{formatDateDdMmYyyy(l.date) ?? "—"}</span>
                       </div>
                       <div className="flex justify-between gap-3">
                         <span className="text-muted-foreground shrink-0 w-[100px]">Customer</span>
@@ -798,14 +777,6 @@ export default function StaffMyLeads() {
                         <span className="text-muted-foreground shrink-0 w-[100px]">Status</span>
                         <span className="text-right font-medium">{l.status ?? "—"}</span>
                       </div>
-                      <div className="flex justify-between gap-3">
-                        <span className="text-muted-foreground shrink-0 w-[100px]">Sanctioned on</span>
-                        <span className="text-right">{formatDateDdMmYyyy(l.loanSanctionedAt) ?? "—"}</span>
-                      </div>
-                      <div className="flex justify-between gap-3">
-                        <span className="text-muted-foreground shrink-0 w-[100px]">Disbursed on</span>
-                        <span className="text-right">{formatDateDdMmYyyy(l.loanDisbursedAt) ?? "—"}</span>
-                      </div>
                       {getFormLocationDisplay(l) && (
                         <div className="flex justify-between gap-3">
                           <span className="text-muted-foreground shrink-0 w-[100px]">Generated at</span>
@@ -838,15 +809,13 @@ export default function StaffMyLeads() {
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Tenure</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Generated at</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Status</th>
-                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Sanctioned on</th>
-                      <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Disbursed on</th>
                       <th className="text-left py-2.5 pr-3 text-muted-foreground font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {leads.map((l) => (
                       <tr key={l.id} className="border-b">
-                        <td className="py-2.5 pr-3 whitespace-nowrap">{renderLeadDate(l)}</td>
+                        <td className="py-2.5 pr-3">{formatDateDdMmYyyy(l.date) ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.customerName ?? "—"}</td>
                         <td className="py-2.5 pr-3">{formatDobDisplay(l.dateOfBirth)}</td>
                         <td className="py-2.5 pr-3">{l.customerPhone ?? "—"}</td>
@@ -857,8 +826,6 @@ export default function StaffMyLeads() {
                         <td className="py-2.5 pr-3">{l.tenure ?? "—"}</td>
                         <td className="py-2.5 pr-3 max-w-[180px] truncate" title={getFormLocationDisplay(l) ?? undefined}>{getFormLocationDisplay(l) ?? "—"}</td>
                         <td className="py-2.5 pr-3">{l.status}</td>
-                        <td className="py-2.5 pr-3 whitespace-nowrap">{formatDateDdMmYyyy(l.loanSanctionedAt) ?? "—"}</td>
-                        <td className="py-2.5 pr-3 whitespace-nowrap">{formatDateDdMmYyyy(l.loanDisbursedAt) ?? "—"}</td>
                         <td className="py-2.5 pr-3">
                           <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={() => openEditLoanLead(l)}>
                             <Pencil className="h-3.5 w-3.5 mr-1" />
@@ -1243,7 +1210,7 @@ export default function StaffMyLeads() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label>Bank logged <span className="text-red-500">*</span></Label>
+                    <Label>Bank logged</Label>
                     <Select
                       value={loanForm.companyLogged && (BANKS_LOGGED as readonly string[]).includes(loanForm.companyLogged) ? loanForm.companyLogged : loanForm.companyLogged ? "OTHERS" : undefined}
                       onValueChange={(v) => setLoanForm((f) => ({ ...f, companyLogged: v, bankOthers: v === "OTHERS" ? f.bankOthers : "" }))}
@@ -1262,7 +1229,7 @@ export default function StaffMyLeads() {
                   </div>
                   {loanForm.companyLogged === "OTHERS" && (
                     <div className="space-y-1">
-                      <Label htmlFor="bank-others">Others <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="bank-others">Others</Label>
                       <Input
                         id="bank-others"
                         value={loanForm.bankOthers}
@@ -1325,7 +1292,8 @@ export default function StaffMyLeads() {
                         placeholder="e.g. 10.5"
                       />
                     </div>
-                    <h4 className="text-sm font-medium text-slate-700">Loan Sanctioned / Disbursed</h4>                    <div className="rounded-md border overflow-hidden">
+                    <h4 className="text-sm font-medium text-slate-700">Loan Sanctioned / Disbursed</h4>
+                    <div className="rounded-md border overflow-hidden">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b bg-slate-50">
@@ -1336,9 +1304,7 @@ export default function StaffMyLeads() {
                         </thead>
                         <tbody>
                           <tr className="border-b">
-                            <td className="py-2 px-3 font-medium">
-                              Loan Sanctioned
-                            </td>
+                            <td className="py-2 px-3 font-medium">Loan Sanctioned</td>
                             <td className="py-2 px-3">
                               <DateInput
                                 value={loanForm.loanSanctionedAt}
@@ -1353,9 +1319,7 @@ export default function StaffMyLeads() {
                             </td>
                           </tr>
                           <tr>
-                            <td className="py-2 px-3 font-medium">
-                              Loan Disbursed
-                            </td>
+                            <td className="py-2 px-3 font-medium">Loan Disbursed</td>
                             <td className="py-2 px-3">
                               <DateInput
                                 value={loanForm.loanDisbursedAt}

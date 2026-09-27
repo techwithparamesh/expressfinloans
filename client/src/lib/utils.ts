@@ -13,14 +13,3 @@ export function formatDateDdMmYyyy(val: string | null | undefined): string | nul
   const [y, m, d] = s.split("-");
   return `${d}/${m}/${y}`;
 }
-
-/** Disbursed date for disbursed leads, otherwise the lead date. */
-export function getLeadEffectiveDate(l: {
-  date?: string | null;
-  status?: string | null;
-  loanDisbursedAt?: string | null;
-}): string | null {
-  const status = String(l.status ?? "").trim().toLowerCase();
-  if (status === "disbursed" && l.loanDisbursedAt) return String(l.loanDisbursedAt).slice(0, 10);
-  return l.date ? String(l.date).slice(0, 10) : null;
-}

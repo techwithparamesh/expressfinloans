@@ -207,9 +207,7 @@ type ProductionRow = {
   employeeNumber: string;
   logged: number;
   sanctioned: number;
-  sanctionedTillDate?: number;
   disbursed: number;
-  disbursedTillDate?: number;
   mtd: number;
 };
 
@@ -219,7 +217,7 @@ type ProductionGroup = {
   rhNumber: string;
   self: ProductionRow | null;
   members: ProductionRow[];
-  total: { logged: number; sanctioned: number; sanctionedTillDate?: number; disbursed: number; disbursedTillDate?: number; mtd: number };
+  total: { logged: number; sanctioned: number; disbursed: number; mtd: number };
 };
 
 type EmployeeOption = {
@@ -630,7 +628,7 @@ export default function StaffDashboard() {
               }
             | undefined;
 
-          if (!MediaStorePlugin?.saveToDownloads || !FS.getUri) {
+          if (!MediaStorePlugin?.saveToDownloads) {
             toast({
               title: "Save to Downloads not enabled",
               description:
@@ -820,10 +818,8 @@ export default function StaffDashboard() {
                       <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-left font-semibold">RH Name</th>
                       <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-left font-semibold">SM Name</th>
                       <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Logged</th>
-                      <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Sanctioned (pending)</th>
-                      <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Total sanctioned (till date)</th>
-                      <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Disbursed (this month)</th>
-                      <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Total disbursed (till date)</th>
+                      <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Sanctioned</th>
+                      <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Disbursed</th>
                       <th className="border border-slate-300 bg-amber-400 px-3 py-2 text-right font-semibold">Total leads</th>
                     </tr>
                   </thead>
@@ -843,9 +839,7 @@ export default function StaffDashboard() {
                         </td>
                         <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.logged)}</td>
                         <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.sanctioned)}</td>
-                        <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.sanctionedTillDate ?? 0)}</td>
                         <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.disbursed)}</td>
-                        <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{fmt(r.disbursedTillDate ?? 0)}</td>
                         <td className="border border-slate-300 px-3 py-2 text-right tabular-nums">{r.mtd}</td>
                       </tr>
                     ))}
@@ -853,9 +847,7 @@ export default function StaffDashboard() {
                       <td className="border border-slate-300 px-3 py-2 text-center font-semibold">Total</td>
                       <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.logged)}</td>
                       <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.sanctioned)}</td>
-                      <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.sanctionedTillDate ?? 0)}</td>
                       <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.disbursed)}</td>
-                      <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{fmt(group.total.disbursedTillDate ?? 0)}</td>
                       <td className="border border-slate-300 px-3 py-2 text-right font-semibold tabular-nums">{group.total.mtd}</td>
                     </tr>
                   </tbody>
@@ -1071,9 +1063,9 @@ export default function StaffDashboard() {
                   ].map(({ key, label }) => (
                     <tr key={key} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
                       <td className="py-2.5 px-4 text-slate-700">{label}</td>
-                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved?.loans[key].ftd}</td>
-                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved?.loans[key].mtd}</td>
-                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved?.loans[key].ytd}</td>
+                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved.loans[key].ftd}</td>
+                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved.loans[key].mtd}</td>
+                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved.loans[key].ytd}</td>
                     </tr>
                   ))}
                   <tr className="border-b border-slate-100 bg-slate-50/50">
@@ -1089,9 +1081,9 @@ export default function StaffDashboard() {
                   ].map(({ key, label }) => (
                     <tr key={key} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
                       <td className="py-2.5 px-4 text-slate-700">{label}</td>
-                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved?.insurance[key].ftd}</td>
-                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved?.insurance[key].mtd}</td>
-                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved?.insurance[key].ytd}</td>
+                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved.insurance[key].ftd}</td>
+                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved.insurance[key].mtd}</td>
+                      <td className="py-2.5 px-4 text-right tabular-nums font-medium">{data.ftdAchieved.insurance[key].ytd}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -248,25 +248,6 @@ function getLeadRequestAmount(lead: { amount?: string | null }): number {
   return parseAmount((lead as any).amount);
 }
 
-/** Sanctioned amount: the "Loan Amount" entered on the lead, falling back to the request amount. */
-function getLeadSanctionAmount(lead: { loanDisbursed?: string | null; amount?: string | null }): number {
-  return parseAmount((lead as any).loanDisbursed ?? (lead as any).loan_disbursed) || getLeadRequestAmount(lead);
-}
-
-/**
- * Date a lead reached the sanctioned stage (sanctioned or disbursed leads only), else "".
- * Uses the sanctioned date, then the disbursed date, then the date the lead was logged.
- */
-function getLeadSanctionDate(lead: { status?: string | null; date?: unknown; loanSanctionedAt?: unknown; loanDisbursedAt?: unknown }): string {
-  const s = String(lead.status ?? "").toLowerCase().trim();
-  if (s !== "sanctioned" && s !== "disbursed") return "";
-  return (
-    toDateStr((lead as any).loanSanctionedAt ?? (lead as any).loan_sanctioned_at) ||
-    (s === "disbursed" ? toDateStr((lead as any).loanDisbursedAt ?? (lead as any).loan_disbursed_at) : "") ||
-    toDateStr(lead.date)
-  );
-}
-
 /**
  * Lead customer DOB / business incorporation date: must be a valid, non-future date.
  * No minimum/maximum age limit (businesses can be incorporated recently).
@@ -293,61 +274,13 @@ function toDateStr(value: unknown): string {
   return `${y}-${m}-${day}`;
 }
 
-/**
- * Request date -> 'YYYY-MM-DD' for a DATE column (null when empty). Typed as Date to satisfy the
- * schema, but drizzle passes it to mysql2 unchanged, which avoids timezone shifts.
- */
-function toDbDate(value: unknown): Date | null {
-  const s = value == null ? "" : String(value).trim().slice(0, 10);
-  return s ? (s as unknown as Date) : null;
-}
-
-/** Bank logged is required on every loan lead; sanctioned/disbursed dates are optional but must be sane. */
-function validateLeadStageFields(v: {
-  status: unknown;
-  companyLogged: unknown;
-  loanSanctionedAt: unknown;
-  loanDisbursedAt: unknown;
-}): string | null {
-  const sanctioned = toDateStr(v.loanSanctionedAt);
-  const disbursed = toDateStr(v.loanDisbursedAt);
-  if (!String(v.companyLogged ?? "").trim()) return "Bank logged is required";
-  if (sanctioned && sanctioned > todayStr()) return "Loan sanctioned date cannot be in the future";
-  if (disbursed && disbursed > todayStr()) return "Loan disbursed date cannot be in the future";
-  if (sanctioned && disbursed && disbursed < sanctioned) {
-    return "Loan disbursed date cannot be before the sanctioned date";
-  }
-  return null;
-}
-
-/**
- * Sanction amount for a period: every lead still in "sanctioned" status logged on or before
- * `toDate` (carried forward until disbursed) plus leads disbursed within the period.
- */
-async function getSanctionAmountForPeriod(employeeId: string, fromDate: string, toDate: string): Promise<number> {
-  const list = await storage.getLeadsByEmployee(employeeId, undefined, toDate);
-  let total = 0;
-  for (const l of list) {
-    const s = (l.status || "").toLowerCase().trim();
-    if (s === "sanctioned") {
-      total += getLeadSanctionAmount(l as any);
-    } else if (s === "disbursed") {
-      const dAt = toDateStr((l as any).loanDisbursedAt) || toDateStr(l.date);
-      if (dAt >= fromDate && dAt <= toDate) total += getLeadAmount(l as any);
-    }
-  }
-  return total;
-}
-
 type ProductionRow = {
   employeeId: string;
   employeeName: string;
   employeeNumber: string;
   logged: number;
   sanctioned: number;
-  sanctionedTillDate: number;
   disbursed: number;
-  disbursedTillDate: number;
   mtd: number;
 };
 type ProductionGroup = {
@@ -356,13 +289,13 @@ type ProductionGroup = {
   rhNumber: string;
   self: ProductionRow | null;
   members: ProductionRow[];
-  total: { logged: number; sanctioned: number; sanctionedTillDate: number; disbursed: number; disbursedTillDate: number; mtd: number };
+  total: { logged: number; sanctioned: number; disbursed: number; mtd: number };
 };
 
 /**
  * Build the RH -> SM production hierarchy for a date range (admin scope = all teams).
- * Logged uses the lead's request amount; Sanctioned uses the loan amount (else request amount);
- * Disbursed uses the disbursed amount for disbursed leads. MTD = total leads in range.
+ * Logged/Sanctioned amounts use the lead's request amount for leads currently in that
+ * status; Disbursed uses the disbursed amount for disbursed leads. MTD = total leads in range.
  */
 async function buildProductionHierarchy(fromDate: string, toDate: string): Promise<ProductionGroup[]> {
   const employees = await storage.listEmployees();
@@ -388,19 +321,14 @@ async function buildProductionHierarchy(fromDate: string, toDate: string): Promi
     let logged = 0;
     let sanctioned = 0;
     let disbursed = 0;
-    let disbursedTillDate = 0;
-    let sanctionedTillDate = 0;
     let count = 0;
     for (const l of ls) {
-      const s = (l.status || "").toLowerCase().trim();
+      const s = (l.status || "").toLowerCase();
       const logDate = toDateStr(l.date);
-      const sanctionDate = getLeadSanctionDate(l as any);
-      if (sanctionDate && sanctionDate <= toDate) sanctionedTillDate += getLeadSanctionAmount(l as any);
       if (s === "disbursed") {
         // Counted once, in the month it was disbursed (no carry forward).
         const dAtRaw = (l as any).loanDisbursedAt ?? (l as any).loan_disbursed_at;
         const dAt = toDateStr(dAtRaw) || logDate;
-        if (dAt && dAt <= toDate) disbursedTillDate += getLeadAmount(l as any);
         if (inPeriod(dAt)) {
           disbursed += getLeadAmount(l as any);
           count++;
@@ -414,7 +342,7 @@ async function buildProductionHierarchy(fromDate: string, toDate: string): Promi
       } else if (s === "sanctioned") {
         // Pending disbursal: carries forward every month until disbursed.
         if (logDate && logDate <= toDate) {
-          sanctioned += getLeadSanctionAmount(l as any);
+          sanctioned += getLeadRequestAmount(l as any);
           count++;
         }
       } else {
@@ -431,9 +359,7 @@ async function buildProductionHierarchy(fromDate: string, toDate: string): Promi
       employeeNumber: byId[uId]?.number ?? "",
       logged,
       sanctioned,
-      sanctionedTillDate,
       disbursed,
-      disbursedTillDate,
       mtd: count,
     };
   };
@@ -442,12 +368,10 @@ async function buildProductionHierarchy(fromDate: string, toDate: string): Promi
       (t, r) => ({
         logged: t.logged + r.logged,
         sanctioned: t.sanctioned + r.sanctioned,
-        sanctionedTillDate: t.sanctionedTillDate + r.sanctionedTillDate,
         disbursed: t.disbursed + r.disbursed,
-        disbursedTillDate: t.disbursedTillDate + r.disbursedTillDate,
         mtd: t.mtd + r.mtd,
       }),
-      { logged: 0, sanctioned: 0, sanctionedTillDate: 0, disbursed: 0, disbursedTillDate: 0, mtd: 0 }
+      { logged: 0, sanctioned: 0, disbursed: 0, mtd: 0 }
     );
   const teamLeads = await storage.listTeamLeads();
   const teamLeadIdSet = new Set(teamLeads.map((t) => t.id));
@@ -1162,7 +1086,7 @@ export async function registerRoutes(
       const userId = (req.user as any).id;
       const from = (req.query.from as string) || undefined;
       const to = (req.query.to as string) || undefined;
-      const list = await storage.getLeadsByEmployee(userId, from, to, { byEffectiveDate: true });
+      const list = await storage.getLeadsByEmployee(userId, from, to);
       res.json(list);
     } catch (e) {
       next(e);
@@ -1191,13 +1115,6 @@ export async function registerRoutes(
       if (!body.customerPhone || (typeof body.customerPhone === "string" && !body.customerPhone.trim())) {
         return res.status(400).json({ message: "Contact number is required" });
       }
-      const stageErr = validateLeadStageFields({
-        status: body.status ?? "open",
-        companyLogged: body.companyLogged,
-        loanSanctionedAt: body.loanSanctionedAt,
-        loanDisbursedAt: body.loanDisbursedAt,
-      });
-      if (stageErr) return res.status(400).json({ message: stageErr });
       let formLocation: string | null = (body.formLocation && String(body.formLocation).trim()) ? String(body.formLocation).trim().slice(0, 500) : null;
       if (!formLocation && body.latitude != null && body.longitude != null) {
         const lat = Number(body.latitude);
@@ -1208,7 +1125,7 @@ export async function registerRoutes(
         employeeId: userId,
         date: dateStr,
         customerName: body.customerName ?? null,
-        dateOfBirth: toDbDate(body.dateOfBirth),
+        dateOfBirth: body.dateOfBirth && String(body.dateOfBirth).trim() ? String(body.dateOfBirth).trim().slice(0, 10) : null,
         customerPhone: body.customerPhone && String(body.customerPhone).trim() ? String(body.customerPhone).trim() : null,
         customerEmail: body.customerEmail ?? null,
         location: body.location ?? null,
@@ -1224,8 +1141,8 @@ export async function registerRoutes(
         tenure: body.tenure ?? null,
         roi: body.roi ?? null,
         loanDisbursed: body.loanDisbursed ?? null,
-        loanSanctionedAt: toDbDate(body.loanSanctionedAt),
-        loanDisbursedAt: toDbDate(body.loanDisbursedAt),
+        loanSanctionedAt: body.loanSanctionedAt && String(body.loanSanctionedAt).trim() ? String(body.loanSanctionedAt).trim().slice(0, 10) : null,
+        loanDisbursedAt: body.loanDisbursedAt && String(body.loanDisbursedAt).trim() ? String(body.loanDisbursedAt).trim().slice(0, 10) : null,
         status: body.status ?? "open",
         notes: body.notes ?? null,
         formLocation: formLocation ?? undefined,
@@ -1244,7 +1161,7 @@ export async function registerRoutes(
       const fromDate = (req.query.from as string) || undefined;
       const toDate = (req.query.to as string) || undefined;
       const status = (req.query.status as string) || undefined;
-      const list = await storage.getAllLeads({ employeeId, fromDate, toDate, status, byEffectiveDate: true });
+      const list = await storage.getAllLeads({ employeeId, fromDate, toDate, status });
       const visibleIds = await getVisibleEmployeeIds(req);
       const employees = visibleIds === null
         ? await storage.listEmployees()
@@ -1309,15 +1226,9 @@ export async function registerRoutes(
       const body = req.body || {};
       const dobErr = validateLeadDateOfBirth(body.dateOfBirth);
       if (dobErr) return res.status(400).json({ message: dobErr });
-      const stageErr = validateLeadStageFields({
-        status: body.status !== undefined ? body.status : lead.status,
-        companyLogged: body.companyLogged !== undefined ? body.companyLogged : lead.companyLogged,
-        loanSanctionedAt: body.loanSanctionedAt !== undefined ? body.loanSanctionedAt : lead.loanSanctionedAt,
-        loanDisbursedAt: body.loanDisbursedAt !== undefined ? body.loanDisbursedAt : lead.loanDisbursedAt,
-      });
-      if (stageErr) return res.status(400).json({ message: stageErr });
       const oldEmpId = (lead as any).employeeId ?? (lead as any).employee_id;
-      const oldDateStr = toDateStr((lead as any).date);
+      const oldRawDate = (lead as any).date;
+      const oldDateStr = oldRawDate ? (typeof oldRawDate === "string" ? oldRawDate.slice(0, 10) : String(oldRawDate).slice(0, 10)) : "";
       const data: Record<string, unknown> = {};
       if (body.customerName !== undefined) data.customerName = body.customerName;
       if (body.dateOfBirth !== undefined) data.dateOfBirth = body.dateOfBirth && String(body.dateOfBirth).trim() ? String(body.dateOfBirth).trim().slice(0, 10) : null;
@@ -1352,7 +1263,8 @@ export async function registerRoutes(
       const updated = await storage.updateLead(id, data);
       if (!updated) return res.status(500).json({ message: "Update failed" });
       const empId = (updated as any).employeeId ?? (updated as any).employee_id;
-      const dateStr = toDateStr((updated as any).date);
+      const rawDate = (updated as any).date;
+      const dateStr = rawDate ? (typeof rawDate === "string" ? rawDate.slice(0, 10) : String(rawDate).slice(0, 10)) : "";
       const attendanceKeys = new Set<string>();
       if (oldEmpId && oldDateStr) attendanceKeys.add(`${oldEmpId}:${oldDateStr}`);
       if (empId && dateStr) attendanceKeys.add(`${empId}:${dateStr}`);
@@ -1416,7 +1328,7 @@ export async function registerRoutes(
         employeeId: userId,
         date: dateStr,
         customerName: body.customerName ?? null,
-        dateOfBirth: toDbDate(body.dateOfBirth),
+        dateOfBirth: body.dateOfBirth && String(body.dateOfBirth).trim() ? String(body.dateOfBirth).trim().slice(0, 10) : null,
         contactNum: body.contactNum && String(body.contactNum).trim() ? String(body.contactNum).trim() : null,
         mailId: body.mailId ?? null,
         location: body.location ?? null,
@@ -1444,8 +1356,8 @@ export async function registerRoutes(
         notes: body.notes ?? null,
         formLocation: formLocation ?? undefined,
         policyNumber: body.policyNumber && String(body.policyNumber).trim() ? String(body.policyNumber).trim().slice(0, 100) : null,
-        policyStartDate: toDbDate(body.policyStartDate),
-        policyEndDate: toDbDate(body.policyEndDate),
+        policyStartDate: body.policyStartDate && String(body.policyStartDate).trim() ? String(body.policyStartDate).trim().slice(0, 10) : null,
+        policyEndDate: body.policyEndDate && String(body.policyEndDate).trim() ? String(body.policyEndDate).trim().slice(0, 10) : null,
       });
       res.status(201).json(lead);
     } catch (e) {
@@ -2399,12 +2311,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Start date must be before or equal to end date" });
       }
       if (Object.keys(data).length === 0) return res.json(leave);
-      const { startDate: newStart, endDate: newEnd, ...rest } = data;
-      const updated = await storage.updateLeaveRequest(id, {
-        ...rest,
-        ...(newStart !== undefined ? { startDate: toDbDate(newStart) ?? undefined } : {}),
-        ...(newEnd !== undefined ? { endDate: toDbDate(newEnd) ?? undefined } : {}),
-      });
+      const updated = await storage.updateLeaveRequest(id, data);
       if (!updated) return res.status(500).json({ message: "Update failed" });
       res.json(updated);
     } catch (e) {
@@ -2445,7 +2352,11 @@ export async function registerRoutes(
           const converted = empLeads.filter((l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned").length;
           teamLeadsConverted += converted;
           teamLeadsOpen += empLeads.filter((l) => (l.status || "").toLowerCase() === "open").length;
-          teamSanctionAmount += await getSanctionAmountForPeriod(emp.id, from, to);
+          empLeads.forEach((l) => {
+            if ((l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned") {
+              teamSanctionAmount += getLeadAmount(l as any);
+            }
+          });
         }
         const achievementPct = overallTarget > 0 ? Math.round((teamLeadsThisMonth / overallTarget) * 100) : 0;
         const jointVisits = await storage.getJointVisitsCount(userId, from, to);
@@ -2476,7 +2387,12 @@ export async function registerRoutes(
       const overallLeadsGenerated = leads.length;
       const leadsConverted = leads.filter((l) => (l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned").length;
       const leadsOpen = leads.filter((l) => (l.status || "").toLowerCase() === "open").length;
-      const sanctionAmount = await getSanctionAmountForPeriod(userId, from, to);
+      let sanctionAmount = 0;
+      leads.forEach((l) => {
+        if ((l.status || "").toLowerCase() === "disbursed" || (l.status || "").toLowerCase() === "sanctioned") {
+          sanctionAmount += getLeadAmount(l as any);
+        }
+      });
       const achievement = overallLeadsGenerated;
       const achievementPct = monthTarget > 0 ? Math.round((achievement / monthTarget) * 100) : 0;
       const budgetAchievementPct = monthTarget > 0 ? Math.round((leadsConverted / monthTarget) * 100) : 0;
@@ -3755,7 +3671,7 @@ export async function registerRoutes(
           loans: companyAchievedMtd,
           miscellaneous: expenditureMisc,
           total: companyAchievedMtd + expenditureMisc,
-          monthLabel: `${monthName} ${currentYear}`,
+          monthLabel: payload.adminKpi.monthLabel,
         };
         const attendanceWithTargets = await Promise.all(
           attendanceTodayFiltered.map(async (a) => {
@@ -4062,11 +3978,11 @@ export async function registerRoutes(
       const medical = parseAmount(body.medical) || 0;
       const extraAllowances = Array.isArray(body.extraAllowances)
         ? body.extraAllowances
-            .map((x: unknown) => ({
+            .map((x) => ({
               label: String((x as any)?.label || "").trim(),
               amount: parseAmount((x as any)?.amount),
             }))
-            .filter((x: { label: string; amount: number }) => x.label && x.amount > 0)
+            .filter((x) => x.label && x.amount > 0)
         : [];
       const structure = await storage.upsertSalaryStructure({
         employeeId,
@@ -4567,7 +4483,7 @@ export async function registerRoutes(
       };
       const todayStr = new Date().toISOString().slice(0, 10);
       const roleLabel = (r: string) => (r === "team_lead" ? "Team leader" : r === "admin" ? "Admin" : "Employee");
-      const rows: { employeeId: string; employeeNumber: string; name: string; role: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number; disbursedAmount: number; ftdLeads: number; overallLeads: number; loggedCount: number; disbursedCount: number; budget: number; achievement: number; ftdLoansValue: number; mtdLoansValue: number; loggedValue: number; sanctionedValue: number; totalSanctionedValue: number; disbursedValue: number; totalDisbursedValue: number; mtdInsuranceValue: number }[] = [];
+      const rows: { employeeId: string; employeeNumber: string; name: string; role: string; daysPresent: number; leadsCount: number; insuranceLeadsCount: number; leaveDays: number; disbursedAmount: number; ftdLeads: number; overallLeads: number; loggedCount: number; disbursedCount: number; budget: number; achievement: number; ftdLoansValue: number; mtdLoansValue: number; loggedValue: number; sanctionedValue: number; disbursedValue: number; mtdInsuranceValue: number }[] = [];
       const leadRows: Record<string, string>[] = [];
       const insuranceRows: Record<string, string>[] = [];
       const attendanceRows: { employeeNumber: string; employeeName: string; date: string; loginAt: string; logoutAt: string; status: string; loginLocation: string; logoutLocation: string; leadsCount: number }[] = [];
@@ -4578,14 +4494,9 @@ export async function registerRoutes(
         const empName = (u as any).fullName?.trim() || u.username || "";
         const att = await storage.getAttendanceLogsByEmployee(uid, monthStart, monthEnd);
         const daysPresent = att.length;
-        const leadsList = await storage.getLeadsByEmployee(uid, monthStart, monthEnd, { byEffectiveDate: true });
+        const leadsList = await storage.getLeadsByEmployee(uid, monthStart, monthEnd);
         const insList = await storage.getInsuranceLeadsByEmployee(uid, monthStart, monthEnd);
         const leaveList = await storage.getLeaveRequestsByEmployee(uid, monthStart, monthEnd);
-        const leadEffectiveDateStr = (l: any): string => {
-          const st = String(l.status ?? "").toLowerCase().trim();
-          if (st === "disbursed" && l.loanDisbursedAt) return toDateStr(l.loanDisbursedAt);
-          return toDateStr(l.date);
-        };
         const approvedLeave = leaveList.filter((l) => (l.status || "").toLowerCase() === "approved");
         let leaveDays = 0;
         for (const lv of approvedLeave) {
@@ -4602,28 +4513,15 @@ export async function registerRoutes(
         const ftdLeads = leadsList.length;
         const overallLeads = leadsList.length + insList.length;
         const ftdLoansValue = leadsList
-          .filter((l) => leadEffectiveDateStr(l) === todayStr)
+          .filter((l) => toDateStr((l as any).date) === todayStr)
           .reduce((sum, l) => sum + getLeadRequestAmount(l as any), 0);
         const mtdLoansValue = leadsList.reduce((sum, l) => sum + getLeadRequestAmount(l as any), 0);
         const loggedValue = leadsList
           .filter((l) => getLeadStatus(l as any) === "logged")
           .reduce((sum, l) => sum + getLeadRequestAmount(l as any), 0);
-        const leadIdsInRange = new Set(leadsList.map((l) => l.id));
-        const leadsUpToEnd = await storage.getLeadsByEmployee(uid, undefined, monthEnd);
-        const carriedSanctioned = leadsUpToEnd
-          .filter((l) => getLeadStatus(l as any) === "sanctioned" && !leadIdsInRange.has(l.id));
-        const totalDisbursedValue = leadsUpToEnd
-          .filter((l) => getLeadStatus(l as any) === "disbursed" && leadEffectiveDateStr(l) <= monthEnd)
-          .reduce((sum, l) => sum + getLeadAmount(l as any), 0);
-        const totalSanctionedValue = leadsUpToEnd
-          .filter((l) => {
-            const sd = getLeadSanctionDate(l as any);
-            return !!sd && sd <= monthEnd;
-          })
-          .reduce((sum, l) => sum + getLeadSanctionAmount(l as any), 0);
-        const sanctionedValue = [...leadsList, ...carriedSanctioned]
+        const sanctionedValue = leadsList
           .filter((l) => getLeadStatus(l as any) === "sanctioned")
-          .reduce((sum, l) => sum + getLeadSanctionAmount(l as any), 0);
+          .reduce((sum, l) => sum + getLeadRequestAmount(l as any), 0);
         const disbursedValue = leadsList
           .filter((l) => getLeadStatus(l as any) === "disbursed")
           .reduce((sum, l) => sum + getLeadAmount(l as any), 0);
@@ -4632,7 +4530,7 @@ export async function registerRoutes(
           const v = (i as any).premiumCollected ?? (i as any).premium_collected ?? (i as any).premiumQuoted ?? (i as any).premium_quoted;
           return sum + parseAmount(v);
         }, 0);
-        // Summary row sources (all from DB): budget=company_monthly_target.totalBudget (admin) or sum(monthly_targets.assignedBudget) (team); achievement/disbursedValue=leads.loan_disbursed/amount where status=disbursed; ftdLoansValue=leads.amount where date=today; mtdLoansValue=leads.amount in range; loggedValue=leads.amount where status=logged; sanctionedValue=leads.loan_disbursed (else amount) where status=sanctioned, including sanctioned leads from earlier months (carried forward until disbursed); totalSanctionedValue=every lead that reached sanctioned stage (sanctioned or disbursed) with sanction date on or before the period end; totalDisbursedValue=all disbursed leads with disbursed date on or before the period end; mtdInsuranceValue=insurance_leads.premium_collected|premium_quoted; overallLeads=count(leads)+count(insurance_leads); daysPresent=attendance_logs count; leaveDays=approved leave_requests in range.
+        // Summary row sources (all from DB): budget=company_monthly_target.totalBudget (admin) or sum(monthly_targets.assignedBudget) (team); achievement/disbursedValue=leads.loan_disbursed/amount where status=disbursed; ftdLoansValue=leads.amount where date=today; mtdLoansValue=leads.amount in range; loggedValue/sanctionedValue=leads.amount where status=logged/sanctioned; mtdInsuranceValue=insurance_leads.premium_collected|premium_quoted; overallLeads=count(leads)+count(insurance_leads); daysPresent=attendance_logs count; leaveDays=approved leave_requests in range.
         rows.push({
           employeeId: uid,
           employeeNumber: empNum,
@@ -4653,18 +4551,15 @@ export async function registerRoutes(
           mtdLoansValue,
           loggedValue,
           sanctionedValue,
-          totalSanctionedValue,
           disbursedValue,
-          totalDisbursedValue,
           mtdInsuranceValue,
         });
-        for (const l of [...leadsList, ...carriedSanctioned]) {
+        for (const l of leadsList) {
           const lAny = l as Record<string, unknown>;
           leadRows.push({
             employeeNumber: empNum,
             employeeName: empName,
-            date: leadEffectiveDateStr(l),
-            leadDate: toDateStr(lAny.date ?? l.date),
+            date: toDateStr(lAny.date ?? l.date),
             customerName: String(lAny.customerName ?? l.customerName ?? ""),
             dateOfBirth: toDateStr(lAny.dateOfBirth ?? l.dateOfBirth),
             customerPhone: String(lAny.customerPhone ?? l.customerPhone ?? ""),
@@ -4775,41 +4670,20 @@ export async function registerRoutes(
           { header: "FTD Loans Value", key: "ftdLoansValue", width: 16 },
           { header: "MTD Loans Value", key: "mtdLoansValue", width: 16 },
           { header: "Logged Value", key: "loggedValue", width: 14 },
-          { header: "Sanctioned Value (Pending)", key: "sanctionedValue", width: 22 },
-          { header: "Total Sanctioned (Till Date)", key: "totalSanctionedValue", width: 24 },
-          { header: "Disbursed Value (This Month)", key: "disbursedValue", width: 24 },
-          { header: "Total Disbursed (Till Date)", key: "totalDisbursedValue", width: 22 },
+          { header: "Sanctioned Value", key: "sanctionedValue", width: 16 },
+          { header: "Disbursed Value", key: "disbursedValue", width: 16 },
           { header: "MTD Insurance Value", key: "mtdInsuranceValue", width: 18 },
           { header: "Overall Leads", key: "overallLeads", width: 14 },
           { header: "Days Present", key: "daysPresent", width: 14 },
           { header: "Leave Days", key: "leaveDays", width: 12 },
         ];
         summarySheet.addRows(rows);
-        const sumOf = (k: keyof (typeof rows)[number]) => rows.reduce((s, r) => s + (Number(r[k]) || 0), 0);
-        const totalRow = summarySheet.addRow({
-          name: "Overall Total",
-          achievement: sumOf("achievement"),
-          ftdLoansValue: sumOf("ftdLoansValue"),
-          mtdLoansValue: sumOf("mtdLoansValue"),
-          loggedValue: sumOf("loggedValue"),
-          sanctionedValue: sumOf("sanctionedValue"),
-          totalSanctionedValue: sumOf("totalSanctionedValue"),
-          disbursedValue: sumOf("disbursedValue"),
-          totalDisbursedValue: sumOf("totalDisbursedValue"),
-          mtdInsuranceValue: sumOf("mtdInsuranceValue"),
-          overallLeads: sumOf("overallLeads"),
-        });
-        totalRow.font = { bold: true };
         summarySheet.getRow(1).font = { bold: true };
         const leadsSheet = workbook.addWorksheet("Leads");
         const leadCols = [
           { header: "Employee ID", key: "employeeNumber", width: 12 },
           { header: "Employee Name", key: "employeeName", width: 18 },
           { header: "Date", key: "date", width: 12 },
-          { header: "Lead Logged Date", key: "leadDate", width: 14 },
-          { header: "Status", key: "status", width: 12 },
-          { header: "Sanctioned On", key: "loanSanctionedAt", width: 14 },
-          { header: "Disbursed On", key: "loanDisbursedAt", width: 14 },
           { header: "Customer Name", key: "customerName", width: 20 },
           { header: "DOB", key: "dateOfBirth", width: 12 },
           { header: "Phone", key: "customerPhone", width: 14 },
@@ -4826,6 +4700,9 @@ export async function registerRoutes(
           { header: "Tenure", key: "tenure", width: 8 },
           { header: "ROI", key: "roi", width: 8 },
           { header: "Disbursed Amount", key: "loanDisbursed", width: 16 },
+          { header: "Sanctioned At", key: "loanSanctionedAt", width: 12 },
+          { header: "Disbursed At", key: "loanDisbursedAt", width: 12 },
+          { header: "Status", key: "status", width: 12 },
           { header: "Notes", key: "notes", width: 24 },
           { header: "Form Location", key: "formLocation", width: 28 },
           { header: "Payout %", key: "payoutPercent", width: 10 },

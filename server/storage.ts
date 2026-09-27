@@ -53,17 +53,8 @@ import {
   targetAuditLog,
   holidayCalendar,
 } from "@shared/schema";
-import { eq, and, desc, gte, lte, isNull, isNotNull, inArray, sql } from "drizzle-orm";
-
-/** A lead's "effective" date: disbursed date for disbursed leads, otherwise the date the lead was logged. */
-const leadEffectiveDate = sql`(CASE
-  WHEN LOWER(${leads.status}) = 'disbursed' AND ${leads.loanDisbursedAt} IS NOT NULL THEN ${leads.loanDisbursedAt}
-  ELSE ${leads.date}
-END)`;
-import { db as maybeDb, hasDb } from "./db";
-
-/** Every DrizzleStorage method calls guardDb() first, which throws when the DB is not configured. */
-const db = maybeDb as NonNullable<typeof maybeDb>;
+import { eq, and, desc, gte, lte, isNull, isNotNull, inArray } from "drizzle-orm";
+import { db, hasDb } from "./db";
 import { hashPassword } from "./lib/password";
 
 export interface IStorage {
@@ -94,8 +85,8 @@ export interface IStorage {
 
   createLead(data: InsertLead): Promise<Lead>;
   getLead(id: string): Promise<Lead | undefined>;
-  getLeadsByEmployee(employeeId: string, fromDate?: string, toDate?: string, opts?: { byEffectiveDate?: boolean }): Promise<Lead[]>;
-  getAllLeads(filters?: { employeeId?: string; fromDate?: string; toDate?: string; status?: string; byEffectiveDate?: boolean }): Promise<Lead[]>;
+  getLeadsByEmployee(employeeId: string, fromDate?: string, toDate?: string): Promise<Lead[]>;
+  getAllLeads(filters?: { employeeId?: string; fromDate?: string; toDate?: string; status?: string }): Promise<Lead[]>;
   updateLead(id: string, data: Partial<InsertLead>): Promise<Lead | undefined>;
   deleteLead(id: string): Promise<void>;
   listEmployees(filters?: { teamLeadId?: string; unassignedOnly?: boolean }): Promise<User[]>;
@@ -193,14 +184,6 @@ export interface IStorage {
   updateHoliday(id: string, data: Partial<InsertHolidayCalendar>): Promise<HolidayCalendar | undefined>;
   deleteHoliday(id: string): Promise<void>;
   isHoliday(dateStr: string): Promise<{ isHoliday: boolean; holidayType?: "full_day" | "half_day"; occasion?: string }>;
-}
-
-/**
- * DATE columns are typed as JS Date, but drizzle passes values to mysql2 unchanged and MySQL
- * compares 'YYYY-MM-DD' strings exactly; a Date object would be serialized in server local time.
- */
-function ymd(value: string): Date {
-  return value as unknown as Date;
 }
 
 async function guardDb() {
@@ -340,7 +323,7 @@ export class DrizzleStorage implements IStorage {
     const [a] = await db
       .select()
       .from(attendanceLogs)
-      .where(and(eq(attendanceLogs.employeeId, employeeId), eq(attendanceLogs.date, ymd(dateStr))))
+      .where(and(eq(attendanceLogs.employeeId, employeeId), eq(attendanceLogs.date, dateStr)))
       .limit(1);
     return a;
   }
@@ -352,8 +335,8 @@ export class DrizzleStorage implements IStorage {
   ): Promise<AttendanceLog[]> {
     await guardDb();
     const conditions = [eq(attendanceLogs.employeeId, employeeId)];
-    if (fromDate) conditions.push(gte(attendanceLogs.date, ymd(fromDate)));
-    if (toDate) conditions.push(lte(attendanceLogs.date, ymd(toDate)));
+    if (fromDate) conditions.push(gte(attendanceLogs.date, fromDate));
+    if (toDate) conditions.push(lte(attendanceLogs.date, toDate));
     const rows = await db
       .select()
       .from(attendanceLogs)
@@ -365,8 +348,8 @@ export class DrizzleStorage implements IStorage {
   async getAllAttendanceLogs(fromDate?: string, toDate?: string): Promise<AttendanceLog[]> {
     await guardDb();
     const conditions = [];
-    if (fromDate) conditions.push(gte(attendanceLogs.date, ymd(fromDate)));
-    if (toDate) conditions.push(lte(attendanceLogs.date, ymd(toDate)));
+    if (fromDate) conditions.push(gte(attendanceLogs.date, fromDate));
+    if (toDate) conditions.push(lte(attendanceLogs.date, toDate));
     const rows = await db
       .select()
       .from(attendanceLogs)
@@ -401,7 +384,7 @@ export class DrizzleStorage implements IStorage {
       return updated;
     }
     await db.insert(attendanceLogs).values(data);
-    const created = await this.getAttendanceLog(data.employeeId, toDateStr(data.date));
+    const created = await this.getAttendanceLog(data.employeeId, data.date as string);
     if (!created) throw new Error("Failed to create attendance");
     return created;
   }
@@ -502,8 +485,8 @@ export class DrizzleStorage implements IStorage {
   async getHolidays(fromDate?: string, toDate?: string): Promise<HolidayCalendar[]> {
     await guardDb();
     const conditions = [eq(holidayCalendar.isActive, 1)];
-    if (fromDate) conditions.push(gte(holidayCalendar.date, ymd(fromDate)));
-    if (toDate) conditions.push(lte(holidayCalendar.date, ymd(toDate)));
+    if (fromDate) conditions.push(gte(holidayCalendar.date, fromDate));
+    if (toDate) conditions.push(lte(holidayCalendar.date, toDate));
     return db.select().from(holidayCalendar).where(and(...conditions)).orderBy(desc(holidayCalendar.date));
   }
 
@@ -541,7 +524,7 @@ export class DrizzleStorage implements IStorage {
     const [r] = await db
       .select()
       .from(holidayCalendar)
-      .where(and(eq(holidayCalendar.date, ymd(dateStr)), eq(holidayCalendar.isActive, 1)))
+      .where(and(eq(holidayCalendar.date, dateStr), eq(holidayCalendar.isActive, 1)))
       .limit(1);
     if (!r) return { isHoliday: false };
     const t = ((r as any).holidayType ?? "full_day") as "full_day" | "half_day";
@@ -566,18 +549,12 @@ export class DrizzleStorage implements IStorage {
   async getLeadsByEmployee(
     employeeId: string,
     fromDate?: string,
-    toDate?: string,
-    opts?: { byEffectiveDate?: boolean }
+    toDate?: string
   ): Promise<Lead[]> {
     await guardDb();
     const conditions = [eq(leads.employeeId, employeeId)];
-    if (opts?.byEffectiveDate) {
-      if (fromDate) conditions.push(sql`${leadEffectiveDate} >= ${fromDate}`);
-      if (toDate) conditions.push(sql`${leadEffectiveDate} <= ${toDate}`);
-      return db.select().from(leads).where(and(...conditions)).orderBy(sql`${leadEffectiveDate} DESC`, desc(leads.createdAt));
-    }
-    if (fromDate) conditions.push(gte(leads.date, ymd(fromDate)));
-    if (toDate) conditions.push(lte(leads.date, ymd(toDate)));
+    if (fromDate) conditions.push(gte(leads.date, fromDate));
+    if (toDate) conditions.push(lte(leads.date, toDate));
     return db.select().from(leads).where(and(...conditions)).orderBy(desc(leads.date), desc(leads.createdAt));
   }
 
@@ -586,28 +563,21 @@ export class DrizzleStorage implements IStorage {
     fromDate?: string;
     toDate?: string;
     status?: string;
-    byEffectiveDate?: boolean;
   }): Promise<Lead[]> {
     await guardDb();
     const conditions = [];
-    const byEffective = !!filters?.byEffectiveDate;
     if (filters?.employeeId) conditions.push(eq(leads.employeeId, filters.employeeId));
-    if (filters?.fromDate) {
-      conditions.push(byEffective ? sql`${leadEffectiveDate} >= ${filters.fromDate}` : gte(leads.date, ymd(filters.fromDate)));
-    }
-    if (filters?.toDate) {
-      conditions.push(byEffective ? sql`${leadEffectiveDate} <= ${filters.toDate}` : lte(leads.date, ymd(filters.toDate)));
-    }
+    if (filters?.fromDate) conditions.push(gte(leads.date, filters.fromDate));
+    if (filters?.toDate) conditions.push(lte(leads.date, filters.toDate));
     if (filters?.status) conditions.push(eq(leads.status, filters.status as any));
-    const order = byEffective ? sql`${leadEffectiveDate} DESC` : desc(leads.date);
     if (conditions.length === 0) {
-      return db.select().from(leads).orderBy(order, desc(leads.createdAt));
+      return db.select().from(leads).orderBy(desc(leads.date), desc(leads.createdAt));
     }
     return db
       .select()
       .from(leads)
       .where(and(...conditions))
-      .orderBy(order, desc(leads.createdAt));
+      .orderBy(desc(leads.date), desc(leads.createdAt));
   }
 
   async updateLead(id: string, data: Partial<InsertLead>): Promise<Lead | undefined> {
@@ -665,7 +635,7 @@ export class DrizzleStorage implements IStorage {
     const rows = await db
       .select()
       .from(leads)
-      .where(and(eq(leads.employeeId, employeeId), eq(leads.date, ymd(dateStr))));
+      .where(and(eq(leads.employeeId, employeeId), eq(leads.date, dateStr)));
     return rows.length;
   }
 
@@ -691,8 +661,8 @@ export class DrizzleStorage implements IStorage {
   ): Promise<InsuranceLead[]> {
     await guardDb();
     const conditions = [eq(insuranceLeads.employeeId, employeeId)];
-    if (fromDate) conditions.push(gte(insuranceLeads.date, ymd(fromDate)));
-    if (toDate) conditions.push(lte(insuranceLeads.date, ymd(toDate)));
+    if (fromDate) conditions.push(gte(insuranceLeads.date, fromDate));
+    if (toDate) conditions.push(lte(insuranceLeads.date, toDate));
     return db
       .select()
       .from(insuranceLeads)
@@ -708,8 +678,8 @@ export class DrizzleStorage implements IStorage {
     await guardDb();
     const conditions = [];
     if (filters?.employeeId) conditions.push(eq(insuranceLeads.employeeId, filters.employeeId));
-    if (filters?.fromDate) conditions.push(gte(insuranceLeads.date, ymd(filters.fromDate)));
-    if (filters?.toDate) conditions.push(lte(insuranceLeads.date, ymd(filters.toDate)));
+    if (filters?.fromDate) conditions.push(gte(insuranceLeads.date, filters.fromDate));
+    if (filters?.toDate) conditions.push(lte(insuranceLeads.date, filters.toDate));
     if (conditions.length === 0) {
       return db
         .select()
@@ -739,8 +709,8 @@ export class DrizzleStorage implements IStorage {
         and(
           inArray(insuranceLeads.employeeId, employeeIds),
           isNotNull(insuranceLeads.policyEndDate),
-          gte(insuranceLeads.policyEndDate, ymd(startStr)),
-          lte(insuranceLeads.policyEndDate, ymd(endStr)),
+          gte(insuranceLeads.policyEndDate, startStr),
+          lte(insuranceLeads.policyEndDate, endStr),
           isNull(insuranceLeads.renewedAt)
         )
       )
@@ -1056,11 +1026,11 @@ export class DrizzleStorage implements IStorage {
     await guardDb();
     const conditions = [eq(leaveRequests.employeeId, employeeId)];
     if (fromDate && toDate) {
-      conditions.push(lte(leaveRequests.startDate, ymd(toDate)));
-      conditions.push(gte(leaveRequests.endDate, ymd(fromDate)));
+      conditions.push(lte(leaveRequests.startDate, toDate));
+      conditions.push(gte(leaveRequests.endDate, fromDate));
     } else {
-      if (fromDate) conditions.push(gte(leaveRequests.startDate, ymd(fromDate)));
-      if (toDate) conditions.push(lte(leaveRequests.endDate, ymd(toDate)));
+      if (fromDate) conditions.push(gte(leaveRequests.startDate, fromDate));
+      if (toDate) conditions.push(lte(leaveRequests.endDate, toDate));
     }
     return db
       .select()
@@ -1077,8 +1047,8 @@ export class DrizzleStorage implements IStorage {
     if (employeeIds.length === 0) return [];
     const conditions = [inArray(leaveRequests.employeeId, employeeIds)];
     if (filters?.status) conditions.push(eq(leaveRequests.status, filters.status as any));
-    if (filters?.fromDate) conditions.push(gte(leaveRequests.endDate, ymd(filters.fromDate)));
-    if (filters?.toDate) conditions.push(lte(leaveRequests.startDate, ymd(filters.toDate)));
+    if (filters?.fromDate) conditions.push(gte(leaveRequests.endDate, filters.fromDate));
+    if (filters?.toDate) conditions.push(lte(leaveRequests.startDate, filters.toDate));
     return db
       .select()
       .from(leaveRequests)
@@ -1489,7 +1459,7 @@ class NoDbStorage implements IStorage {
     this.guard();
     return undefined;
   }
-  async createUser(): Promise<never> {
+  async createUser() {
     this.guard();
     throw new Error("Not implemented");
   }
@@ -1519,22 +1489,22 @@ class NoDbStorage implements IStorage {
     this.guard();
     return [];
   }
-  async upsertAttendanceLog(): Promise<never> {
+  async upsertAttendanceLog() {
     this.guard();
     throw new Error("Not implemented");
   }
-  async setAttendanceLogin(): Promise<never> {
+  async setAttendanceLogin() {
     this.guard();
     throw new Error("Not implemented");
   }
-  async setAttendanceLogout(): Promise<never> {
+  async setAttendanceLogout() {
     this.guard();
     throw new Error("Not implemented");
   }
   async updateAttendanceFromLeadsCount() {
     this.guard();
   }
-  async createLead(): Promise<never> {
+  async createLead() {
     this.guard();
     throw new Error("Not implemented");
   }
@@ -1565,7 +1535,7 @@ class NoDbStorage implements IStorage {
     this.guard();
     return [];
   }
-  async createLeaveRequest(): Promise<never> {
+  async createLeaveRequest() {
     this.guard();
     throw new Error("Not implemented");
   }
@@ -1585,7 +1555,7 @@ class NoDbStorage implements IStorage {
     this.guard();
     return undefined;
   }
-  async createResignationRequest(): Promise<never> {
+  async createResignationRequest() {
     this.guard();
     throw new Error("Not implemented");
   }
@@ -1605,7 +1575,7 @@ class NoDbStorage implements IStorage {
     this.guard();
     return undefined;
   }
-  async createProbationConfirmation(): Promise<never> {
+  async createProbationConfirmation() {
     this.guard();
     throw new Error("Not implemented");
   }
@@ -1632,7 +1602,7 @@ class NoDbStorage implements IStorage {
     this.guard();
     return 0;
   }
-  async createInsuranceLead(): Promise<never> {
+  async createInsuranceLead() {
     this.guard();
     throw new Error("Not implemented");
   }
@@ -1667,7 +1637,7 @@ class NoDbStorage implements IStorage {
     this.guard();
     return undefined;
   }
-  async createAdminExpense(): Promise<never> {
+  async createAdminExpense() {
     this.guard();
     throw new Error("Not implemented");
   }
@@ -1692,7 +1662,7 @@ class NoDbStorage implements IStorage {
     this.guard();
     return undefined;
   }
-  async createLeaderExpenseRequest(): Promise<never> {
+  async createLeaderExpenseRequest() {
     this.guard();
     throw new Error("Not implemented");
   }
@@ -1707,7 +1677,7 @@ class NoDbStorage implements IStorage {
     this.guard();
     return undefined;
   }
-  async upsertSalaryStructure(): Promise<never> {
+  async upsertSalaryStructure() {
     this.guard();
     throw new Error("Not implemented");
   }
@@ -1719,7 +1689,7 @@ class NoDbStorage implements IStorage {
     this.guard();
     return [];
   }
-  async upsertPayrollEntry(): Promise<never> {
+  async upsertPayrollEntry() {
     this.guard();
     throw new Error("Not implemented");
   }
@@ -1739,11 +1709,11 @@ class NoDbStorage implements IStorage {
     this.guard();
     return [];
   }
-  async upsertPayslip(): Promise<never> {
+  async upsertPayslip() {
     this.guard();
     throw new Error("Not implemented");
   }
-  async createOfferLetterTemplate(): Promise<never> {
+  async createOfferLetterTemplate() {
     this.guard();
     throw new Error("Not implemented");
   }
@@ -1759,7 +1729,7 @@ class NoDbStorage implements IStorage {
     this.guard();
     return undefined;
   }
-  async createOfferLetter(): Promise<never> {
+  async createOfferLetter() {
     this.guard();
     throw new Error("Not implemented");
   }
@@ -1787,7 +1757,7 @@ class NoDbStorage implements IStorage {
     this.guard();
     return undefined;
   }
-  async upsertCompanyMonthlyTarget(): Promise<never> {
+  async upsertCompanyMonthlyTarget() {
     this.guard();
     throw new Error("Not implemented");
   }
@@ -1799,7 +1769,7 @@ class NoDbStorage implements IStorage {
     this.guard();
     return [];
   }
-  async upsertMonthlyTarget(): Promise<never> {
+  async upsertMonthlyTarget() {
     this.guard();
     throw new Error("Not implemented");
   }
@@ -1810,11 +1780,11 @@ class NoDbStorage implements IStorage {
     this.guard();
     return { achievedBudget: 0, achievedLeads: 0 };
   }
-  async insertTargetAuditLog(): Promise<never> {
+  async insertTargetAuditLog() {
     this.guard();
     throw new Error("Not implemented");
   }
-  async upsertMonthlyPerformance(): Promise<never> {
+  async upsertMonthlyPerformance() {
     this.guard();
     throw new Error("Not implemented");
   }
@@ -1830,7 +1800,7 @@ class NoDbStorage implements IStorage {
     this.guard();
     return undefined;
   }
-  async createHoliday(): Promise<never> {
+  async createHoliday() {
     this.guard();
     throw new Error("Not implemented");
   }

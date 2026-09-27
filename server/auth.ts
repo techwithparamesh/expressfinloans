@@ -48,10 +48,10 @@ function toStaffUser(u: User): StaffUser {
     id: u.id,
     username: u.username,
     role: u.role as "admin" | "team_lead" | "employee",
-    fullName: u.fullName ?? null,
-    email: u.email ?? null,
-    phone: u.phone ?? null,
-    avatarUrl: u.avatarUrl ?? null,
+    fullName: u.fullName ?? undefined,
+    email: u.email ?? undefined,
+    phone: u.phone ?? undefined,
+    avatarUrl: (u as any).avatarUrl ?? undefined,
   };
 }
 

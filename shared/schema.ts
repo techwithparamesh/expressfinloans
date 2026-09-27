@@ -1,5 +1,4 @@
 import {
-  type AnyMySqlColumn,
   date,
   decimal,
   int,
@@ -25,8 +24,8 @@ export const users = mysqlTable("users", {
   avatarUrl: varchar("avatar_url", { length: 512 }),
   employeeNumber: varchar("employee_number", { length: 10 }), // 4-digit display ID e.g. 1001
   monthlyLeadTarget: int("monthly_lead_target"), // admin-allocated target; null = use default (20)
-  teamLeadId: varchar("team_lead_id", { length: 36 }).references((): AnyMySqlColumn => users.id, { onDelete: "set null" }), // employee's Team Lead (null = unassigned)
-  reportingTo: varchar("reporting_to", { length: 36 }).references((): AnyMySqlColumn => users.id, { onDelete: "set null" }), // hierarchical: who this user reports to (null for admin)
+  teamLeadId: varchar("team_lead_id", { length: 36 }).references(() => users.id, { onDelete: "set null" }), // employee's Team Lead (null = unassigned)
+  reportingTo: varchar("reporting_to", { length: 36 }).references(() => users.id, { onDelete: "set null" }), // hierarchical: who this user reports to (null for admin)
   isActive: int("is_active").notNull().default(1), // 1 = active, 0 = inactive
   designation: varchar("designation", { length: 100 }), // job title for payslips
   bankAccountNumber: varchar("bank_account_number", { length: 50 }),
