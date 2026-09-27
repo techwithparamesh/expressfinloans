@@ -232,12 +232,11 @@ export default function StaffLeads() {
       toast({ title: "Bank logged is required", variant: "destructive" });
       return;
     }
-    const leadStatus = (leadForm.status || "").trim().toLowerCase();
-    if ((leadStatus === "sanctioned" || leadStatus === "disbursed") && !leadForm.loanSanctionedAt) {
+    if (!leadForm.loanSanctionedAt) {
       toast({ title: "Loan sanctioned date is required", variant: "destructive" });
       return;
     }
-    if (leadStatus === "disbursed" && !leadForm.loanDisbursedAt) {
+    if (!leadForm.loanDisbursedAt) {
       toast({ title: "Loan disbursed date is required", variant: "destructive" });
       return;
     }
@@ -689,15 +688,13 @@ export default function StaffLeads() {
                 </div>
                 <div className="space-y-2">
                   <Label>
-                    Loan sanctioned date
-                    {["sanctioned", "disbursed"].includes((leadForm.status || "").toLowerCase()) && <span className="text-red-500"> *</span>}
+                    Loan sanctioned date <span className="text-red-500">*</span>
                   </Label>
                   <DateInput value={leadForm.loanSanctionedAt} onChange={(e) => setLeadForm((f) => ({ ...f, loanSanctionedAt: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
                   <Label>
-                    Loan disbursed date
-                    {(leadForm.status || "").toLowerCase() === "disbursed" && <span className="text-red-500"> *</span>}
+                    Loan disbursed date <span className="text-red-500">*</span>
                   </Label>
                   <DateInput value={leadForm.loanDisbursedAt} onChange={(e) => setLeadForm((f) => ({ ...f, loanDisbursedAt: e.target.value }))} />
                 </div>

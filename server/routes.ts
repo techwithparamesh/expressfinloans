@@ -274,21 +274,18 @@ function toDateStr(value: unknown): string {
   return `${y}-${m}-${day}`;
 }
 
-/** Bank logged is always required; sanctioned/disbursed dates are required once the lead reaches that stage. */
+/** Bank logged, sanctioned date and disbursed date are required on every loan lead. */
 function validateLeadStageFields(v: {
   status: unknown;
   companyLogged: unknown;
   loanSanctionedAt: unknown;
   loanDisbursedAt: unknown;
 }): string | null {
-  const status = String(v.status ?? "").trim().toLowerCase();
   const sanctioned = toDateStr(v.loanSanctionedAt);
   const disbursed = toDateStr(v.loanDisbursedAt);
   if (!String(v.companyLogged ?? "").trim()) return "Bank logged is required";
-  if ((status === "sanctioned" || status === "disbursed") && !sanctioned) {
-    return "Loan sanctioned date is required";
-  }
-  if (status === "disbursed" && !disbursed) return "Loan disbursed date is required";
+  if (!sanctioned) return "Loan sanctioned date is required";
+  if (!disbursed) return "Loan disbursed date is required";
   if (sanctioned && sanctioned > todayStr()) return "Loan sanctioned date cannot be in the future";
   if (disbursed && disbursed > todayStr()) return "Loan disbursed date cannot be in the future";
   if (sanctioned && disbursed && disbursed < sanctioned) {

@@ -483,12 +483,11 @@ export default function StaffMyLeads() {
       toast({ title: "Bank logged is required", variant: "destructive" });
       return;
     }
-    const loanStatus = (loanForm.status || "").trim().toLowerCase();
-    if ((loanStatus === "sanctioned" || loanStatus === "disbursed") && !loanForm.loanSanctionedAt?.trim()) {
+    if (!loanForm.loanSanctionedAt?.trim()) {
       toast({ title: "Loan sanctioned date is required", variant: "destructive" });
       return;
     }
-    if (loanStatus === "disbursed" && !loanForm.loanDisbursedAt?.trim()) {
+    if (!loanForm.loanDisbursedAt?.trim()) {
       toast({ title: "Loan disbursed date is required", variant: "destructive" });
       return;
     }
@@ -1322,9 +1321,7 @@ export default function StaffMyLeads() {
                         placeholder="e.g. 10.5"
                       />
                     </div>
-                    <h4 className="text-sm font-medium text-slate-700">Loan Sanctioned / Disbursed</h4>
-                    <p className="text-xs text-slate-500">Sanctioned date is required when status is Sanctioned or Disbursed; disbursed date is required when status is Disbursed.</p>
-                    <div className="rounded-md border overflow-hidden">
+                    <h4 className="text-sm font-medium text-slate-700">Loan Sanctioned / Disbursed</h4>                    <div className="rounded-md border overflow-hidden">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b bg-slate-50">
@@ -1336,10 +1333,7 @@ export default function StaffMyLeads() {
                         <tbody>
                           <tr className="border-b">
                             <td className="py-2 px-3 font-medium">
-                              Loan Sanctioned
-                              {["sanctioned", "disbursed"].includes((loanForm.status || "").toLowerCase()) && (
-                                <span className="text-red-500"> *</span>
-                              )}
+                              Loan Sanctioned <span className="text-red-500">*</span>
                             </td>
                             <td className="py-2 px-3">
                               <DateInput
@@ -1356,10 +1350,7 @@ export default function StaffMyLeads() {
                           </tr>
                           <tr>
                             <td className="py-2 px-3 font-medium">
-                              Loan Disbursed
-                              {(loanForm.status || "").toLowerCase() === "disbursed" && (
-                                <span className="text-red-500"> *</span>
-                              )}
+                              Loan Disbursed <span className="text-red-500">*</span>
                             </td>
                             <td className="py-2 px-3">
                               <DateInput
